@@ -1,0 +1,81 @@
+# =========================
+# Node.js (Frontend + Backend)
+# =========================
+node_modules
+**/node_modules
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Build output
+# =========================
+dist
+build
+**/dist
+**/build
+
+# =========================
+# Vite
+# =========================
+.vite
+
+# =========================
+# Logs
+# =========================
+logs
+*.log
+
+# =========================
+# Runtime files
+# =========================
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# =========================
+# Coverage (testing)
+# =========================
+coverage
+*.lcov
+
+# =========================
+# Cache
+# =========================
+.cache
+.eslintcache
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# =========================
+# Temporary files
+# =========================
+tmp
+temp
+
+# =========================
+# Upload / storage (Express common)
+# =========================
+uploads/*
+!uploads/.gitkeep

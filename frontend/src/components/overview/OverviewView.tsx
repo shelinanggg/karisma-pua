@@ -8,7 +8,7 @@ import { mockWorkspaces, mockProjects, mockKPIs } from '../../data/mockData';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
 
-export function OverviewView() {
+export function   OverviewView() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
 
   if (selectedWorkspace) {
