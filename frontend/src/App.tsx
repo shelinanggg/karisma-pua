@@ -10,9 +10,15 @@ import { PersonalDashboard } from './components/personal/PersonalDashboard';
 import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
+import { LoginPage } from './components/login/LoginPage';
 
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeView, setActiveView] = useState('overview');
+
+  if (!isLoggedIn) {
+    return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
 
   const renderView = () => {
     switch (activeView) {
