@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { findUserByNip } from "../repositories/user.repository.js";
 
-export const login = async ({ nip, password }) => {
+export const loginService = async ({ nip, password }) => {
   const user = await findUserByNip(nip);
 
   if (!user) {
