@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Filter, Calendar, Users, FileText, Zap, MessageSquare } from 'lucide-react';
+import { Filter, Calendar, Users, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -7,122 +7,158 @@ import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { mockProjects, mockTasks, mockDeliverables } from '../../data/mockData';
+import { mockProjects, mockDeliverables } from '../../data/mockData';
+
+const getStatusLabel = (status: 'Active' | 'Paused' | 'Completed') => {
+  if (status === 'Active') return 'Aktif';
+  if (status === 'Paused') return 'Ditunda';
+  return 'Selesai';
+};
+
+const getBookMetrics = (project: (typeof mockProjects)[number]) => {
+  const targetBooks = Math.max(project.activeTasks, project.completedTasks);
+  const uploadedBooks = Math.min(project.completedTasks, targetBooks);
+  const completionPercent = targetBooks === 0 ? 100 : Math.round((uploadedBooks / targetBooks) * 100);
+
+  return { targetBooks, uploadedBooks, completionPercent };
+};
 
 export function ProjectsView() {
   const [selectedProject, setSelectedProject] = useState(mockProjects[0]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
-  const filteredProjects = statusFilter === 'all' 
-    ? mockProjects 
-    : mockProjects.filter(p => p.status === statusFilter);
-  
-  const projectTasks = mockTasks.filter(t => t.projectId === selectedProject.id);
-  const projectDeliverables = mockDeliverables.filter(d => d.projectId === selectedProject.id);
+
+  const filteredProjects =
+    statusFilter === 'all' ? mockProjects : mockProjects.filter((project) => project.status === statusFilter);
+
+  const projectDeliverables = mockDeliverables.filter((deliverable) => deliverable.projectId === selectedProject.id);
+
+  const {
+    targetBooks: selectedTargetBooks,
+    uploadedBooks: selectedUploadedBooks,
+    completionPercent: selectedCompletionPercent,
+  } = getBookMetrics(selectedProject);
+
+  const daysRemaining = Math.ceil(
+    (new Date(selectedProject.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const isOverdue = daysRemaining < 0;
+  const displayDays = Math.abs(daysRemaining);
 
   return (
-    <div className="flex h-full gap-6">
-      <div className="w-80 space-y-4">
+    <div className="flex h-full gap-6 min-w-0">
+      <div className="w-[22rem] shrink-0 space-y-4">
         <div className="flex items-center justify-between">
-          <h2>Projects</h2>
+          <h2>Ketercapaian</h2>
           <Button size="sm" variant="ghost">
             <Filter className="w-4 h-4" />
           </Button>
         </div>
-        
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger>
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder="Filter berdasarkan status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Paused">Paused</SelectItem>
-            <SelectItem value="Completed">Completed</SelectItem>
+            <SelectItem value="all">Semua Ketercapaian</SelectItem>
+            <SelectItem value="Active">Aktif</SelectItem>
+            <SelectItem value="Paused">Ditunda</SelectItem>
+            <SelectItem value="Completed">Selesai</SelectItem>
           </SelectContent>
         </Select>
-        
-        <div className="space-y-2">
-          {filteredProjects.map((project) => (
-            <Card
-              key={project.id}
-              className={`cursor-pointer transition-all ${
-                selectedProject.id === project.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
-              }`}
-              onClick={() => setSelectedProject(project)}
-            >
-              <CardHeader className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm truncate">{project.name}</CardTitle>
-                    <CardDescription className="text-xs mt-1">{project.client}</CardDescription>
+
+        <div className="space-y-3">
+          {filteredProjects.map((project) => {
+            const { targetBooks, uploadedBooks, completionPercent } = getBookMetrics(project);
+
+            return (
+              <Card
+                key={project.id}
+                className={`cursor-pointer transition-all ${
+                  selectedProject.id === project.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
+                }`}
+                onClick={() => setSelectedProject(project)}
+              >
+                <CardHeader className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-sm leading-5">{project.name}</CardTitle>
+                      <CardDescription className="text-xs mt-1">
+                        {uploadedBooks} dari {targetBooks} buku sudah diunggah
+                      </CardDescription>
+                    </div>
+                    <Badge
+                      variant={project.status === 'Active' ? 'default' : 'secondary'}
+                      className="text-xs shrink-0"
+                    >
+                      {getStatusLabel(project.status)}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={project.status === 'Active' ? 'default' : 'secondary'}
-                    className="text-xs shrink-0"
-                  >
-                    {project.status}
-                  </Badge>
-                </div>
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-600">Progress</span>
-                    <span>{project.progress}%</span>
+
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-600">Upload Buku</span>
+                      <span>{completionPercent}%</span>
+                    </div>
+                    <Progress value={completionPercent} className="h-1.5" />
+                    <div className="flex justify-between text-xs text-gray-500 mt-2 gap-3">
+                      <span className="truncate">{uploadedBooks} buku terunggah</span>
+                      <span className="shrink-0">Target {targetBooks} buku</span>
+                    </div>
                   </div>
-                  <Progress value={project.progress} className="h-1" />
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                </CardHeader>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex-1 space-y-6">
-        <div>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1>{selectedProject.name}</h1>
-              <p className="text-gray-600 mt-1">{selectedProject.client}</p>
-            </div>
-            <Badge
-              variant={
-                selectedProject.status === 'Active' ? 'default' :
-                selectedProject.status === 'Paused' ? 'secondary' : 'outline'
-              }
-            >
-              {selectedProject.status}
-            </Badge>
+      <div className="flex-1 min-w-0 space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1>{selectedProject.name}</h1>
+            <p className="text-gray-600 mt-1">{selectedProject.client}</p>
           </div>
+          <Badge
+            variant={
+              selectedProject.status === 'Active'
+                ? 'default'
+                : selectedProject.status === 'Paused'
+                  ? 'secondary'
+                  : 'outline'
+            }
+          >
+            {getStatusLabel(selectedProject.status)}
+          </Badge>
         </div>
 
         <div className="grid grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Progress</CardDescription>
+              <CardDescription>Persentase Ketercapaian</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{selectedProject.progress}%</div>
+              <div className="text-2xl">{selectedCompletionPercent}%</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Active Tasks</CardDescription>
+              <CardDescription>Tujuan SKP</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{selectedProject.activeTasks}</div>
+              <div className="text-2xl">{selectedTargetBooks}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Completed</CardDescription>
+              <CardDescription>SKP Diselesaikan</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl">{selectedProject.completedTasks}</div>
+              <div className="text-2xl">{selectedUploadedBooks}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Team Size</CardDescription>
+              <CardDescription>Jumlah Pegawai</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-2xl">{selectedProject.assignedTeam.length}</div>
@@ -132,154 +168,101 @@ export function ProjectsView() {
 
         <Tabs defaultValue="summary" className="w-full">
           <TabsList>
-            <TabsTrigger value="summary">Summary</TabsTrigger>
-            <TabsTrigger value="tasks">Active Tasks</TabsTrigger>
-            <TabsTrigger value="completed">Completed Tasks</TabsTrigger>
-            <TabsTrigger value="deliverables">Deliverables</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="ai">AI Agent</TabsTrigger>
+            <TabsTrigger value="summary">Ringkasan</TabsTrigger>
+            <TabsTrigger value="deliverables">Dokumen</TabsTrigger>
+            <TabsTrigger value="team">Pegawai</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="summary" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Project Objectives</CardTitle>
+                <CardTitle>Tujuan & Sasaran Kegiatan</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-700">{selectedProject.objectives}</p>
               </CardContent>
             </Card>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
-                    Timeline
+                    Jadwal Kegiatan
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Deadline</span>
-                      <span>{new Date(selectedProject.deadline).toLocaleDateString()}</span>
+                      <span className="text-gray-600">Tenggat Waktu</span>
+                      <span>{new Date(selectedProject.deadline).toLocaleDateString('id-ID')}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Days Remaining</span>
-                      <span>
-                        {Math.ceil((new Date(selectedProject.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
-                      </span>
+                      <span className="text-gray-600">Sisa Waktu</span>
+                      <span>{isOverdue ? `Lewat ${displayDays} hari` : `${displayDays} hari`}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
-                    Connectors
+                    <Users className="w-5 h-5" />
+                    Informasi Unit Kerja
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">MS</div>
-                      <span className="text-sm">Microsoft Teams</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Unit Kerja</span>
+                      <span className="text-sm font-medium">{selectedProject.workspace}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">SP</div>
-                      <span className="text-sm">SharePoint</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Pegawai</span>
+                      <span className="text-sm font-medium">{selectedProject.assignedTeam.length} orang</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
-          
-          <TabsContent value="tasks">
+
+          <TabsContent value="deliverables">
             <Card>
               <CardHeader>
-                <CardTitle>Active Tasks</CardTitle>
-                <CardDescription>Active and pending tasks for this project</CardDescription>
+                <CardTitle>Dokumen Bukti Ketercapaian</CardTitle>
+                <CardDescription>Dokumen dan berkas terkait kegiatan SKP</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Due Date</TableHead>
+                      <TableHead>Nama Dokumen</TableHead>
+                      <TableHead>Jenis</TableHead>
+                      <TableHead>Diunggah Oleh</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Ukuran</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {projectTasks.filter(t => t.status !== 'Completed').map((task) => (
-                      <TableRow key={task.id}>
-                        <TableCell>{task.title}</TableCell>
-                        <TableCell>{task.assignedTo}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{task.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              task.priority === 'High' ? 'destructive' :
-                              task.priority === 'Medium' ? 'default' : 'secondary'
-                            }
-                          >
-                            {task.priority}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="completed">
-            <Card>
-              <CardHeader>
-                <CardTitle>Completed Tasks</CardTitle>
-                <CardDescription>Successfully completed tasks for this project</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Task</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Completed Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {projectTasks.filter(t => t.status === 'Completed').length > 0 ? (
-                      projectTasks.filter(t => t.status === 'Completed').map((task) => (
-                        <TableRow key={task.id} className="opacity-75">
-                          <TableCell>{task.title}</TableCell>
-                          <TableCell>{task.assignedTo}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                task.priority === 'High' ? 'destructive' :
-                                task.priority === 'Medium' ? 'default' : 'secondary'
-                              }
-                            >
-                              {task.priority}
-                            </Badge>
+                    {projectDeliverables.length > 0 ? (
+                      projectDeliverables.map((deliverable) => (
+                        <TableRow key={deliverable.id} className="cursor-pointer hover:bg-gray-50">
+                          <TableCell className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            {deliverable.name}
                           </TableCell>
-                          <TableCell>{new Date(task.dueDate).toLocaleDateString()}</TableCell>
+                          <TableCell>{deliverable.type}</TableCell>
+                          <TableCell>{deliverable.uploadedBy}</TableCell>
+                          <TableCell>{new Date(deliverable.uploadedDate).toLocaleDateString('id-ID')}</TableCell>
+                          <TableCell>{deliverable.size}</TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500 py-8">
-                          No completed tasks yet
+                        <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                          Belum ada dokumen untuk kegiatan ini
                         </TableCell>
                       </TableRow>
                     )}
@@ -288,116 +271,48 @@ export function ProjectsView() {
               </CardContent>
             </Card>
           </TabsContent>
-          
-          <TabsContent value="deliverables">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Deliverables</CardTitle>
-                <CardDescription>Files linked to SharePoint/OneDrive</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>File Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Uploaded By</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Size</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {projectDeliverables.map((deliverable) => (
-                      <TableRow key={deliverable.id} className="cursor-pointer hover:bg-gray-50">
-                        <TableCell className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-gray-400" />
-                          {deliverable.name}
-                        </TableCell>
-                        <TableCell>{deliverable.type}</TableCell>
-                        <TableCell>{deliverable.uploadedBy}</TableCell>
-                        <TableCell>{new Date(deliverable.uploadedDate).toLocaleDateString()}</TableCell>
-                        <TableCell>{deliverable.size}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
+
           <TabsContent value="team">
             <Card>
               <CardHeader>
-                <CardTitle>Assigned Team Members</CardTitle>
-                <CardDescription>Team members working on this project</CardDescription>
+                <CardTitle>Pegawai yang Terlibat</CardTitle>
+                <CardDescription>Pegawai yang mengerjakan kegiatan ini</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {selectedProject.assignedTeam.map((member, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-                          {member.split(' ').map(n => n[0]).join('')}
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        window.dispatchEvent(
+                          new CustomEvent('open-organization-member', {
+                            detail: { member },
+                          }),
+                        );
+                      }}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shrink-0">
+                          {member
+                            .split(' ')
+                            .map((name) => name[0])
+                            .join('')}
                         </div>
-                        <div>
-                          <p>{member}</p>
-                          <p className="text-sm text-gray-500">Analyst</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{member}</p>
+                          <p className="text-sm text-gray-500">Pegawai</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 shrink-0">
                         <div className="text-right">
-                          <p className="text-sm text-gray-600">Bandwidth</p>
-                          <p className="text-sm">75%</p>
+                          <p className="text-sm text-gray-600">SKP Progress</p>
+                          <p className="text-sm font-medium">75%</p>
                         </div>
                         <Progress value={75} className="w-24" />
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="ai">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  Project AI Assistant
-                </CardTitle>
-                <CardDescription>Get AI-powered insights and assistance for this project</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm">💡 <strong>AI Suggestion:</strong> Based on current progress and deadlines, consider prioritizing the "Analyze conversion funnel" task to stay on track.</p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4 space-y-3">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm">
-                        AI
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-700">Hello! I'm your project AI assistant. I can help you with:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li>Analyzing project data and trends</li>
-                          <li>Generating reports and summaries</li>
-                          <li>Suggesting task priorities</li>
-                          <li>Answering questions about deliverables</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Ask me anything about this project..."
-                      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <Button>Send</Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>
