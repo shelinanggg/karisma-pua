@@ -87,13 +87,6 @@ export function SettingsView() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm">Admin Visibility on Personal Workspaces</p>
-                      <p className="text-xs text-gray-500">Admins can view all personal workspaces</p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
                       <p className="text-sm">Auto-Archive Completed Projects</p>
                       <p className="text-xs text-gray-500">Archive projects 30 days after completion</p>
                     </div>
