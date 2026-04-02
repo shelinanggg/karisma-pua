@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { loginService } from "../services/authService";
-import { findUserByNip } from "../../../backend/src/repositories/user.repository";
 
 export const useAuth = () => {
     const [loading, setLoading] = useState(false);

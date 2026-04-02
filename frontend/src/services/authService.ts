@@ -6,4 +6,6 @@ export const loginService = async (payload: LoginRequest) => {
 
     localStorage.setItem("token", data.token)
     localStorage.setItem("role", data.role)
+
+    return data
 }

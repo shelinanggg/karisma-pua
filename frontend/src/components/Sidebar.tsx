@@ -2,10 +2,7 @@ import { LayoutDashboard, FolderKanban, Building2, User, Settings, ChevronRight,
 import { cn } from './ui/utils';
 import { Separator } from './ui/separator';
 
-interface SidebarProps {
-  activeView: string;
-  onViewChange: (view: string) => void;
-}
+import { useLocation, Link } from 'react-router-dom';
 
 const navItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -15,7 +12,10 @@ const navItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export function Sidebar() {
+  const location = useLocation();
+  const activeView = location.pathname.slice(1) || 'overview';
+
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">
       <div className="p-6 border-b border-gray-200">
@@ -33,8 +33,8 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             const Icon = item.icon;
             return (
               <li key={item.id}>
-                <button
-                  onClick={() => onViewChange(item.id)}
+                <Link
+                  to={`/${item.id}`}
                   className={cn(
                     "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     activeView === item.id
@@ -45,7 +45,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                   <Icon className="w-5 h-5" />
                   <span className="flex-1 text-left">{item.label}</span>
                   {activeView === item.id && <ChevronRight className="w-4 h-4" />}
-                </button>
+                </Link>
               </li>
             );
           })}
@@ -61,8 +61,8 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
           
           <ul className="space-y-1">
             <li>
-              <button
-                onClick={() => onViewChange('personal-dashboard')}
+              <Link
+                to="/personal-dashboard"
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm",
                   activeView === 'personal-dashboard'
@@ -72,11 +72,11 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span className="flex-1 text-left">Dashboard</span>
-              </button>
+              </Link>
             </li>
             <li>
-              <button
-                onClick={() => onViewChange('personal-projects')}
+              <Link
+                to="/personal-projects"
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm",
                   activeView === 'personal-projects'
@@ -87,11 +87,11 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 <Folder className="w-4 h-4" />
                 <span className="flex-1 text-left">My Projects</span>
                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">2</span>
-              </button>
+              </Link>
             </li>
             <li>
-              <button
-                onClick={() => onViewChange('personal-tasks')}
+              <Link
+                to="/personal-tasks"
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm",
                   activeView === 'personal-tasks'
@@ -102,11 +102,11 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 <CheckSquare className="w-4 h-4" />
                 <span className="flex-1 text-left">Tasks</span>
                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">8</span>
-              </button>
+              </Link>
             </li>
             <li>
-              <button
-                onClick={() => onViewChange('personal-drafts')}
+              <Link
+                to="/personal-drafts"
                 className={cn(
                   "w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm",
                   activeView === 'personal-drafts'
@@ -117,7 +117,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 <FileText className="w-4 h-4" />
                 <span className="flex-1 text-left">Drafts</span>
                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">3</span>
-              </button>
+              </Link>
             </li>
           </ul>
         </div>
