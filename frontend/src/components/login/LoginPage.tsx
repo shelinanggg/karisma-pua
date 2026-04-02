@@ -1,29 +1,39 @@
 import { useState } from 'react';
 import { Eye, EyeOff, ArrowRight, Lock, User } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
-interface LoginPageProps {
-  onLoginSuccess: () => void;
-}
+import { useNavigate } from 'react-router-dom';
 
 // Logo UNAIR dari Wikimedia Commons
 const UNAIR_LOGO_URL =
   'https://arsip.unair.ac.id/wp-content/uploads/2019/01/logo-unair.png';
 
-export function LoginPage({ onLoginSuccess }: LoginPageProps) {
+export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [nip, setNip] = useState("");
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const { login, loading, error } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // TODO: ganti dengan API call ke backend
-    setTimeout(() => {
-      setIsLoading(false);
-      onLoginSuccess();
-    }, 1500);
+
+    try {
+      const result = await login(nip, password);
+
+      // if (result.role === "pimpinan") {
+      //   navigate("/dashboard/pimpinan");
+      // } else if (result.role === "admin") {
+      //   navigate("/dashboard/admin");
+      // } else {
+      //   navigate("/dashboard/pegawai");
+      // }
+
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -413,12 +423,17 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 <a href="#" className="kp-forgot">Lupa kata sandi?</a>
               </div>
 
-              <button type="submit" className="kp-submit" disabled={isLoading}>
-                {isLoading
+              <button type="submit" className="kp-submit" disabled={loading}>
+                {loading
                   ? <><div className="kp-spinner" />Memproses...</>
                   : <>Masuk <ArrowRight size={15} /></>
                 }
               </button>
+              {error && (
+                <p style={{ color: "red", marginTop: "10px", fontSize: "13px" }}>
+                  {error}
+                </p>
+              )}
             </form>
 
             <p className="kp-note">

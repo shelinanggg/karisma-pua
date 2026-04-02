@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from "./axiosInstance";
 import { LoginRequest, LoginResponse } from "../types/auth";
 
 export const loginApi = async (payload: LoginRequest): Promise<LoginResponse> => {

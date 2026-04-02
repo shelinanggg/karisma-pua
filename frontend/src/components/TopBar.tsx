@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Bell, ChevronDown, Check, AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -102,6 +103,7 @@ export function TopBar() {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState(mockNotifications);
   const panelRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -194,9 +196,8 @@ export function TopBar() {
                     <div
                       key={notif.id}
                       onClick={() => markRead(notif.id)}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 ${
-                        !notif.read ? 'bg-white' : 'bg-gray-50/50 opacity-70'
-                      }`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 ${!notif.read ? 'bg-white' : 'bg-gray-50/50 opacity-70'
+                        }`}
                     >
                       {/* Icon */}
                       <div className={`w-8 h-8 rounded-lg ${cfg.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
@@ -255,7 +256,15 @@ export function TopBar() {
             <DropdownMenuItem>Profile Settings</DropdownMenuItem>
             <DropdownMenuItem>Preferences</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">Sign Out</DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-red-600"
+              onClick={() => {
+                localStorage.removeItem('token');
+                navigate('/login');
+              }}
+            >
+              Sign Out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
