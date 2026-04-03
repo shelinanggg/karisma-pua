@@ -22,15 +22,13 @@ export function LoginPage() {
     try {
       const result = await login(nip, password);
 
-      // if (result.role === "pimpinan") {
-      //   navigate("/dashboard/pimpinan");
-      // } else if (result.role === "admin") {
-      //   navigate("/dashboard/admin");
-      // } else {
-      //   navigate("/dashboard/pegawai");
-      // }
-
-      navigate('/');
+      if (result.role === "pimpinan") {
+        navigate("/pimpinan/overview");
+      } else if (result.role === "admin") {
+        navigate("/admin/overview");
+      } else {
+        navigate("/pegawai/overview");
+      }
     } catch (err) {
       console.error(err);
     }

@@ -7,7 +7,7 @@ export const findUserByNip = async (nip) => {
       users.name,
       users.password_hash,
       users.nip,
-      roles.name
+      roles.name AS roles_name
     FROM users
     JOIN roles ON roles.role_id = users.role_id
     WHERE users.nip = $1`, [nip]);
