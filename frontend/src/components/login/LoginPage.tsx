@@ -328,7 +328,7 @@ export function LoginPage() {
             <p className="kp-hero-p">
               Platform terintegrasi untuk administrasi kepegawaian, monitoring kinerja, dan manajemen karier staf perpustakaan Universitas Airlangga.
             </p>
-            <div className="kp-stats">
+            {/* <div className="kp-stats">
               {[
                 { value: '99%', label: 'Uptime Sistem' },
                 { value: '28',     label: 'Staf Aktif'      },
@@ -339,7 +339,7 @@ export function LoginPage() {
                   <div className="kp-stat-lbl">{label}</div>
                 </div>
               ))}
-            </div>
+            </div> */}
           </div>
 
           <p className="kp-footer">© 2026 Perpustakaan Universitas Airlangga · Surabaya</p>

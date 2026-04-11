@@ -2,13 +2,15 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { SidebarPimpinan } from './components/SidebarPimpinan';
 import { SidebarAdmin } from './components/SidebarAdmin';
-import { SidebarPegawai } from './components/SidebarPegawai';
+import { SidebarPegawai } from './components/pegawai/SidebarPegawai';
 import { TopBar } from './components/TopBar';
 import { OverviewView } from './components/overview/OverviewView';
 import { ProjectsView } from './components/projects/ProjectsView';
 import { OrganizationView } from './components/organization/OrganizationView';
 import { AccountView } from './components/account/AccountView';
+import { ProfilPegawaiView } from './components/pegawai/ProfilPegawaiView';
 import { SettingsView } from './components/settings/SettingsView';
+import { PegawaiSettingsView } from './components/pegawai/PegawaiSettingsView';
 import { PersonalDashboard } from './components/personal/PersonalDashboard';
 import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
@@ -115,8 +117,8 @@ export default function App() {
         <Route path="overview" element={<OverviewView />} />
         <Route path="projects" element={<ProjectsView />} />
         <Route path="organization" element={<OrganizationView />} />
-        <Route path="account" element={<AccountView />} />
-        <Route path="settings" element={<SettingsView />} />
+        <Route path="account" element={<ProfilPegawaiView />} />
+        <Route path="settings" element={<PegawaiSettingsView />} />
         <Route path="personal-dashboard" element={<PersonalDashboard />} />
         <Route path="personal-projects" element={<PersonalProjectsView />} />
         <Route path="personal-tasks" element={<PersonalTasksView />} />
