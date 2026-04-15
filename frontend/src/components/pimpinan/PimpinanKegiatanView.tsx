@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Search } from 'lucide-react';
-import { mockDeliverables, mockProjects } from '../../data/mockData';
+import { mockDeliverables, mockProjects, mockTasks } from '../../data/mockData';
 import type { Project } from '../../types';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -65,6 +65,11 @@ export function PimpinanKegiatanView() {
 
   const selectedProjectDeliverables = useMemo(
     () => mockDeliverables.filter((item) => item.projectId === selectedProject.id),
+    [selectedProject.id],
+  );
+
+  const selectedProjectTasks = useMemo(
+    () => mockTasks.filter((task) => task.projectId === selectedProject.id),
     [selectedProject.id],
   );
 
@@ -336,12 +341,32 @@ export function PimpinanKegiatanView() {
                     <CardContent>
                       <div className="space-y-3">
                         {selectedProject.assignedTeam.length > 0 ? (
-                          selectedProject.assignedTeam.map((member) => (
-                            <div key={member} className="rounded-lg border p-3">
-                              <p className="font-medium">{member}</p>
-                              <p className="text-sm text-gray-500">Pegawai</p>
-                            </div>
-                          ))
+                          selectedProject.assignedTeam.map((member) => {
+                            const memberTasks = selectedProjectTasks.filter((task) => task.assignedTo === member);
+                            const completedCount = memberTasks.filter((task) => task.status === 'Completed').length;
+                            const totalCount = memberTasks.length;
+                            const progressPercent =
+                              totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+                            return (
+                              <div key={member} className="rounded-lg border p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="font-medium">{member}</p>
+                                    <p className="text-sm text-gray-500">Pegawai</p>
+                                  </div>
+                                  <span className="text-sm font-semibold text-gray-700">{progressPercent}%</span>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <Progress value={progressPercent} className="h-2" />
+                                  <p className="text-xs text-gray-500">
+                                    {completedCount} dari {totalCount} tugas selesai
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })
                         ) : (
                           <p className="py-6 text-center text-gray-500">Belum ada pegawai untuk kegiatan ini</p>
                         )}
