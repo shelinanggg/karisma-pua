@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { Search, Bell, ChevronDown, Check, AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -106,6 +107,24 @@ export function TopBar() {
   const navigate = useNavigate();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const getDisplayRole = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return currentUser.role;
+
+    try {
+      const decoded: { role?: string } = jwtDecode(token);
+      const role = (decoded.role || '').toLowerCase();
+      if (role === 'pimpinan') return 'Pimpinan';
+      if (role === 'pegawai') return 'Pegawai';
+      if (role === 'admin') return 'Admin';
+      return currentUser.role;
+    } catch {
+      return currentUser.role;
+    }
+  };
+
+  const displayRole = getDisplayRole();
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -240,7 +259,7 @@ export function TopBar() {
             <button className="flex items-center gap-3 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
               <div className="text-right">
                 <p className="text-sm">{currentUser.name}</p>
-                <p className="text-xs text-gray-500">{currentUser.role}</p>
+                <p className="text-xs text-gray-500">{displayRole}</p>
               </div>
               <Avatar>
                 <AvatarFallback className="bg-blue-600 text-white">
