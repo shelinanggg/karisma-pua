@@ -5,30 +5,22 @@ import { Label } from '../ui/label';
 import { currentUser } from '../../data/mockData';
 
 export function AccountView() {
-  const [firstName = '', lastName = ''] = currentUser.name.split(' ');
-
   return (
     <div className="space-y-6">
       <div>
-        <h1>Account Settings</h1>
-        <p className="text-gray-600 mt-1">Kelola data profil akun</p>
+        <h1>Profil</h1>
+        <p className="text-gray-600 mt-1">Kelola data profil akun pengguna</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>Informasi dasar pengguna</CardDescription>
+          <CardTitle>Informasi Profil</CardTitle>
+          <CardDescription>Perbarui informasi dasar akun</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" defaultValue={firstName} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" defaultValue={lastName} />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Nama Lengkap</Label>
+            <Input id="fullName" defaultValue={currentUser.name} />
           </div>
 
           <div className="space-y-2">
@@ -37,13 +29,13 @@ export function AccountView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
+            <Label htmlFor="role">Peran</Label>
             <Input id="role" defaultValue={currentUser.role} disabled />
           </div>
 
           <div className="flex justify-end gap-3">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Changes</Button>
+            <Button variant="outline">Batal</Button>
+            <Button>Simpan Perubahan</Button>
           </div>
         </CardContent>
       </Card>

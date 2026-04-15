@@ -34,7 +34,7 @@ const mockSKPKPIs = [
     color: 'amber',
   },
   {
-    label: 'Jumlah Kegiatan Bulan Ini',
+    label: 'Jumlah Kegiatan',
     value: '18',
     change: '+3 dari bulan lalu',
     trend: 'up' as const,
@@ -219,7 +219,6 @@ export function OverviewView() {
                 <CardHeader className="pb-3">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-sm leading-tight">{kegiatan.namaKegiatan}</CardTitle>
-                    <CardDescription className="mt-0.5 text-xs">{kegiatan.unitKerja}</CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -248,23 +247,6 @@ export function OverviewView() {
                       <span className="text-sm text-gray-600">{kegiatan.jumlahPegawai} pegawai terlibat</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* Avatar stack */}
-                      <div className="flex -space-x-1.5">
-                        {kegiatan.pegawai.slice(0, 4).map((p, idx) => (
-                          <div
-                            key={idx}
-                            className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs border-2 border-white font-medium"
-                            title={p.nama}
-                          >
-                            {p.inisial}
-                          </div>
-                        ))}
-                        {kegiatan.pegawai.length > 4 && (
-                          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs border-2 border-white">
-                            +{kegiatan.pegawai.length - 4}
-                          </div>
-                        )}
-                      </div>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -286,9 +268,6 @@ export function OverviewView() {
                         const pegawaiPct = p.skpTarget > 0 ? Math.round((p.skpSelesai / p.skpTarget) * 100) : 0;
                         return (
                           <div key={idx} className="flex items-center gap-3">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs border-2 border-white font-medium flex-shrink-0">
-                              {p.inisial}
-                            </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-700 truncate">{p.nama}</span>

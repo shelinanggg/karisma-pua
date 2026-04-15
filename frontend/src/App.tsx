@@ -9,12 +9,13 @@ import { ProjectsView } from './components/projects/ProjectsView';
 import { OrganizationView } from './components/organization/OrganizationView';
 import { AccountView } from './components/account/AccountView';
 import { ProfilPegawaiView } from './components/pegawai/ProfilPegawaiView';
-import { SettingsView } from './components/settings/SettingsView';
+import { SettingsView } from './components/settings';
 import { PegawaiSettingsView } from './components/pegawai/PegawaiSettingsView';
 import { PersonalDashboard } from './components/personal/PersonalDashboard';
 import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
+import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { LoginPage } from './components/login/LoginPage';
 
 function getUserRole(): string | null {
@@ -28,6 +29,12 @@ function getUserRole(): string | null {
   }
 }
 
+function getDefaultRouteByRole(role: string | null): string {
+  if (role === 'pimpinan') return 'dashboard-utama';
+  if (role === 'admin') return 'notifikasi';
+  return 'overview';
+}
+
 function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: React.ElementType, allowedRole: string }) {
   const token = localStorage.getItem('token');
   const userRole = getUserRole();
@@ -37,7 +44,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
   }
 
   if (userRole !== allowedRole) {
-    return <Navigate to={`/${userRole}/overview`} replace />;
+    return <Navigate to={`/${userRole}/${getDefaultRouteByRole(userRole)}`} replace />;
   }
 
   return (
@@ -58,7 +65,7 @@ function PublicLayout() {
   const userRole = getUserRole();
 
   if (token && userRole) {
-    return <Navigate to={`/${userRole}/overview`} replace />;
+    return <Navigate to={`/${userRole}/${getDefaultRouteByRole(userRole)}`} replace />;
   }
 
   return <Outlet />;
@@ -69,7 +76,7 @@ function RootRedirect() {
   const userRole = getUserRole();
 
   if (token && userRole) {
-    return <Navigate to={`/${userRole}/overview`} replace />;
+    return <Navigate to={`/${userRole}/${getDefaultRouteByRole(userRole)}`} replace />;
   }
   return <Navigate to="/login" replace />;
 }
@@ -85,12 +92,17 @@ export default function App() {
 
       {/* Role: pimpinan */}
       <Route path="/pimpinan" element={<CommonLayout SidebarComponent={SidebarPimpinan} allowedRole="pimpinan" />}>
-        <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<OverviewView />} />
-        <Route path="projects" element={<ProjectsView />} />
-        <Route path="organization" element={<OrganizationView />} />
-        <Route path="account" element={<AccountView />} />
-        <Route path="settings" element={<SettingsView />} />
+        <Route index element={<Navigate to="dashboard-utama" replace />} />
+        <Route path="dashboard-utama" element={<OverviewView />} />
+        <Route path="kegiatan" element={<PimpinanKegiatanView />} />
+        <Route path="data-kepegawaian" element={<OrganizationView />} />
+        <Route path="profil" element={<AccountView />} />
+        <Route path="pengaturan" element={<SettingsView />} />
+        <Route path="overview" element={<Navigate to="/pimpinan/dashboard-utama" replace />} />
+        <Route path="projects" element={<Navigate to="/pimpinan/kegiatan" replace />} />
+        <Route path="organization" element={<Navigate to="/pimpinan/data-kepegawaian" replace />} />
+        <Route path="account" element={<Navigate to="/pimpinan/profil" replace />} />
+        <Route path="settings" element={<Navigate to="/pimpinan/pengaturan" replace />} />
         <Route path="personal-dashboard" element={<PersonalDashboard />} />
         <Route path="personal-projects" element={<PersonalProjectsView />} />
         <Route path="personal-tasks" element={<PersonalTasksView />} />
@@ -99,12 +111,17 @@ export default function App() {
 
       {/* Role: admin */}
       <Route path="/admin" element={<CommonLayout SidebarComponent={SidebarAdmin} allowedRole="admin" />}>
-        <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<OverviewView />} />
-        <Route path="projects" element={<ProjectsView />} />
-        <Route path="organization" element={<OrganizationView />} />
-        <Route path="account" element={<AccountView />} />
-        <Route path="settings" element={<SettingsView />} />
+        <Route index element={<Navigate to="notifikasi" replace />} />
+        <Route path="notifikasi" element={<OverviewView />} />
+        <Route path="data-kepegawaian" element={<OrganizationView />} />
+        <Route path="sistem" element={<ProjectsView />} />
+        <Route path="profil" element={<AccountView />} />
+        <Route path="pengaturan" element={<SettingsView />} />
+        <Route path="overview" element={<Navigate to="/admin/notifikasi" replace />} />
+        <Route path="projects" element={<Navigate to="/admin/sistem" replace />} />
+        <Route path="organization" element={<Navigate to="/admin/data-kepegawaian" replace />} />
+        <Route path="account" element={<Navigate to="/admin/profil" replace />} />
+        <Route path="settings" element={<Navigate to="/admin/pengaturan" replace />} />
         <Route path="personal-dashboard" element={<PersonalDashboard />} />
         <Route path="personal-projects" element={<PersonalProjectsView />} />
         <Route path="personal-tasks" element={<PersonalTasksView />} />
