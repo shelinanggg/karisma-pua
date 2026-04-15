@@ -18,7 +18,7 @@ import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { LoginPage } from './components/login/LoginPage';
 
 function getUserRole(): string | null {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   if (!token) return null;
   try {
     const decoded: { role?: string } = jwtDecode(token);
@@ -29,7 +29,7 @@ function getUserRole(): string | null {
 }
 
 function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: React.ElementType, allowedRole: string }) {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (!token) {
@@ -54,7 +54,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
 }
 
 function PublicLayout() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (token && userRole) {
@@ -65,7 +65,7 @@ function PublicLayout() {
 }
 
 function RootRedirect() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (token && userRole) {

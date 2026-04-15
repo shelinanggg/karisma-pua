@@ -1,10 +1,10 @@
-import { loginApi } from "../api/AuthApi";
+import { loginApi } from "../api/authApi";
 import { LoginRequest } from "../types/auth";
 
 export const loginService = async (payload: LoginRequest) => {
     const data = await loginApi(payload)
 
-    localStorage.setItem("token", data.token)
+    sessionStorage.setItem("accessToken", data.accessToken)
 
     return data
 }

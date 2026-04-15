@@ -258,8 +258,12 @@ export function TopBar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600"
-              onClick={() => {
-                localStorage.removeItem('token');
+              onClick={async () => {
+                try {
+                  // Optional: panggil endpoint backend
+                  // await axiosInstance.post('/auth/logout');
+                } catch(e) {}
+                sessionStorage.removeItem('accessToken');
                 navigate('/login');
               }}
             >
