@@ -124,7 +124,7 @@ export function PimpinanKegiatanView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[30%]">Nama Kegiatan</TableHead>
+                <TableHead className="w-[30%]">Butir Kegiatan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Progress</TableHead>
               </TableRow>
