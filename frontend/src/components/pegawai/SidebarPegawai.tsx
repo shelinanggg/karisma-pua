@@ -8,7 +8,7 @@ const navItems = [
   { id: 'overview',           label: 'Dasbor Utama',               icon: LayoutDashboard },
   { id: 'target-kinerja',     label: 'Target Kinerja',        icon: CheckSquare },
   { id: 'projects',           label: 'Realisasi Kinerja',     icon: FolderCheck },
-  { id: 'organization',       label: 'Penugasan Akademik',    icon: FolderInput },
+  { id: 'organization',       label: 'Penugasan Tambahan',    icon: FolderInput },
   { id: 'account',            label: 'Profil',                icon: User },
   { id: 'settings',           label: 'Pengaturan',            icon: Settings },
 ];

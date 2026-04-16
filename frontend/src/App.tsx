@@ -5,6 +5,8 @@ import { SidebarAdmin } from './components/SidebarAdmin';
 import { SidebarPegawai } from './components/pegawai/SidebarPegawai';
 import { TopBar } from './components/TopBar';
 import { OverviewView } from './components/overview/OverviewView';
+import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
+import { PegawaiOverview } from './components/pegawai/PegawaiOverview';
 import { ProjectsView } from './components/projects/ProjectsView';
 import { OrganizationView } from './components/organization/OrganizationView';
 import { AccountView } from './components/account/AccountView';
@@ -93,7 +95,7 @@ export default function App() {
       {/* Role: pimpinan */}
       <Route path="/pimpinan" element={<CommonLayout SidebarComponent={SidebarPimpinan} allowedRole="pimpinan" />}>
         <Route index element={<Navigate to="dashboard-utama" replace />} />
-        <Route path="dashboard-utama" element={<OverviewView />} />
+        <Route path="dashboard-utama" element={<PimpinanOverview />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="data-kepegawaian" element={<OrganizationView />} />
         <Route path="profil" element={<AccountView />} />
@@ -131,7 +133,7 @@ export default function App() {
       {/* Role: pegawai */}
       <Route path="/pegawai" element={<CommonLayout SidebarComponent={SidebarPegawai} allowedRole="pegawai" />}>
         <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<OverviewView />} />
+        <Route path="overview" element={<PegawaiOverview />} />
         <Route path="projects" element={<ProjectsView />} />
         <Route path="organization" element={<OrganizationView />} />
         <Route path="account" element={<ProfilPegawaiView />} />
