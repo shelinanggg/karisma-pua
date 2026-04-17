@@ -3,10 +3,10 @@ import jwt from "jsonwebtoken";
 import { findUserByNip } from "../repositories/user.repository.js";
 import { saveRefreshToken, findRefreshToken, deleteRefreshToken } from "../repositories/token.repository.js";
 
-const generateTokens = async (user, rememberMe) => {
+const generateTokens = async (pengguna, rememberMe) => {
   const payload = {
-    user_id: user.user_id,
-    role: user.roles_name || user.role,
+    id_pengguna: pengguna.id_pengguna,
+    role: pengguna.roles_name || pengguna.role,
   };
 
   const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -21,32 +21,32 @@ const generateTokens = async (user, rememberMe) => {
   const expiresInMs = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000;
   const expiresAt = new Date(Date.now() + expiresInMs);
 
-  await saveRefreshToken(user.user_id, refreshToken, expiresAt);
+  await saveRefreshToken(pengguna.id_pengguna, refreshToken, expiresAt);
 
   return { accessToken, refreshToken, expiresInMs };
 };
 
 export const loginService = async ({ nip, password, rememberMe }) => {
-  const user = await findUserByNip(nip);
+  const pengguna = await findUserByNip(nip);
 
-  if (!user) {
-    throw new Error("User tidak ditemukan");
+  if (!pengguna) {
+    throw new Error("Pengguna tidak ditemukan");
   }
 
-  const isMatch = await bcrypt.compare(password, user.password_hash);
+  const isMatch = await bcrypt.compare(password, pengguna.password_hash);
 
   if (!isMatch) {
     throw new Error("Password salah");
   }
 
-  const { accessToken, refreshToken, expiresInMs } = await generateTokens(user, rememberMe);
+  const { accessToken, refreshToken, expiresInMs } = await generateTokens(pengguna, rememberMe);
 
   return {
     message: "Login berhasil",
     accessToken,
     refreshToken,
     expiresInMs,
-    role: user.roles_name
+    role: pengguna.roles_name
   };
 };
 
@@ -69,12 +69,10 @@ export const refreshService = async (oldRefreshToken, rememberMe) => {
     throw new Error("Sesi kedaluwarsa, silakan login kembali.");
   }
 
-  // Find user to get current info
-  // decoded will have user_id and role. We can just reuse decoded, or fetch from DB.
-  // Reusing decoded payload:
-  const user = { user_id: decoded.user_id, role: decoded.role };
+  // Reuse decoded payload to reconstruct pengguna object
+  const pengguna = { id_pengguna: decoded.id_pengguna, role: decoded.role };
 
-  const { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresInMs } = await generateTokens(user, rememberMe);
+  const { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresInMs } = await generateTokens(pengguna, rememberMe);
   
   return { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresInMs };
 };

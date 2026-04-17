@@ -1,10 +1,10 @@
 import pool from "../config/db.js";
 
-export const saveRefreshToken = async (userId, token, expiresAt) => {
+export const saveRefreshToken = async (idPengguna, token, expiresAt) => {
   const result = await pool.query(
-    `INSERT INTO refresh_tokens (user_id, token, expires_at) 
+    `INSERT INTO refresh_tokens (id_pengguna, token, expires_at) 
      VALUES ($1, $2, $3) RETURNING *`,
-    [userId, token, expiresAt]
+    [idPengguna, token, expiresAt]
   );
   return result.rows[0];
 };

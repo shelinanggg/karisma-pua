@@ -11,10 +11,10 @@ export const shorthands = undefined;
 export const up = (pgm) => {
   pgm.createTable('refresh_tokens', {
     id: 'id',
-    user_id: {
+    id_pengguna: {
       type: 'integer',
       notNull: true,
-      references: '"users"',
+      references: '"pengguna"',
       onDelete: 'cascade'
     },
     token: { type: 'text', notNull: true },
