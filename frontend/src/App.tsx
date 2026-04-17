@@ -19,6 +19,7 @@ import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { LoginPage } from './components/login/LoginPage';
+import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
 
 function getUserRole(): string | null {
   const token = localStorage.getItem('token');
@@ -135,7 +136,7 @@ export default function App() {
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<PegawaiOverview />} />
         <Route path="projects" element={<ProjectsView />} />
-        <Route path="organization" element={<OrganizationView />} />
+        <Route path="organization" element={<PenugasanTambahanView />} />
         <Route path="account" element={<ProfilPegawaiView />} />
         <Route path="settings" element={<PegawaiSettingsView />} />
         <Route path="personal-dashboard" element={<PersonalDashboard />} />
