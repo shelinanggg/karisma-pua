@@ -2,7 +2,7 @@ import { LayoutDashboard, CheckSquare, FolderKanban, Building2, User, Settings, 
 import { cn } from '../ui/utils';
 import { useLocation, Link } from 'react-router-dom';
 
-const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/logo-unair.png';
+const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/cropped-logo-unair-1.png';
 
 const navItems = [
   { id: 'overview', label: 'Dashboard Utama', icon: LayoutDashboard },

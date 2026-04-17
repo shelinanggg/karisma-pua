@@ -25,12 +25,6 @@ const fields = [
 ];
 
 export function ProfilPegawaiView() {
-  const initials = currentUser.name
-    .split(' ')
-    .map((n: string) => n[0])
-    .slice(0, 2)
-    .join('');
-
   return (
     <div className="space-y-6">
       <div>
@@ -39,49 +33,11 @@ export function ProfilPegawaiView() {
       </div>
 
       <Card>
-        <CardHeader className="pb-6">
+        <CardHeader className="pb-1">
           <div className="flex items-center" style={{ gap: 24 }}>
-            <div
-              className="bg-blue-100"
-              style={{
-                flexShrink: 0,
-                width: 80,
-                height: 80,
-                minWidth: 80,
-                minHeight: 80,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid #e5e7eb',
-                marginRight: 8,
-              }}
-            >
-              {currentUser.photoUrl ? (
-                <img
-                  src={currentUser.photoUrl}
-                  alt={currentUser.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-              ) : (
-                <span
-                  className="text-blue-600 font-semibold select-none"
-                  style={{ fontSize: 24, lineHeight: 1 }}
-                >
-                  {initials}
-                </span>
-              )}
-            </div>
-
             <div>
               <p className="text-lg font-semibold text-gray-900">{currentUser.name}</p>
-              <p className="text-sm text-gray-500">{currentUser.email}</p>
-              {currentUser.jabatan && (
-                <span className="mt-1 inline-block text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                  {currentUser.jabatan}
-                </span>
-              )}
+              <p className="text-sm text-gray-500">{currentUser.nip ?? '-'}</p>
             </div>
           </div>
         </CardHeader>
