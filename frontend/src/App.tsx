@@ -95,7 +95,7 @@ export default function App() {
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<OverviewView />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
-        <Route path="data-kepegawaian" element={<OrganizationView />} />
+        <Route path="data-kepegawaian" element={<OrganizationView detailPlacement="bottom" />} />
         <Route path="profil" element={<AccountView />} />
         <Route path="pengaturan" element={<SettingsView />} />
         <Route path="overview" element={<Navigate to="/pimpinan/dashboard-utama" replace />} />
