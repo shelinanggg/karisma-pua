@@ -20,6 +20,7 @@ import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
+import { SystemSecurityView } from './components/admin/system/SystemSecurityView';
 
 function getUserRole(): string | null {
   const token = sessionStorage.getItem('accessToken');
@@ -117,7 +118,7 @@ export default function App() {
         <Route index element={<Navigate to="notifikasi" replace />} />
         <Route path="notifikasi" element={<OverviewView />} />
         <Route path="data-kepegawaian" element={<OrganizationView />} />
-        <Route path="sistem" element={<ProjectsView />} />
+        <Route path="sistem" element={<SystemSecurityView />} />
         <Route path="profil" element={<AccountView />} />
         <Route path="pengaturan" element={<SettingsView />} />
         <Route path="overview" element={<Navigate to="/admin/notifikasi" replace />} />
