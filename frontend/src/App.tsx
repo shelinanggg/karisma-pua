@@ -20,9 +20,16 @@ import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
+import { SystemSecurityView } from './components/admin/system/SystemSecurityView';
+import { AdminOverview } from './components/admin/AdminOverview';
+import { AdminKegiatanView } from './components/admin/AdminKegiatanView';
+import { AdminOrganizationView } from './components/admin/AdminOrganizationView';
+import { AdminProfilView } from './components/admin/AdminProfilView';
+import { AdminSettingsView } from './components/admin/AdminSettingsView';
+import { AdminNotificationView } from './components/admin/AdminNotificationView';
 
 function getUserRole(): string | null {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   if (!token) return null;
   try {
     const decoded: { role?: string } = jwtDecode(token);
@@ -34,12 +41,12 @@ function getUserRole(): string | null {
 
 function getDefaultRouteByRole(role: string | null): string {
   if (role === 'pimpinan') return 'dashboard-utama';
-  if (role === 'admin') return 'notifikasi';
+  if (role === 'admin') return 'dashboard-utama';
   return 'overview';
 }
 
 function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: React.ElementType, allowedRole: string }) {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (!token) {
@@ -64,7 +71,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
 }
 
 function PublicLayout() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (token && userRole) {
@@ -75,7 +82,7 @@ function PublicLayout() {
 }
 
 function RootRedirect() {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('accessToken');
   const userRole = getUserRole();
 
   if (token && userRole) {
@@ -114,14 +121,16 @@ export default function App() {
 
       {/* Role: admin */}
       <Route path="/admin" element={<CommonLayout SidebarComponent={SidebarAdmin} allowedRole="admin" />}>
-        <Route index element={<Navigate to="notifikasi" replace />} />
-        <Route path="notifikasi" element={<OverviewView />} />
-        <Route path="data-kepegawaian" element={<OrganizationView />} />
-        <Route path="sistem" element={<ProjectsView />} />
-        <Route path="profil" element={<AccountView />} />
-        <Route path="pengaturan" element={<SettingsView />} />
-        <Route path="overview" element={<Navigate to="/admin/notifikasi" replace />} />
-        <Route path="projects" element={<Navigate to="/admin/sistem" replace />} />
+        <Route index element={<Navigate to="dashboard-utama" replace />} />
+        <Route path="dashboard-utama" element={<AdminOverview />} />
+        <Route path="kegiatan" element={<AdminKegiatanView />} />
+        <Route path="data-kepegawaian" element={<AdminOrganizationView />} />
+        <Route path="notifikasi" element={<AdminNotificationView />} />
+        <Route path="sistem" element={<SystemSecurityView />} />
+        <Route path="profil" element={<AdminProfilView />} />
+        <Route path="pengaturan" element={<AdminSettingsView />} />
+        <Route path="overview" element={<Navigate to="/admin/dashboard-utama" replace />} />
+        <Route path="projects" element={<Navigate to="/admin/kegiatan" replace />} />
         <Route path="organization" element={<Navigate to="/admin/data-kepegawaian" replace />} />
         <Route path="account" element={<Navigate to="/admin/profil" replace />} />
         <Route path="settings" element={<Navigate to="/admin/pengaturan" replace />} />

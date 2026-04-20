@@ -1,10 +1,11 @@
 export interface LoginRequest {
   nip: string
   password: string
+  rememberMe?: boolean
 }
 
 export interface LoginResponse {
-  token: string
+  accessToken: string
   role: string
   message: string
 }

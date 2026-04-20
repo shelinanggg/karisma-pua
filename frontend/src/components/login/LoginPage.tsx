@@ -12,6 +12,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [nip, setNip] = useState("");
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const { login, loading, error } = useAuth();
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export function LoginPage() {
     e.preventDefault();
 
     try {
-      const result = await login(nip, password);
+      const result = await login(nip, password, rememberMe);
 
       if (result.role === "pimpinan") {
         navigate("/pimpinan/overview");
@@ -290,7 +291,7 @@ export function LoginPage() {
           .kp-form-wrap { max-width: 100%; }
         }
       `}</style>
-
+      
       <div className="kp-page">
 
         {/* ── LEFT ── */}
@@ -328,18 +329,6 @@ export function LoginPage() {
             <p className="kp-hero-p">
               Platform terintegrasi untuk administrasi kepegawaian, monitoring kinerja, dan manajemen karier staf perpustakaan Universitas Airlangga.
             </p>
-            {/* <div className="kp-stats">
-              {[
-                { value: '99%', label: 'Uptime Sistem' },
-                { value: '28',     label: 'Staf Aktif'      },
-                { value: '26',     label: 'Unit Layanan'    },
-              ].map(({ value, label }) => (
-                <div className="kp-stat" key={label}>
-                  <div className="kp-stat-val">{value}</div>
-                  <div className="kp-stat-lbl">{label}</div>
-                </div>
-              ))}
-            </div> */}
           </div>
 
           <p className="kp-footer">© 2026 Perpustakaan Universitas Airlangga · Surabaya</p>
@@ -348,24 +337,6 @@ export function LoginPage() {
         {/* ── RIGHT ── */}
         <div className="kp-right">
           <div className="kp-form-wrap kp-fade">
-
-            {/* Logo kecil di panel kanan (desktop only)
-            <div className="kp-right-logo">
-              {!logoError ? (
-                <img
-                  src={UNAIR_LOGO_URL}
-                  alt="Logo Universitas Airlangga"
-                  className="kp-right-logo-img"
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                <div className="kp-right-logo-fallback">UA</div>
-              )}
-              <div>
-                <div className="kp-right-brand">Karisma PUA</div>
-                <div className="kp-right-brand-sub">Universitas Airlangga</div>
-              </div>
-            </div> */}
 
             <p className="kp-greeting">Selamat Datang</p>
             <h1 className="kp-form-h">Masuk ke Akun Anda</h1>
@@ -415,7 +386,11 @@ export function LoginPage() {
 
               <div className="kp-row">
                 <label className="kp-remember">
-                  <input type="checkbox" />
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe} 
+                    onChange={(e) => setRememberMe(e.target.checked)} 
+                  />
                   <span>Ingat saya</span>
                 </label>
                 <a href="#" className="kp-forgot">Lupa kata sandi?</a>

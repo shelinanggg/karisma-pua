@@ -1,4 +1,4 @@
-import { Bell, Building2, ServerCog, User, Settings, ChevronRight } from 'lucide-react';
+import { Bell, Building2, ServerCog, User, Settings, ChevronRight, LayoutDashboard, FolderKanban } from 'lucide-react';
 import { cn } from './ui/utils';
 
 import { useLocation, Link } from 'react-router-dom';
@@ -6,8 +6,10 @@ import { useLocation, Link } from 'react-router-dom';
 const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/logo-unair.png';
 
 const navItems = [
-  { id: 'notifikasi', label: 'Notifikasi', icon: Bell },
+  { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },
+  { id: 'kegiatan', label: 'Kegiatan', icon: FolderKanban },
   { id: 'data-kepegawaian', label: 'Data Kepegawaian', icon: Building2 },
+  { id: 'notifikasi', label: 'Notifikasi', icon: Bell },
   { id: 'sistem', label: 'Sistem', icon: ServerCog },
   { id: 'profil', label: 'Profil', icon: User },
   { id: 'pengaturan', label: 'Pengaturan', icon: Settings },
@@ -16,7 +18,7 @@ const navItems = [
 export function SidebarAdmin() {
   const location = useLocation();
   const segments = location.pathname.split('/');
-  const activeView = segments[2] || 'notifikasi';
+  const activeView = segments[2] || 'dashboard-utama';
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen">

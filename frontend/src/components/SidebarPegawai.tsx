@@ -27,7 +27,7 @@ export function SidebarPegawai() {
           <span>Project Manager</span>
         </div>
       </div>
-      
+
       <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-1">
           {navItems.map((item) => {
@@ -59,7 +59,7 @@ export function SidebarPegawai() {
             <Lock className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-600">Personal Workspace</span>
           </div>
-          
+
           <ul className="space-y-1">
             <li>
               <Link
@@ -123,7 +123,7 @@ export function SidebarPegawai() {
           </ul>
         </div>
       </nav>
-      
+
       <div className="p-4 border-t border-gray-200">
         <div className="px-4 py-3 bg-gray-50 rounded-lg">
           <p className="text-gray-600 text-sm">Need help?</p>
