@@ -27,6 +27,8 @@ import { AdminOrganizationView } from './components/admin/AdminOrganizationView'
 import { AdminProfilView } from './components/admin/AdminProfilView';
 import { AdminSettingsView } from './components/admin/AdminSettingsView';
 import { AdminNotificationView } from './components/admin/AdminNotificationView';
+import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
+import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 
 function getUserRole(): string | null {
   const token = sessionStorage.getItem('accessToken');
@@ -144,7 +146,8 @@ export default function App() {
       <Route path="/pegawai" element={<CommonLayout SidebarComponent={SidebarPegawai} allowedRole="pegawai" />}>
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<PegawaiOverview />} />
-        <Route path="projects" element={<ProjectsView />} />
+        <Route path="target-kinerja" element={<TargetKinerjaView />} />
+        <Route path="projects" element={<RealisasiKinerjaView />} />
         <Route path="organization" element={<PenugasanTambahanView />} />
         <Route path="account" element={<ProfilPegawaiView />} />
         <Route path="settings" element={<PegawaiSettingsView />} />
