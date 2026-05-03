@@ -27,6 +27,7 @@ import { AdminOrganizationView } from './components/admin/AdminOrganizationView'
 import { AdminProfilView } from './components/admin/AdminProfilView';
 import { AdminSettingsView } from './components/admin/AdminSettingsView';
 import { AdminNotificationView } from './components/admin/AdminNotificationView';
+import { AdminMasterButirView } from './components/admin/AdminMasterButirView';
 import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
 import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 
@@ -126,6 +127,7 @@ export default function App() {
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<AdminOverview />} />
         <Route path="kegiatan" element={<AdminKegiatanView />} />
+        <Route path="master-butir" element={<AdminMasterButirView />} />
         <Route path="data-kepegawaian" element={<AdminOrganizationView />} />
         <Route path="notifikasi" element={<AdminNotificationView />} />
         <Route path="sistem" element={<SystemSecurityView />} />

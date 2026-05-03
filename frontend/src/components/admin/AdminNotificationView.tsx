@@ -39,14 +39,17 @@ function getAdaptivePages(currentPage: number, totalPages: number): number[] {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
-  const startPage = Math.min(Math.max(1, currentPage), totalPages - 2);
-  const pages = [startPage, startPage + 1, startPage + 2].filter((page) => page <= totalPages);
-
-  if (!pages.includes(totalPages)) {
-    pages.push(totalPages);
+  if (currentPage === 1) {
+    return [1, 2, 3, totalPages];
   }
 
-  return pages;
+  if (currentPage >= totalPages - 1) {
+    return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return Array.from(
+    new Set([currentPage - 1, currentPage, currentPage + 1, totalPages].filter((page) => page >= 1 && page <= totalPages)),
+  ).sort((a, b) => a - b);
 }
 
 type CustomPaginationProps = {
@@ -378,4 +381,3 @@ export function AdminNotificationView() {
     </div>
   );
 }
-
