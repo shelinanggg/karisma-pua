@@ -115,23 +115,27 @@ function Pagination({
         >
           Sebelumnya
         </button>
-        {visiblePages.map((page) => (
-          <button
-            key={page}
-            type="button"
-            onClick={() => onPageChange(page)}
-            className="rounded-lg border py-1 text-xs font-medium transition"
-            style={{
-              minWidth: '2rem',
-              paddingLeft: '0.1rem',
-              paddingRight: '0.1rem',
-              ...(page === currentPage
-                ? { background: 'var(--primary)', color: 'var(--primary-foreground)', borderColor: 'var(--primary)' }
-                : { background: 'var(--card)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }),
-            }}
-          >
-            {page}
-          </button>
+        {visiblePages.map((page, idx) => (
+          <div key={page} className="flex items-center gap-2">
+            {idx > 0 && page - visiblePages[idx - 1] > 1 && (
+              <span className="px-1 text-xs text-muted-foreground">...</span>
+            )}
+            <button
+              type="button"
+              onClick={() => onPageChange(page)}
+              className="rounded-lg border py-1 text-xs font-medium transition"
+              style={{
+                minWidth: '2rem',
+                paddingLeft: '0.1rem',
+                paddingRight: '0.1rem',
+                ...(page === currentPage
+                  ? { background: 'var(--primary)', color: 'var(--primary-foreground)', borderColor: 'var(--primary)' }
+                  : { background: 'var(--card)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }),
+              }}
+            >
+              {page}
+            </button>
+          </div>
         ))}
         <button
           type="button"
@@ -260,12 +264,12 @@ export function AdminMasterButirView() {
                       <TableCell className="text-center">{item.activeParticipants}</TableCell>
                       <TableCell className="px-6">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEditForm(item)}>
-                            <Edit className="h-4 w-4" />
+                          <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>
+                            <Edit className="size-3.5" />
                             Edit
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => setDeletingItem(item)}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button variant="destructive" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDeletingItem(item)}>
+                            <Trash2 className="size-3.5" />
                             Hapus
                           </Button>
                         </div>
@@ -322,7 +326,7 @@ export function AdminMasterButirView() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && setDeletingItem(null)}>
+      <Dialog open={Boolean(deletingItem)} onOpenChange={(open: boolean) => !open && setDeletingItem(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Hapus Butir Kegiatan</DialogTitle>
