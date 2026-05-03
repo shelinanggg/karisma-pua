@@ -1,15 +1,16 @@
-import { LayoutDashboard, CheckSquare, FolderKanban, Building2, User, Settings, ChevronRight, Folder, Text, FolderCheck, FolderInput } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, FolderKanban, Building2, User, Settings, ChevronRight, Folder, Text, FolderCheck, FolderInput, ClipboardCheck } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { useLocation, Link } from 'react-router-dom';
 
 const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/cropped-logo-unair-1.png';
 
 const navItems = [
-  { id: 'overview', label: 'Dashboard Utama', icon: LayoutDashboard },
-  { id: 'projects', label: 'Kegiatan', icon: FolderKanban },
-  { id: 'organization', label: 'Data Kepegawaian', icon: Building2 },
-  { id: 'account', label: 'Profil', icon: User },
-  { id: 'settings', label: 'Pengaturan', icon: Settings },
+    { id: 'overview', label: 'Dashboard Utama', icon: LayoutDashboard },
+    { id: 'approval-skp', label: 'Persetujuan SKP', icon: ClipboardCheck },
+    { id: 'projects', label: 'Kegiatan', icon: FolderKanban },
+    { id: 'organization', label: 'Data Kepegawaian', icon: Building2 },
+    { id: 'account', label: 'Profil', icon: User },
+    { id: 'settings', label: 'Pengaturan', icon: Settings },
 ];
 
 export function SidebarPimpinan() {

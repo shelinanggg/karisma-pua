@@ -18,6 +18,8 @@ import { PersonalProjectsView } from './components/personal/PersonalProjectsView
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
+import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
+import { AdminNotificationView } from './components/admin/AdminNotificationView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
 import { SystemSecurityView } from './components/admin/system/SystemSecurityView';

@@ -1,4 +1,4 @@
-import { LayoutDashboard, FolderKanban, Building2, User, Settings, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Building2, User, Settings, ChevronRight, ClipboardCheck, BellRing } from 'lucide-react';
 import { cn } from './ui/utils';
 
 import { useLocation, Link } from 'react-router-dom';
@@ -7,6 +7,8 @@ const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/log
 
 const navItems = [
   { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },
+  { id: 'approval-skp', label: 'Persetujuan SKP', icon: ClipboardCheck },
+  { id: 'early-warning-system', label: 'Early Warning System', icon: BellRing },
   { id: 'kegiatan', label: 'Kegiatan', icon: FolderKanban },
   { id: 'data-kepegawaian', label: 'Data Kepegawaian', icon: Building2 },
   { id: 'profil', label: 'Profil', icon: User },
