@@ -16,6 +16,8 @@ import { PersonalProjectsView } from './components/personal/PersonalProjectsView
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
+import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
+import { AdminNotificationView } from './components/admin/AdminNotificationView';
 import { LoginPage } from './components/login/LoginPage';
 
 function getUserRole(): string | null {
@@ -93,7 +95,17 @@ export default function App() {
       {/* Role: pimpinan */}
       <Route path="/pimpinan" element={<CommonLayout SidebarComponent={SidebarPimpinan} allowedRole="pimpinan" />}>
         <Route index element={<Navigate to="dashboard-utama" replace />} />
-        <Route path="dashboard-utama" element={<OverviewView />} />
+        <Route path="dashboard-utama" element={<PimpinanOverview />} />
+        <Route
+          path="early-warning-system"
+          element={
+            <AdminNotificationView
+              pageTitle="Early Warning System"
+              pageDescription="Pemantauan pegawai yang mendekati kenaikan jabatan dan gaji berkala."
+              hideSendActions
+            />
+          }
+        />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="data-kepegawaian" element={<OrganizationView detailPlacement="bottom" />} />
         <Route path="profil" element={<AccountView />} />
