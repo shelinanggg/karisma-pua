@@ -22,7 +22,7 @@ const getStatusClassName = (status: Project['status']) => {
   return 'bg-slate-100 text-slate-700 border-slate-200';
 };
 
-export function PimpinanKegiatanView() {
+export function AdminKegiatanView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Completed'>('all');
   const [page, setPage] = useState(1);

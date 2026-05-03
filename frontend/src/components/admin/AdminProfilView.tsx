@@ -24,12 +24,12 @@ const fields = [
   { label: 'Pensiun TMT', value: currentUser.pensiunTmt ?? '-' },
 ];
 
-export function ProfilPegawaiView() {
+export function AdminProfilView() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Profil</h1>
-        <p className="text-gray-500 mt-1 text-sm">Data kepegawaian</p>
+        <p className="text-gray-500 mt-1 text-base">Data pengguna</p>
       </div>
 
       <Card>

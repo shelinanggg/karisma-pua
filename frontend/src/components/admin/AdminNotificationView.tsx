@@ -133,17 +133,7 @@ function CustomPagination({
   );
 }
 
-type AdminNotificationViewProps = {
-  pageTitle?: string;
-  pageDescription?: string;
-  hideSendActions?: boolean;
-};
-
-export function AdminNotificationView({
-  pageTitle = 'Notifikasi Kepegawaian',
-  pageDescription = 'Kelola dan kirim notifikasi terkait kenaikan jabatan dan gaji berkala',
-  hideSendActions = false,
-}: AdminNotificationViewProps) {
+export function AdminNotificationView() {
   const [promoPage, setPromoPage] = useState(1);
   const [promoPageSize, setPromoPageSize] = useState(10);
   const [kgbPage, setKgbPage] = useState(1);
@@ -163,8 +153,8 @@ export function AdminNotificationView({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
-        <p className="mt-1 text-gray-600">{pageDescription}</p>
+        <h1 className="text-2xl font-bold tracking-tight">Notifikasi Kepegawaian</h1>
+        <p className="text-gray-600 mt-1">Kelola dan kirim notifikasi terkait kenaikan jabatan dan gaji berkala</p>
       </div>
 
       <Tabs defaultValue="jabatan" className="w-full">
@@ -223,55 +213,53 @@ export function AdminNotificationView({
                 />
               </div>
 
-              {!hideSendActions && (
-                <div className="mt-4 flex justify-end px-4 pt-4 sm:px-0">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Send className="mr-2 h-4 w-4" />
-                        Kirim Notifikasi
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Kirim Notifikasi Kenaikan Jabatan</DialogTitle>
-                        <DialogDescription>
-                          Pilih pegawai untuk dikirimkan notifikasi pengingat atau ucapan selamat.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <Select value={selectedPromoUser} onValueChange={setSelectedPromoUser}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pilih Pegawai" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {promotionData.map(user => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name} (Progres: {Math.round((user.currentScore / user.requiredScore) * 100)}%)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Send className="w-4 h-4 mr-2" />
+                      Kirim Notifikasi
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Kirim Notifikasi Kenaikan Jabatan</DialogTitle>
+                      <DialogDescription>
+                        Pilih pegawai untuk dikirimkan notifikasi pengingat atau ucapan selamat.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Select value={selectedPromoUser} onValueChange={setSelectedPromoUser}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih Pegawai" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {promotionData.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} (Progres: {Math.round((user.currentScore / user.requiredScore) * 100)}%)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-1">
+                        <Checkbox id="send-all-promo" />
+                        <label
+                          htmlFor="send-all-promo"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Kirim untuk semua
+                        </label>
                       </div>
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <Checkbox id="send-all-promo" />
-                          <label
-                            htmlFor="send-all-promo"
-                            className="cursor-pointer text-sm font-medium leading-none"
-                          >
-                            Kirim untuk semua
-                          </label>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button variant="outline">Batal</Button>
-                          <Button>Kirim via Sistem</Button>
-                        </div>
+                      <div className="flex gap-3">
+                        <Button variant="outline">Batal</Button>
+                        <Button>Kirim via Sistem</Button>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -335,55 +323,53 @@ export function AdminNotificationView({
                 )}
               </div>
 
-              {!hideSendActions && (
-                <div className="mt-4 flex justify-end px-4 pt-4 sm:px-0">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button disabled={kgbData.length === 0}>
-                        <Send className="mr-2 h-4 w-4" />
-                        Kirim Notifikasi
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Kirim Notifikasi KGB</DialogTitle>
-                        <DialogDescription>
-                          Pilih pegawai untuk dikirimkan notifikasi persiapan KGB.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <Select value={selectedKgbUser} onValueChange={setSelectedKgbUser}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Pilih Pegawai" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {kgbData.map(user => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name} ({user.daysLeft} Hari Lagi)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button disabled={kgbData.length === 0}>
+                      <Send className="w-4 h-4 mr-2" />
+                      Kirim Notifikasi
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Kirim Notifikasi KGB</DialogTitle>
+                      <DialogDescription>
+                        Pilih pegawai untuk dikirimkan notifikasi persiapan KGB.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Select value={selectedKgbUser} onValueChange={setSelectedKgbUser}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih Pegawai" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {kgbData.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} ({user.daysLeft} Hari Lagi)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-3">
+                        <Checkbox id="send-all-kgb" />
+                        <label
+                          htmlFor="send-all-kgb"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Kirim untuk semua
+                        </label>
                       </div>
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Checkbox id="send-all-kgb" />
-                          <label
-                            htmlFor="send-all-kgb"
-                            className="cursor-pointer text-sm font-medium leading-none"
-                          >
-                            Kirim untuk semua
-                          </label>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button variant="outline">Batal</Button>
-                          <Button>Kirim via Sistem</Button>
-                        </div>
+                      <div className="flex gap-3">
+                        <Button variant="outline">Batal</Button>
+                        <Button>Kirim via Sistem</Button>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

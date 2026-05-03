@@ -10,28 +10,28 @@ import { Workspace } from '../../types';
 
 const mockSKPKPIs = [
   {
-    label: 'Total Pegawai Aktif',
-    value: '145',
-    change: '+3 dari bulan lalu',
+    label: 'Target Kinerja',
+    value: '120',
+    change: '+8 dari bulan lalu',
     trend: 'up' as const,
-    icon: Users,
+    icon: Target,
     color: 'blue',
   },
   {
-    label: 'Mendekati Pensiun',
-    value: '8',
-    change: '+1 dari bulan lalu',
+    label: 'Realisasi Kinerja',
+    value: '89',
+    change: '+12 dari bulan lalu',
     trend: 'up' as const,
-    icon: Award,
-    color: 'amber',
+    icon: CheckCircle2,
+    color: 'green',
   },
   {
-    label: 'Mendekati KGB',
-    value: '12',
-    change: '+2 dari bulan lalu',
-    trend: 'up' as const,
-    icon: Target,
-    color: 'purple',
+    label: 'Persentase Ketercapaian',
+    value: '74.2%',
+    change: '-2.3% dari bulan lalu',
+    trend: 'down' as const,
+    icon: BarChart3,
+    color: 'amber',
   },
   {
     label: 'Jumlah Kegiatan',
@@ -120,7 +120,7 @@ const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> 
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function PimpinanOverview() {
+export function AdminOverview() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [expandedKegiatan, setExpandedKegiatan] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState(2025);

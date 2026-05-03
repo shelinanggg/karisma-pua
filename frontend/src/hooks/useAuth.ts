@@ -5,12 +5,12 @@ export const useAuth = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null)
 
-    const login = async (nip:string, password:string) => {
+    const login = async (nip:string, password:string, rememberMe:boolean = false) => {
         setLoading(true)
         setError(null)
 
         try{
-            const result = await loginService({nip, password})
+            const result = await loginService({nip, password, rememberMe})
             return result
         }
         catch(err:any){
