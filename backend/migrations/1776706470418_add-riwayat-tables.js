@@ -13,22 +13,14 @@ export const up = (pgm) => {
     id_riwayat_jabatan: 'id',
     id_pengguna: { type: 'integer', references: '"pengguna"(id_pengguna)', notNull: true, onDelete: 'CASCADE' },
     id_jabatan: { type: 'integer', references: '"jabatan"', notNull: true },
-    tanggal: { type: 'date', notNull: true },
-  });
-
-  pgm.createTable('riwayat_pangkat', {
-    id_riwayat_pangkat: 'id',
-    id_pengguna: { type: 'integer', references: '"pengguna"(id_pengguna)', notNull: true, onDelete: 'CASCADE' },
-    id_pangkat: { type: 'integer', references: '"pangkat"', notNull: true },
-    id_golongan: { type: 'integer', references: '"golongan"', notNull: true },
-    tanggal: { type: 'date', notNull: true },
+    tmt_jabatan: { type: 'date', notNull: true },
   });
 
   pgm.createTable('riwayat_penempatan', {
     id_riwayat_penempatan: 'id',
     id_pengguna: { type: 'integer', references: '"pengguna"(id_pengguna)', notNull: true, onDelete: 'CASCADE' },
     id_penempatan: { type: 'integer', references: '"penempatan"', notNull: true },
-    tanggal: { type: 'date', notNull: true },
+    tmt_penempatan: { type: 'date', notNull: true },
   });
 
   pgm.createTable('riwayat_kgb', {
@@ -46,6 +38,5 @@ export const up = (pgm) => {
 export const down = (pgm) => {
   pgm.dropTable('riwayat_kgb');
   pgm.dropTable('riwayat_penempatan');
-  pgm.dropTable('riwayat_pangkat');
   pgm.dropTable('riwayat_jabatan');
 };
