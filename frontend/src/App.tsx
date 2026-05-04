@@ -4,7 +4,7 @@ import { SidebarPimpinan } from './components/SidebarPimpinan';
 import { SidebarAdmin } from './components/SidebarAdmin';
 import { SidebarPegawai } from './components/pegawai/SidebarPegawai';
 import { TopBar } from './components/TopBar';
-import { OverviewView } from './components/overview/OverviewView';
+import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
 import { PegawaiOverview } from './components/pegawai/PegawaiOverview';
 import { ProjectsView } from './components/projects/ProjectsView';
 import { OrganizationView } from './components/organization/OrganizationView';
@@ -17,8 +17,8 @@ import { PersonalProjectsView } from './components/personal/PersonalProjectsView
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
-import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
 import { EarlyWarningSystemView } from './components/admin/EarlyWarningSystemView';
+import { PimpinanApprovalSKPView } from './components/pimpinan/PimpinanApprovalSKPView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
 import { SistemView } from './components/admin/SistemView';
@@ -109,6 +109,7 @@ export default function App() {
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<PimpinanOverview />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
+        <Route path="approval-skp" element={<PimpinanApprovalSKPView />} />
         <Route path="data-kepegawaian" element={<OrganizationView detailPlacement="bottom" />} />
         <Route path="profil" element={<AccountView />} />
         <Route path="pengaturan" element={<SettingsView />} />
