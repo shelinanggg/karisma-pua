@@ -38,7 +38,7 @@ function RequiredStar() {
   return <span className="admin-required-star">*</span>;
 }
 
-function focusFormField(ref: React.RefObject<HTMLDivElement>) {
+function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
   const element = ref.current;
   if (!element) return;
 
