@@ -246,14 +246,14 @@ export function AdminMasterButirView() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6 sm:pt-0">
+        <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
           <div className="overflow-hidden rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[55%] px-6">Nama Butir Kegiatan</TableHead>
+                  <TableHead className="w-[60%] px-6">Nama Butir Kegiatan</TableHead>
                   <TableHead className="text-center">Partisipan Aktif</TableHead>
-                  <TableHead className="px-6 text-right">Aksi</TableHead>
+                  <TableHead className="px-6" style={{ width: '10rem', textAlign: 'center' }}>Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -262,8 +262,8 @@ export function AdminMasterButirView() {
                     <TableRow key={item.id}>
                       <TableCell className="px-6 font-medium">{item.name}</TableCell>
                       <TableCell className="text-center">{item.activeParticipants}</TableCell>
-                      <TableCell className="px-6">
-                        <div className="flex justify-end gap-2">
+                      <TableCell className="px-6" style={{ width: '10rem' }}>
+                        <div className="flex justify-center gap-2">
                           <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>
                             <Edit className="size-3.5" />
                             Edit

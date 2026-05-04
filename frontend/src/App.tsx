@@ -18,7 +18,7 @@ import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
-import { AdminNotificationView } from './components/admin/AdminNotificationView';
+import { AdminEarlyWarningSystemView } from './components/admin/AdminEarlyWarningSystemView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
 import { SystemSecurityView } from './components/admin/system/SystemSecurityView';
@@ -61,7 +61,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className={`flex h-screen bg-gray-50 ${allowedRole === 'admin' ? 'admin-layout' : ''}`}>
       <SidebarComponent />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
@@ -129,7 +129,8 @@ export default function App() {
         <Route path="kegiatan" element={<AdminKegiatanView />} />
         <Route path="master-butir" element={<AdminMasterButirView />} />
         <Route path="data-kepegawaian" element={<AdminOrganizationView />} />
-        <Route path="notifikasi" element={<AdminNotificationView />} />
+        <Route path="early-warning-system" element={<AdminEarlyWarningSystemView />} />
+        <Route path="notifikasi" element={<Navigate to="/admin/early-warning-system" replace />} />
         <Route path="sistem" element={<SystemSecurityView />} />
         <Route path="profil" element={<AdminProfilView />} />
         <Route path="pengaturan" element={<AdminSettingsView />} />

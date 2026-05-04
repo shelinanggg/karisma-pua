@@ -14,6 +14,7 @@ import { Checkbox } from '../ui/checkbox';
 const promotionData = Array.from({ length: 45 }).map((_, i) => ({
   id: `user-p-${i}`,
   name: `Pegawai Promotion ${i + 1}`,
+  nip: `198${(i % 10).toString().padStart(1, '0')}01012010${(i + 1).toString().padStart(4, '0')}`,
   currentScore: Math.floor(Math.random() * (150 - 50) + 50),
   requiredScore: 150,
 }));
@@ -28,10 +29,40 @@ const kgbData = Array.from({ length: 12 }).map((_, i) => {
   return {
     id: `user-k-${i}`,
     name: `Pegawai KGB ${i + 1}`,
+    nip: `197${(i % 10).toString().padStart(1, '0')}02022008${(i + 1).toString().padStart(4, '0')}`,
     tmtKgb: tmtDate.toISOString(),
     daysLeft,
   };
 });
+
+const pensionData = Array.from({ length: 18 }).map((_, i) => {
+  const daysLeft = Math.floor(Math.random() * (365 * 5)) + 1;
+  const tmtDate = new Date(today);
+  tmtDate.setDate(today.getDate() + daysLeft);
+
+  return {
+    id: `user-r-${i}`,
+    name: `Pegawai Pensiun ${i + 1}`,
+    nip: `196${(i % 10).toString().padStart(1, '0')}03032000${(i + 1).toString().padStart(4, '0')}`,
+    tmtPension: tmtDate.toISOString(),
+    daysLeft,
+  };
+});
+
+function formatDateId(date: string) {
+  return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatPensionRemaining(daysLeft: number) {
+  if (daysLeft < 30) return `${daysLeft} Hari Lagi`;
+
+  const years = Math.floor(daysLeft / 365);
+  const months = Math.floor((daysLeft % 365) / 30);
+
+  if (years > 0 && months > 0) return `${years} Tahun ${months} Bulan Lagi`;
+  if (years > 0) return `${years} Tahun Lagi`;
+  return `${months} Bulan Lagi`;
+}
 
 // --- HELPER COMPONENT ---
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
@@ -136,14 +167,17 @@ function CustomPagination({
   );
 }
 
-export function AdminNotificationView() {
+export function AdminEarlyWarningSystemView() {
   const [promoPage, setPromoPage] = useState(1);
   const [promoPageSize, setPromoPageSize] = useState(10);
   const [kgbPage, setKgbPage] = useState(1);
   const [kgbPageSize, setKgbPageSize] = useState(10);
+  const [pensionPage, setPensionPage] = useState(1);
+  const [pensionPageSize, setPensionPageSize] = useState(10);
 
   const [selectedPromoUser, setSelectedPromoUser] = useState<string>("");
   const [selectedKgbUser, setSelectedKgbUser] = useState<string>("");
+  const [selectedPensionUser, setSelectedPensionUser] = useState<string>("");
 
   const totalPromoPages = Math.max(1, Math.ceil(promotionData.length / promoPageSize));
   const normalizedPromoPage = Math.min(promoPage, totalPromoPages);
@@ -153,6 +187,13 @@ export function AdminNotificationView() {
   const normalizedKgbPage = Math.min(kgbPage, totalKgbPages);
   const paginatedKgb = kgbData.slice((normalizedKgbPage - 1) * kgbPageSize, normalizedKgbPage * kgbPageSize);
 
+  const totalPensionPages = Math.max(1, Math.ceil(pensionData.length / pensionPageSize));
+  const normalizedPensionPage = Math.min(pensionPage, totalPensionPages);
+  const paginatedPension = pensionData.slice(
+    (normalizedPensionPage - 1) * pensionPageSize,
+    normalizedPensionPage * pensionPageSize,
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -161,9 +202,10 @@ export function AdminNotificationView() {
       </div>
 
       <Tabs defaultValue="jabatan" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3" style={{ maxWidth: '42rem' }}>
           <TabsTrigger value="jabatan">Kenaikan Jabatan</TabsTrigger>
           <TabsTrigger value="kgb">Kenaikan Gaji Berkala</TabsTrigger>
+          <TabsTrigger value="pensiun">Pensiun</TabsTrigger>
         </TabsList>
 
         {/* TAB 1: Kenaikan Jabatan */}
@@ -175,7 +217,7 @@ export function AdminNotificationView() {
                 Pegawai dengan progres angka ketercapaian menuju target yang dipersyaratkan.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -190,7 +232,10 @@ export function AdminNotificationView() {
                       const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
                       return (
                         <TableRow key={user.id}>
-                          <TableCell className="font-medium" style={{ paddingLeft: '1.5rem' }}>{user.name}</TableCell>
+                          <TableCell style={{ paddingLeft: '1.5rem' }}>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
+                          </TableCell>
                           <TableCell>
                             <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
                           </TableCell>
@@ -273,10 +318,10 @@ export function AdminNotificationView() {
             <CardHeader>
               <CardTitle>Daftar Peserta Kenaikan Gaji Berkala</CardTitle>
               <CardDescription>
-                Hanya menampilkan pegawai yang TMT KGB-nya kurang dari sama dengan 31 hari lagi.
+                Hanya menampilkan pegawai yang TMT KGB-nya kurang dari sama dengan 90 hari lagi.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -289,11 +334,13 @@ export function AdminNotificationView() {
                   <TableBody>
                     {paginatedKgb.length > 0 ? (
                       paginatedKgb.map((user) => {
-                        const tmtDateObj = new Date(user.tmtKgb);
                         return (
                           <TableRow key={user.id}>
-                            <TableCell className="font-medium" style={{ width: '33.33%', paddingLeft: '1.5rem' }}>{user.name}</TableCell>
-                            <TableCell className="text-center" style={{ width: '33.33%' }}>{tmtDateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</TableCell>
+                            <TableCell style={{ width: '33.33%', paddingLeft: '1.5rem' }}>
+                              <div className="font-medium">{user.name}</div>
+                              <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
+                            </TableCell>
+                            <TableCell className="text-center" style={{ width: '33.33%' }}>{formatDateId(user.tmtKgb)}</TableCell>
                             <TableCell className="text-right" style={{ width: '33.33%', paddingRight: '1.5rem' }}>
                               <div className="flex justify-end">
                                 <Badge variant={user.daysLeft <= 14 ? "destructive" : "secondary"}>
@@ -360,6 +407,116 @@ export function AdminNotificationView() {
                         <Checkbox id="send-all-kgb" />
                         <label
                           htmlFor="send-all-kgb"
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          Kirim untuk semua
+                        </label>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button variant="outline">Batal</Button>
+                        <Button>Kirim via Sistem</Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: Pensiun */}
+        <TabsContent value="pensiun" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Peserta Pensiun</CardTitle>
+              <CardDescription>
+                Menampilkan pegawai yang memasuki periode early warning 5 tahun sebelum TMT pensiun.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead style={{ width: '33.33%', paddingLeft: '1.5rem' }}>Nama Pegawai</TableHead>
+                      <TableHead className="text-center" style={{ width: '33.33%' }}>Tanggal TMT Pensiun</TableHead>
+                      <TableHead className="text-right" style={{ width: '33.33%', paddingRight: '1.5rem' }}>Waktu Tersisa</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPension.length > 0 ? (
+                      paginatedPension.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell style={{ width: '33.33%', paddingLeft: '1.5rem' }}>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
+                          </TableCell>
+                          <TableCell className="text-center" style={{ width: '33.33%' }}>{formatDateId(user.tmtPension)}</TableCell>
+                          <TableCell className="text-right" style={{ width: '33.33%', paddingRight: '1.5rem' }}>
+                            <div className="flex justify-end">
+                              <Badge variant={user.daysLeft <= 365 ? "destructive" : "secondary"}>
+                                {formatPensionRemaining(user.daysLeft)}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-6 text-gray-500">
+                          Tidak ada data pensiun dalam 5 tahun ke depan.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {pensionData.length > 0 && (
+                  <CustomPagination
+                    currentPage={normalizedPensionPage}
+                    totalPages={totalPensionPages}
+                    totalItems={pensionData.length}
+                    pageSize={pensionPageSize}
+                    onPageChange={setPensionPage}
+                    onPageSizeChange={setPensionPageSize}
+                  />
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button disabled={pensionData.length === 0}>
+                      <Send className="w-4 h-4 mr-2" />
+                      Kirim Notifikasi
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Kirim Notifikasi Pensiun</DialogTitle>
+                      <DialogDescription>
+                        Pilih pegawai untuk dikirimkan notifikasi persiapan pensiun.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Select value={selectedPensionUser} onValueChange={setSelectedPensionUser}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih Pegawai" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pensionData.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} ({formatPensionRemaining(user.daysLeft)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center gap-3">
+                        <Checkbox id="send-all-pension" />
+                        <label
+                          htmlFor="send-all-pension"
                           className="text-sm font-medium leading-none cursor-pointer"
                         >
                           Kirim untuk semua
