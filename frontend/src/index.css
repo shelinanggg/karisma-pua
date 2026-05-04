@@ -3000,3 +3000,32 @@ html {
 .admin-layout thead tr {
   border-bottom-color: #d1d5db;
 }
+
+.admin-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0;
+}
+
+.admin-download-icon {
+  height: 0.875rem;
+  width: 0.875rem;
+}
+
+.admin-download-button {
+  height: 1.75rem;
+  width: 2.625rem;
+}
+
+.admin-required-star {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 0.125rem;
+}
+
+.admin-proceed-button:disabled {
+  background-color: #e5e7eb;
+  border-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 1;
+}

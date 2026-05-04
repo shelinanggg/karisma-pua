@@ -20,20 +20,15 @@ const promotionData = Array.from({ length: 45 }).map((_, i) => ({
 }));
 
 const today = new Date();
-const kgbData = Array.from({ length: 12 }).map((_, i) => {
-  // Generate dates within the next 31 days
-  const daysLeft = Math.floor(Math.random() * 30) + 1;
-  const tmtDate = new Date(today);
-  tmtDate.setDate(today.getDate() + daysLeft);
+type KgbWarning = {
+  id: string;
+  name: string;
+  nip: string;
+  tmtKgb: string;
+  daysLeft: number;
+};
 
-  return {
-    id: `user-k-${i}`,
-    name: `Pegawai KGB ${i + 1}`,
-    nip: `197${(i % 10).toString().padStart(1, '0')}02022008${(i + 1).toString().padStart(4, '0')}`,
-    tmtKgb: tmtDate.toISOString(),
-    daysLeft,
-  };
-});
+const kgbData: KgbWarning[] = [];
 
 const pensionData = Array.from({ length: 18 }).map((_, i) => {
   const daysLeft = Math.floor(Math.random() * (365 * 5)) + 1;
@@ -62,6 +57,23 @@ function formatPensionRemaining(daysLeft: number) {
   if (years > 0 && months > 0) return `${years} Tahun ${months} Bulan Lagi`;
   if (years > 0) return `${years} Tahun Lagi`;
   return `${months} Bulan Lagi`;
+}
+
+function EmptyTableRow({ colSpan, message }: { colSpan: number; message: string }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={colSpan} className="py-10 text-center">
+        <div className="mx-auto max-w-sm rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5">
+          <p className="text-sm font-medium text-gray-700">{message}</p>
+          <p className="mt-1 text-xs text-gray-500">Data akan muncul di tabel ini setelah tersedia.</p>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function RequiredStar() {
+  return <span className="admin-required-star">*</span>;
 }
 
 // --- HELPER COMPONENT ---
@@ -178,6 +190,9 @@ export function EarlyWarningSystemView() {
   const [selectedPromoUser, setSelectedPromoUser] = useState<string>("");
   const [selectedKgbUser, setSelectedKgbUser] = useState<string>("");
   const [selectedPensionUser, setSelectedPensionUser] = useState<string>("");
+  const [sendAllPromo, setSendAllPromo] = useState(false);
+  const [sendAllKgb, setSendAllKgb] = useState(false);
+  const [sendAllPension, setSendAllPension] = useState(false);
 
   const totalPromoPages = Math.max(1, Math.ceil(promotionData.length / promoPageSize));
   const normalizedPromoPage = Math.min(promoPage, totalPromoPages);
@@ -228,26 +243,30 @@ export function EarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPromo.map((user) => {
-                      const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell style={{ paddingLeft: '1.5rem' }}>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
-                          </TableCell>
-                          <TableCell style={{ paddingRight: '1.5rem' }}>
-                            <div className="flex items-center gap-3">
-                              <Progress value={percentage} className="w-full" />
-                              <span className="text-sm text-gray-500 w-12">{percentage}%</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {paginatedPromo.length > 0 ? (
+                      paginatedPromo.map((user) => {
+                        const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell style={{ paddingLeft: '1.5rem' }}>
+                              <div className="font-medium">{user.name}</div>
+                              <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
+                            </TableCell>
+                            <TableCell style={{ paddingRight: '1.5rem' }}>
+                              <div className="flex items-center gap-3">
+                                <Progress value={percentage} className="w-full" />
+                                <span className="text-sm text-gray-500 w-12">{percentage}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <EmptyTableRow colSpan={3} message="Tidak ada kandidat kenaikan jabatan." />
+                    )}
                   </TableBody>
                 </Table>
 
@@ -277,6 +296,9 @@ export function EarlyWarningSystemView() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
+                      <p className="mb-2 text-sm font-medium text-gray-700">
+                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
+                      </p>
                       <Select value={selectedPromoUser} onValueChange={setSelectedPromoUser}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Pilih Pegawai" />
@@ -292,7 +314,7 @@ export function EarlyWarningSystemView() {
                     </div>
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-1">
-                        <Checkbox id="send-all-promo" />
+                        <Checkbox id="send-all-promo" checked={sendAllPromo} onCheckedChange={(checked) => setSendAllPromo(Boolean(checked))} />
                         <label
                           htmlFor="send-all-promo"
                           className="text-sm font-medium leading-none cursor-pointer"
@@ -302,7 +324,7 @@ export function EarlyWarningSystemView() {
                       </div>
                       <div className="flex gap-3">
                         <Button variant="outline">Batal</Button>
-                        <Button>Kirim via Sistem</Button>
+                        <Button className="admin-proceed-button" disabled={!selectedPromoUser && !sendAllPromo}>Kirim via Sistem</Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -352,11 +374,7 @@ export function EarlyWarningSystemView() {
                         );
                       })
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 text-gray-500">
-                          Tidak ada data KGB dalam 31 hari ke depan.
-                        </TableCell>
-                      </TableRow>
+                      <EmptyTableRow colSpan={3} message="Tidak ada data KGB dalam 31 hari ke depan." />
                     )}
                   </TableBody>
                 </Table>
@@ -389,6 +407,9 @@ export function EarlyWarningSystemView() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
+                      <p className="mb-2 text-sm font-medium text-gray-700">
+                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
+                      </p>
                       <Select value={selectedKgbUser} onValueChange={setSelectedKgbUser}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Pilih Pegawai" />
@@ -404,7 +425,7 @@ export function EarlyWarningSystemView() {
                     </div>
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-3">
-                        <Checkbox id="send-all-kgb" />
+                        <Checkbox id="send-all-kgb" checked={sendAllKgb} onCheckedChange={(checked) => setSendAllKgb(Boolean(checked))} />
                         <label
                           htmlFor="send-all-kgb"
                           className="text-sm font-medium leading-none cursor-pointer"
@@ -414,7 +435,7 @@ export function EarlyWarningSystemView() {
                       </div>
                       <div className="flex gap-3">
                         <Button variant="outline">Batal</Button>
-                        <Button>Kirim via Sistem</Button>
+                        <Button className="admin-proceed-button" disabled={!selectedKgbUser && !sendAllKgb}>Kirim via Sistem</Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -462,11 +483,7 @@ export function EarlyWarningSystemView() {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 text-gray-500">
-                          Tidak ada data pensiun dalam 5 tahun ke depan.
-                        </TableCell>
-                      </TableRow>
+                      <EmptyTableRow colSpan={3} message="Tidak ada data pensiun dalam 5 tahun ke depan." />
                     )}
                   </TableBody>
                 </Table>
@@ -499,6 +516,9 @@ export function EarlyWarningSystemView() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
+                      <p className="mb-2 text-sm font-medium text-gray-700">
+                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
+                      </p>
                       <Select value={selectedPensionUser} onValueChange={setSelectedPensionUser}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Pilih Pegawai" />
@@ -514,7 +534,7 @@ export function EarlyWarningSystemView() {
                     </div>
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center gap-3">
-                        <Checkbox id="send-all-pension" />
+                        <Checkbox id="send-all-pension" checked={sendAllPension} onCheckedChange={(checked) => setSendAllPension(Boolean(checked))} />
                         <label
                           htmlFor="send-all-pension"
                           className="text-sm font-medium leading-none cursor-pointer"
@@ -524,7 +544,7 @@ export function EarlyWarningSystemView() {
                       </div>
                       <div className="flex gap-3">
                         <Button variant="outline">Batal</Button>
-                        <Button>Kirim via Sistem</Button>
+                        <Button className="admin-proceed-button" disabled={!selectedPensionUser && !sendAllPension}>Kirim via Sistem</Button>
                       </div>
                     </div>
                   </DialogContent>

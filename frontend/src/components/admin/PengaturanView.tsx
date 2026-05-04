@@ -52,6 +52,18 @@ function PasswordInput({
   );
 }
 
+function RequiredStar() {
+  return <span className="admin-required-star">*</span>;
+}
+
+function focusSettingField(id: string) {
+  const element = document.getElementById(id) as HTMLInputElement | null;
+  if (!element) return;
+
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.setTimeout(() => element.focus(), 250);
+}
+
 export function PengaturanView() {
   const [form, setForm] = useState({
     currentPassword: '',
@@ -70,6 +82,8 @@ export function PengaturanView() {
   function handleSubmit() {
     if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
       setError('Semua kolom wajib diisi.');
+      const firstEmptyField = !form.currentPassword ? 'currentPassword' : !form.newPassword ? 'newPassword' : 'confirmPassword';
+      focusSettingField(firstEmptyField);
       return;
     }
     if (form.newPassword !== form.confirmPassword) {
@@ -83,6 +97,8 @@ export function PengaturanView() {
     setSuccess('Password berhasil diubah.');
     setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
   }
+
+  const isFormComplete = Boolean(form.currentPassword && form.newPassword && form.confirmPassword);
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -102,7 +118,7 @@ export function PengaturanView() {
 
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="currentPassword" className="text-sm font-medium text-gray-700">Password Saat Ini</Label>
+            <Label htmlFor="currentPassword" className="text-sm font-medium text-gray-700">Password Saat Ini<RequiredStar /></Label>
             <PasswordInput
               id="currentPassword"
               value={form.currentPassword}
@@ -112,7 +128,7 @@ export function PengaturanView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">Password Baru</Label>
+            <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">Password Baru<RequiredStar /></Label>
             <PasswordInput
               id="newPassword"
               value={form.newPassword}
@@ -122,7 +138,7 @@ export function PengaturanView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Konfirmasi Password Baru</Label>
+            <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Konfirmasi Password Baru<RequiredStar /></Label>
             <PasswordInput
               id="confirmPassword"
               value={form.confirmPassword}
@@ -135,7 +151,9 @@ export function PengaturanView() {
           {success && <p className="text-sm font-medium text-green-700 bg-green-50 p-3 rounded-md">{success}</p>}
 
           <div className="flex justify-end pt-4">
-            <Button onClick={handleSubmit} className="h-11 px-6 text-base">Update Password</Button>
+            <Button onClick={handleSubmit} disabled={!isFormComplete} className="admin-proceed-button h-11 px-6 text-base">
+              Update Password
+            </Button>
           </div>
         </CardContent>
       </Card>

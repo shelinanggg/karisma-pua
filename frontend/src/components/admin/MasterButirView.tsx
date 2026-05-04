@@ -20,6 +20,18 @@ type MasterButir = {
   activeParticipants: number;
 };
 
+function RequiredStar() {
+  return <span className="admin-required-star">*</span>;
+}
+
+function focusMasterButirName() {
+  const element = document.getElementById('master-butir-name') as HTMLInputElement | null;
+  if (!element) return;
+
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.setTimeout(() => element.focus(), 250);
+}
+
 const pageSizeOptions = [5, 10, 20];
 
 const initialButirData: MasterButir[] = [
@@ -187,7 +199,10 @@ export function MasterButirView() {
 
   const handleSubmit = () => {
     const trimmedName = formName.trim();
-    if (!trimmedName) return;
+    if (!trimmedName) {
+      focusMasterButirName();
+      return;
+    }
 
     if (editingItem) {
       setItems((prev) => prev.map((item) => (item.id === editingItem.id ? { ...item, name: trimmedName } : item)));
@@ -307,7 +322,7 @@ export function MasterButirView() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="master-butir-name">Nama Butir Kegiatan</Label>
+            <Label htmlFor="master-butir-name">Nama Butir Kegiatan<RequiredStar /></Label>
             <Input
               id="master-butir-name"
               value={formName}
@@ -319,7 +334,7 @@ export function MasterButirView() {
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
               Batal
             </Button>
-            <Button onClick={handleSubmit} disabled={!formName.trim()}>
+            <Button className="admin-proceed-button" onClick={handleSubmit} disabled={!formName.trim()}>
               Simpan
             </Button>
           </DialogFooter>

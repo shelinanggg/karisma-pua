@@ -49,6 +49,16 @@ const statusStyles: Record<string, { bg: string; fg: string }> = {
   Diproses: { bg: "var(--status-progress-bg)", fg: "var(--status-progress)" },
 };
 
+function openDatePicker(event: { currentTarget: HTMLInputElement }) {
+  const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+
+  try {
+    input.showPicker?.();
+  } catch {
+    // Browser fallback: native focus/click behavior remains available.
+  }
+}
+
 const ActivityBadge = ({ type }: { type: string }) => {
   const s = activityStyles[type] ?? { bg: "var(--muted)", fg: "var(--muted-foreground)" };
   return (
@@ -214,10 +224,25 @@ export function SistemView() {
                 </select>
 
                 <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary)]/15">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <input type="date" className="bg-transparent text-sm outline-none" />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      className="admin-date-input bg-transparent text-sm outline-none"
+                      onClick={openDatePicker}
+                      style={{ width: '9.25rem', paddingRight: '1.75rem' }}
+                    />
+                    <Calendar className="text-muted-foreground" style={{ position: 'absolute', right: '0.125rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
                   <span className="text-muted-foreground">–</span>
-                  <input type="date" className="bg-transparent text-sm outline-none" />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      className="admin-date-input bg-transparent text-sm outline-none"
+                      onClick={openDatePicker}
+                      style={{ width: '9.25rem', paddingRight: '1.75rem' }}
+                    />
+                    <Calendar className="text-muted-foreground" style={{ position: 'absolute', right: '0.125rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
                 </div>
 
                 <button className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted">
@@ -241,24 +266,35 @@ export function SistemView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {paginatedAuditLogs.map((log) => (
-                    <tr
-                      key={log.id}
-                      onClick={() => setSelectedAuditLog(log)}
-                      className="cursor-pointer transition-colors hover:bg-muted/40"
-                    >
-                      <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-muted-foreground">{log.timestamp}</td>
-                      <td className="px-6 py-4 font-medium text-foreground">{log.user}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{log.role}</td>
-                      <td className="px-6 py-4 text-center">
-                        <ActivityBadge type={log.type} />
-                      </td>
-                      <td className="px-6 py-4 text-foreground/80">{log.description}</td>
-                      <td className="px-6 py-4 text-center">
-                        <StatusBadge status={log.status} />
+                  {paginatedAuditLogs.length > 0 ? (
+                    paginatedAuditLogs.map((log) => (
+                      <tr
+                        key={log.id}
+                        onClick={() => setSelectedAuditLog(log)}
+                        className="cursor-pointer transition-colors hover:bg-muted/40"
+                      >
+                        <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-muted-foreground">{log.timestamp}</td>
+                        <td className="px-6 py-4 font-medium text-foreground">{log.user}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{log.role}</td>
+                        <td className="px-6 py-4 text-center">
+                          <ActivityBadge type={log.type} />
+                        </td>
+                        <td className="px-6 py-4 text-foreground/80">{log.description}</td>
+                        <td className="px-6 py-4 text-center">
+                          <StatusBadge status={log.status} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center">
+                        <div className="mx-auto max-w-sm rounded-lg border border-dashed border-border bg-muted/30 px-4 py-5">
+                          <p className="text-sm font-medium text-foreground">Belum ada log aktivitas.</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Riwayat aktivitas sistem akan muncul di tabel ini.</p>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -475,25 +511,36 @@ export function SistemView() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {paginatedBackupLogs.map((log) => (
-                        <tr key={log.id} className="transition hover:bg-muted/40">
-                          <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-muted-foreground">{log.date}</td>
-                          <td className="px-6 py-4 font-medium text-foreground">{log.user}</td>
-                          <td className="px-6 py-4 text-muted-foreground">{log.size}</td>
-                          <td className="px-6 py-4 text-center">
-                            <StatusBadge status={log.status} />
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              className="rounded-lg p-2 text-muted-foreground transition hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-                              disabled={log.status !== "Berhasil"}
-                              title="Unduh cadangan"
-                            >
-                              <Download className="h-4 w-4" />
-                            </button>
+                      {paginatedBackupLogs.length > 0 ? (
+                        paginatedBackupLogs.map((log) => (
+                          <tr key={log.id} className="transition hover:bg-muted/40">
+                            <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-muted-foreground">{log.date}</td>
+                            <td className="px-6 py-4 font-medium text-foreground">{log.user}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{log.size}</td>
+                            <td className="px-6 py-4 text-center">
+                              <StatusBadge status={log.status} />
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                className="rounded-lg p-2 text-muted-foreground transition hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                                disabled={log.status !== "Berhasil"}
+                                title="Unduh cadangan"
+                              >
+                                <Download className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-10 text-center">
+                            <div className="mx-auto max-w-sm rounded-lg border border-dashed border-border bg-muted/30 px-4 py-5">
+                              <p className="text-sm font-medium text-foreground">Belum ada riwayat backup.</p>
+                              <p className="mt-1 text-xs text-muted-foreground">Data backup akan muncul di tabel ini setelah tersedia.</p>
+                            </div>
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>

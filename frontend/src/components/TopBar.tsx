@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { Search, Bell, ChevronDown, Check, AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
+import { Bell, ChevronDown, AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { Input } from './ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { currentUser, mockWorkspaces } from '../data/mockData';
+import { currentUser } from '../data/mockData';
 
 // ── Notification data ─────────────────────────────────────────────────────────
 
@@ -100,7 +99,6 @@ const notifConfig: Record<NotifType, {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function TopBar() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState(mockWorkspaces[0]);
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState(mockNotifications);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -146,18 +144,7 @@ export function TopBar() {
   };
 
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search projects, tasks, or people..."
-            className="pl-10"
-          />
-        </div>
-      </div>
-
+    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6">
       <div className="flex items-center gap-4">
 
         {/* ── Notification Bell ── */}
@@ -291,41 +278,6 @@ export function TopBar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="h-8 w-px bg-gray-200" />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <span className="text-sm">{selectedWorkspace.name}</span>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>Switch Workspace</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {mockWorkspaces.map((workspace) => (
-              <DropdownMenuItem
-                key={workspace.id}
-                onClick={() => setSelectedWorkspace(workspace)}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded flex items-center justify-center text-white text-xs">
-                    {workspace.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm">{workspace.name}</p>
-                    <p className="text-xs text-gray-500">{workspace.type}</p>
-                  </div>
-                </div>
-                {selectedWorkspace.id === workspace.id && (
-                  <Check className="w-4 h-4 text-blue-600" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

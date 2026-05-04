@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
+  Calendar,
   Check,
   ChevronsUpDown,
   Eye,
   Pencil,
+  Plus,
   Search,
   Trash2,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +53,29 @@ type Employee = {
 type DataKepegawaianViewProps = {
   detailPlacement?: 'row' | 'bottom';
 };
+
+function openDatePicker(event: { currentTarget: HTMLInputElement }) {
+  const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+
+  try {
+    input.showPicker?.();
+  } catch {
+    // Browser fallback: native focus/click behavior remains available.
+  }
+}
+
+function RequiredStar() {
+  return <span className="admin-required-star">*</span>;
+}
+
+function focusEmployeeField(ref: React.RefObject<HTMLDivElement>) {
+  const element = ref.current;
+  if (!element) return;
+
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const focusable = element.querySelector('button, input, textarea') as HTMLElement | null;
+  window.setTimeout(() => focusable?.focus(), 250);
+}
 
 const jabatanOptions: RelationOption[] = [
   { id: 'jab-1', label: 'Pustakawan Ahli Pertama' },
@@ -210,6 +235,29 @@ const initialEmployees: Employee[] = Array.from({ length: 18 }, (_, index) => {
     nama: index < employeeSeeds.length ? seed.nama : `${seed.nama} ${Math.floor(index / employeeSeeds.length) + 1}`,
   };
 });
+
+function createEmptyEmployee(): Employee {
+  return {
+    id: 'new-employee',
+    nip: '',
+    nama: '',
+    tempat_lahir: '',
+    tanggal_lahir: '',
+    role_id: '',
+    fungsional: '',
+    tmt_golongan: '',
+    pendidikan: '',
+    kualifikasi: '',
+    tmt_kgb: '',
+    tmt_jabatan: '',
+    tmt_pensiun: '',
+    jabatan_id: '',
+    pangkat_id: '',
+    golongan_id: '',
+    penempatan_id: '',
+    sertifikasi_id: '',
+  };
+}
 
 const relationMaps = {
   role_id: roleOptions,
@@ -518,17 +566,20 @@ function DetailModal({
 
 function EditEmployeeModal({
   employee,
+  mode = 'edit',
   open,
   onOpenChange,
   onSave,
 }: {
   employee: Employee | null;
+  mode?: 'add' | 'edit';
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (employee: Employee) => void;
 }) {
   const [form, setForm] = useState<Employee | null>(employee);
   const [error, setError] = useState('');
+  const roleFieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setForm(employee);
@@ -543,11 +594,12 @@ function EditEmployeeModal({
   };
 
   const handleSubmit = () => {
-    const requiredFields: (keyof Employee)[] = ['nip', 'nama', 'tempat_lahir', 'tanggal_lahir', 'fungsional'];
+    const requiredFields: (keyof Employee)[] = ['role_id'];
     const hasEmptyField = requiredFields.some((key) => !form[key].trim());
 
     if (hasEmptyField) {
-      setError('NIP, nama, tempat lahir, tanggal lahir, dan fungsional wajib diisi.');
+      setError('Role wajib diisi.');
+      focusEmployeeField(roleFieldRef);
       return;
     }
 
@@ -555,12 +607,18 @@ function EditEmployeeModal({
     onOpenChange(false);
   };
 
+  const isFormValid = Boolean(form.role_id.trim());
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent style={{ maxWidth: '608px', maxHeight: '64vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
         <DialogHeader style={{ gap: '0.25rem' }}>
-          <DialogTitle style={{ fontSize: '1rem' }}>Edit Data Pegawai</DialogTitle>
-          <DialogDescription style={{ fontSize: '0.8125rem' }}>Perbarui seluruh data profil dan kepegawaian pegawai.</DialogDescription>
+          <DialogTitle style={{ fontSize: '1rem' }}>{mode === 'add' ? 'Tambah Pegawai' : 'Edit Data Pegawai'}</DialogTitle>
+          <DialogDescription style={{ fontSize: '0.8125rem' }}>
+            {mode === 'add'
+              ? 'Lengkapi data profil dan kepegawaian pegawai baru.'
+              : 'Perbarui seluruh data profil dan kepegawaian pegawai.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(64vh - 8.5rem)', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
@@ -574,9 +632,14 @@ function EditEmployeeModal({
                     const key = field.key as keyof Employee;
 
                     return (
-                      <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      <div
+                        key={field.key}
+                        ref={field.key === 'role_id' ? roleFieldRef : undefined}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}
+                      >
                         <Label htmlFor={`employee-${field.key}`} className="text-gray-700" style={{ fontSize: '0.8125rem' }}>
                           {field.label}
+                          {field.key === 'role_id' && <RequiredStar />}
                         </Label>
                         {field.type === 'relation' ? (
                           <SearchableSelect
@@ -585,6 +648,22 @@ function EditEmployeeModal({
                             value={form[key]}
                             onChange={(value) => updateField(key, value)}
                           />
+                        ) : field.type === 'date' ? (
+                          <div className="relative">
+                            <Input
+                              id={`employee-${field.key}`}
+                              type="date"
+                              value={form[key]}
+                              onChange={(event) => updateField(key, event.target.value)}
+                              onClick={openDatePicker}
+                              className="admin-date-input bg-white"
+                              style={{ height: '2.25rem', fontSize: '0.8125rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb', paddingRight: '2.25rem' }}
+                            />
+                            <Calendar
+                              className="text-gray-400"
+                              style={{ position: 'absolute', right: '0.75rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                            />
+                          </div>
                         ) : (
                           <Input
                             id={`employee-${field.key}`}
@@ -609,7 +688,9 @@ function EditEmployeeModal({
           <Button variant="outline" onClick={() => onOpenChange(false)} className="h-8 px-3 text-xs">
             Batal
           </Button>
-          <Button onClick={handleSubmit} className="h-8 px-3 text-xs">Simpan Perubahan</Button>
+          <Button onClick={handleSubmit} disabled={!isFormValid} className="admin-proceed-button h-8 px-3 text-xs">
+            {mode === 'add' ? 'Simpan' : 'Simpan Perubahan'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -696,6 +777,7 @@ export function DataKepegawaianView(_props: DataKepegawaianViewProps) {
   const [pageSize, setPageSize] = useState(5);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [addEmployee, setAddEmployee] = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const employeeGridStyle = {
     minWidth: '1080px',
@@ -724,6 +806,14 @@ export function DataKepegawaianView(_props: DataKepegawaianViewProps) {
 
   const saveEmployee = (updatedEmployee: Employee) => {
     setEmployees((current) => current.map((employee) => (employee.id === updatedEmployee.id ? updatedEmployee : employee)));
+  };
+
+  const addNewEmployee = (newEmployee: Employee) => {
+    setEmployees((current) => {
+      const nextId = Math.max(0, ...current.map((employee) => Number(employee.id.replace('emp-', '')) || 0)) + 1;
+      return [{ ...newEmployee, id: `emp-${nextId}` }, ...current];
+    });
+    setPage(1);
   };
 
   const confirmDelete = () => {
@@ -778,6 +868,12 @@ export function DataKepegawaianView(_props: DataKepegawaianViewProps) {
         <CardHeader className="pb-4">
           <CardTitle>Daftar Pegawai</CardTitle>
           <CardDescription>Ringkasan pegawai dengan aksi detail, edit, dan hapus.</CardDescription>
+          <CardAction>
+            <Button className="h-10 whitespace-nowrap" onClick={() => setAddEmployee(createEmptyEmployee())}>
+              <Plus className="size-4" />
+              Tambah Pegawai
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -856,6 +952,14 @@ export function DataKepegawaianView(_props: DataKepegawaianViewProps) {
         open={Boolean(editEmployee)}
         onOpenChange={(open) => !open && setEditEmployee(null)}
         onSave={saveEmployee}
+      />
+
+      <EditEmployeeModal
+        employee={addEmployee}
+        mode="add"
+        open={Boolean(addEmployee)}
+        onOpenChange={(open) => !open && setAddEmployee(null)}
+        onSave={addNewEmployee}
       />
 
       <DeleteEmployeeModal
