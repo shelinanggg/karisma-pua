@@ -5,7 +5,9 @@ import { Bell, ChevronDown, AlertCircle, AlertTriangle, Info, CheckCircle2, X } 
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { currentUser } from '../data/mockData';
+import { useProfile } from '../hooks/useProfile';
+import { logoutService } from '../services/profileService';
+import { getInitials, getRoleLabel } from '../utils/profile';
 
 // ── Notification data ─────────────────────────────────────────────────────────
 
@@ -103,26 +105,37 @@ export function TopBar() {
   const [notifications, setNotifications] = useState(mockNotifications);
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { profile, loading } = useProfile();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const getDisplayRole = () => {
-    const token = localStorage.getItem('token');
-    if (!token) return currentUser.role;
+  const getTokenRole = () => {
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) return null;
 
     try {
       const decoded: { role?: string } = jwtDecode(token);
-      const role = (decoded.role || '').toLowerCase();
-      if (role === 'pimpinan') return 'Pimpinan';
-      if (role === 'pegawai') return 'Pegawai';
-      if (role === 'admin') return 'Admin';
-      return currentUser.role;
+      return decoded.role || null;
     } catch {
-      return currentUser.role;
+      return null;
     }
   };
 
-  const displayRole = getDisplayRole();
+  const role = profile?.role || getTokenRole();
+  const displayName = profile?.nama || (loading ? 'Memuat...' : 'Pengguna');
+  const displayRole = getRoleLabel(role);
+
+  const getProfilePath = () => {
+    if (role === 'pegawai') return '/pegawai/account';
+    if (role === 'pimpinan') return '/pimpinan/profil';
+    return '/admin/profil';
+  };
+
+  const getSettingsPath = () => {
+    if (role === 'pegawai') return '/pegawai/settings';
+    if (role === 'pimpinan') return '/pimpinan/pengaturan';
+    return '/admin/pengaturan';
+  };
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -245,35 +258,36 @@ export function TopBar() {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-3 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
               <div className="text-right">
-                <p className="text-sm">{currentUser.name}</p>
+                <p className="text-sm">{displayName}</p>
                 <p className="text-xs text-gray-500">{displayRole}</p>
               </div>
               <Avatar>
                 <AvatarFallback className="bg-blue-600 text-white">
-                  {currentUser.name.split(' ').map((n: string) => n[0]).join('')}
+                  {getInitials(profile?.nama)}
                 </AvatarFallback>
               </Avatar>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-            <DropdownMenuItem>Preferences</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate(getProfilePath())}>Profil</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate(getSettingsPath())}>Pengaturan</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600"
               onClick={async () => {
                 try {
-                  // Optional: panggil endpoint backend
-                  // await axiosInstance.post('/auth/logout');
-                } catch(e) {}
+                  await logoutService();
+                } catch(e) {
+                  // Token lokal tetap dibersihkan meski cookie session gagal dihapus server.
+                }
                 sessionStorage.removeItem('accessToken');
                 navigate('/login');
               }}
             >
-              Sign Out
+              Keluar
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
