@@ -167,7 +167,7 @@ function CustomPagination({
   );
 }
 
-export function AdminEarlyWarningSystemView() {
+export function EarlyWarningSystemView() {
   const [promoPage, setPromoPage] = useState(1);
   const [promoPageSize, setPromoPageSize] = useState(10);
   const [kgbPage, setKgbPage] = useState(1);

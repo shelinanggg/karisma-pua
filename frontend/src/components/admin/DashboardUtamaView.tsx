@@ -120,7 +120,7 @@ const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> 
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function AdminOverview() {
+export function DashboardUtamaView() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [expandedKegiatan, setExpandedKegiatan] = useState<number | null>(null);
   const [selectedYear, setSelectedYear] = useState(2025);

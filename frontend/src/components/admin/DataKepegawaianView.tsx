@@ -33,6 +33,7 @@ type Employee = {
   nama: string;
   tempat_lahir: string;
   tanggal_lahir: string;
+  role_id: string;
   fungsional: string;
   tmt_golongan: string;
   pendidikan: string;
@@ -47,7 +48,7 @@ type Employee = {
   sertifikasi_id: string;
 };
 
-type AdminOrganizationViewProps = {
+type DataKepegawaianViewProps = {
   detailPlacement?: 'row' | 'bottom';
 };
 
@@ -89,6 +90,12 @@ const sertifikasiOptions: RelationOption[] = [
   { id: 'ser-3', label: 'Sertifikasi Dalam Proses' },
 ];
 
+const roleOptions: RelationOption[] = [
+  { id: 'role-admin', label: 'Admin' },
+  { id: 'role-pimpinan', label: 'Pimpinan' },
+  { id: 'role-pegawai', label: 'Pegawai' },
+];
+
 const employeeSeeds: Employee[] = [
   {
     id: 'emp-1',
@@ -96,6 +103,7 @@ const employeeSeeds: Employee[] = [
     nama: 'Sarah Johnson',
     tempat_lahir: 'Jakarta',
     tanggal_lahir: '1988-01-05',
+    role_id: 'role-admin',
     fungsional: 'Pustakawan Ahli Muda',
     tmt_golongan: '2022-04-01',
     pendidikan: 'S2 Ilmu Perpustakaan',
@@ -115,6 +123,7 @@ const employeeSeeds: Employee[] = [
     nama: 'Michael Chen',
     tempat_lahir: 'Surabaya',
     tanggal_lahir: '1987-09-12',
+    role_id: 'role-pimpinan',
     fungsional: 'Pustakawan Ahli Madya',
     tmt_golongan: '2023-10-01',
     pendidikan: 'S2 Administrasi Publik',
@@ -134,6 +143,7 @@ const employeeSeeds: Employee[] = [
     nama: 'Emily Davis',
     tempat_lahir: 'Bandung',
     tanggal_lahir: '1990-01-18',
+    role_id: 'role-pegawai',
     fungsional: 'Analis SDM Aparatur',
     tmt_golongan: '2021-04-01',
     pendidikan: 'S1 Psikologi',
@@ -153,6 +163,7 @@ const employeeSeeds: Employee[] = [
     nama: 'James Wilson',
     tempat_lahir: 'Yogyakarta',
     tanggal_lahir: '1991-03-07',
+    role_id: 'role-pegawai',
     fungsional: 'Pustakawan Ahli Pertama',
     tmt_golongan: '2020-10-01',
     pendidikan: 'S1 Ilmu Informasi',
@@ -172,6 +183,7 @@ const employeeSeeds: Employee[] = [
     nama: 'Lisa Anderson',
     tempat_lahir: 'Malang',
     tanggal_lahir: '1992-04-22',
+    role_id: 'role-pegawai',
     fungsional: 'Pranata Komputer Ahli Pertama',
     tmt_golongan: '2022-10-01',
     pendidikan: 'S1 Sistem Informasi',
@@ -200,6 +212,7 @@ const initialEmployees: Employee[] = Array.from({ length: 18 }, (_, index) => {
 });
 
 const relationMaps = {
+  role_id: roleOptions,
   jabatan_id: jabatanOptions,
   pangkat_id: pangkatOptions,
   golongan_id: golonganOptions,
@@ -224,6 +237,7 @@ const detailSections = [
   {
     title: 'Data Kepegawaian',
     fields: [
+      ['role_id', 'Role'],
       ['fungsional', 'Fungsional'],
       ['jabatan_id', 'Jabatan'],
       ['pangkat_id', 'Pangkat'],
@@ -250,6 +264,7 @@ const editableFields = [
   { key: 'tanggal_lahir', label: 'Tanggal Lahir', type: 'date', group: 'Data Pribadi' },
   { key: 'pendidikan', label: 'Pendidikan', type: 'text', group: 'Data Pribadi' },
   { key: 'kualifikasi', label: 'Kualifikasi', type: 'text', group: 'Data Pribadi' },
+  { key: 'role_id', label: 'Role', type: 'relation', group: 'Data Kepegawaian' },
   { key: 'fungsional', label: 'Fungsional', type: 'text', group: 'Data Kepegawaian' },
   { key: 'jabatan_id', label: 'Jabatan', type: 'relation', group: 'Data Kepegawaian' },
   { key: 'pangkat_id', label: 'Pangkat', type: 'relation', group: 'Data Kepegawaian' },
@@ -673,30 +688,39 @@ function DeleteEmployeeModal({
   );
 }
 
-export function AdminOrganizationView(_props: AdminOrganizationViewProps) {
+export function DataKepegawaianView(_props: DataKepegawaianViewProps) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const employeeGridStyle = {
-    minWidth: '980px',
-    gridTemplateColumns: 'minmax(260px, 1.4fr) minmax(190px, 1fr) minmax(150px, 0.8fr) minmax(110px, 0.6fr) 220px',
+    minWidth: '1080px',
+    gridTemplateColumns: 'minmax(240px, 1.35fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 220px',
   };
 
   const filteredEmployees = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return employees;
 
     return employees.filter((employee) =>
-      [employee.nama, employee.nip, employee.fungsional, getRelationLabel('pangkat_id', employee.pangkat_id), getRelationLabel('golongan_id', employee.golongan_id)]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
+      (roleFilter === 'all' || employee.role_id === roleFilter) &&
+      (!query ||
+        [
+          employee.nama,
+          employee.nip,
+          getRelationLabel('role_id', employee.role_id),
+          employee.fungsional,
+          getRelationLabel('pangkat_id', employee.pangkat_id),
+          getRelationLabel('golongan_id', employee.golongan_id),
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query)),
     );
-  }, [employees, search]);
+  }, [employees, search, roleFilter]);
 
   const saveEmployee = (updatedEmployee: Employee) => {
     setEmployees((current) => current.map((employee) => (employee.id === updatedEmployee.id ? updatedEmployee : employee)));
@@ -719,17 +743,34 @@ export function AdminOrganizationView(_props: AdminOrganizationViewProps) {
           <h1 className="text-2xl font-semibold text-gray-900">Data Kepegawaian</h1>
           <p className="mt-1 text-sm text-gray-500">Kelola daftar pegawai, detail profil, dan data relasi kepegawaian.</p>
         </div>
-        <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
-          <Search className="size-4 shrink-0 text-gray-400" />
-          <Input
-            value={search}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
+            <Search className="size-4 shrink-0 text-gray-400" />
+            <Input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Cari nama, NIP, role..."
+              className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            />
+          </div>
+          <select
+            value={roleFilter}
             onChange={(event) => {
-              setSearch(event.target.value);
+              setRoleFilter(event.target.value);
               setPage(1);
             }}
-            placeholder="Cari nama, NIP, fungsional..."
-            className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
+            className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
+          >
+            <option value="all">Semua Role</option>
+            {roleOptions.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -750,6 +791,7 @@ export function AdminOrganizationView(_props: AdminOrganizationViewProps) {
               }}
             >
               <div>Nama / NIP</div>
+              <div>Role</div>
               <div>Fungsional</div>
               <div>Pangkat</div>
               <div>Golongan</div>
@@ -769,6 +811,7 @@ export function AdminOrganizationView(_props: AdminOrganizationViewProps) {
                         <p className="truncate text-sm font-semibold text-gray-900">{employee.nama}</p>
                         <p className="truncate text-xs font-normal text-gray-500">NIP {employee.nip}</p>
                       </div>
+                      <div className="text-sm text-gray-700">{getRelationLabel('role_id', employee.role_id)}</div>
                       <div className="text-sm text-gray-700">{employee.fungsional}</div>
                       <div className="text-sm text-gray-700">{getRelationLabel('pangkat_id', employee.pangkat_id)}</div>
                       <div className="text-sm text-gray-700">{getRelationLabel('golongan_id', employee.golongan_id)}</div>

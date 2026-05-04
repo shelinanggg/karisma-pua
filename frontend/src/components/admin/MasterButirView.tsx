@@ -150,7 +150,7 @@ function Pagination({
   );
 }
 
-export function AdminMasterButirView() {
+export function MasterButirView() {
   const [items, setItems] = useState<MasterButir[]>(initialButirData);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);

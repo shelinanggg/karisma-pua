@@ -52,7 +52,7 @@ function PasswordInput({
   );
 }
 
-export function AdminSettingsView() {
+export function PengaturanView() {
   const [form, setForm] = useState({
     currentPassword: '',
     newPassword: '',

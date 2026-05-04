@@ -95,7 +95,7 @@ function getAdaptivePages(currentPage: number, totalPages: number): number[] {
   ).sort((a, b) => a - b);
 }
 
-export function SystemSecurityView() {
+export function SistemView() {
   const pageSizeOptions = [5, 10, 20];
   const [activeTab, setActiveTab] = useState<"audit" | "backup">("audit");
   const [selectedAuditLog, setSelectedAuditLog] = useState<(typeof mockAuditLogs)[number] | null>(null);
@@ -799,4 +799,4 @@ function Field({
   );
 }
 
-export default SystemSecurityView;
+export default SistemView;
