@@ -17,16 +17,18 @@ import { PersonalProjectsView } from './components/personal/PersonalProjectsView
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
 import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
+import { EarlyWarningSystemView } from './components/admin/EarlyWarningSystemView';
 import { PimpinanApprovalSKPView } from './components/pimpinan/PimpinanApprovalSKPView';
-import { AdminNotificationView } from './components/admin/AdminNotificationView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
-import { SystemSecurityView } from './components/admin/system/SystemSecurityView';
-import { AdminOverview } from './components/admin/AdminOverview';
-import { AdminKegiatanView } from './components/admin/AdminKegiatanView';
-import { AdminOrganizationView } from './components/admin/AdminOrganizationView';
-import { AdminProfilView } from './components/admin/AdminProfilView';
-import { AdminSettingsView } from './components/admin/AdminSettingsView';
+import { SistemView } from './components/admin/SistemView';
+import { DashboardUtamaView } from './components/admin/DashboardUtamaView';
+import { DashboardKegiatanView } from './components/admin/DashboardKegiatanView';
+import { DataKepegawaianView } from './components/admin/DataKepegawaianView';
+import { ProfilView } from './components/admin/ProfilView';
+import { PengaturanView } from './components/admin/PengaturanView';
+import { MasterButirView } from './components/admin/MasterButirView';
+import { PenugasanButirFormView, PenugasanView } from './components/admin/PenugasanView';
 import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
 import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 
@@ -60,7 +62,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className={`flex h-screen bg-gray-50 ${allowedRole === 'admin' ? 'admin-layout' : ''}`}>
       <SidebarComponent />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />
@@ -125,13 +127,17 @@ export default function App() {
       {/* Role: admin */}
       <Route path="/admin" element={<CommonLayout SidebarComponent={SidebarAdmin} allowedRole="admin" />}>
         <Route index element={<Navigate to="dashboard-utama" replace />} />
-        <Route path="dashboard-utama" element={<AdminOverview />} />
-        <Route path="kegiatan" element={<AdminKegiatanView />} />
-        <Route path="data-kepegawaian" element={<AdminOrganizationView />} />
-        <Route path="notifikasi" element={<AdminNotificationView />} />
-        <Route path="sistem" element={<SystemSecurityView />} />
-        <Route path="profil" element={<AdminProfilView />} />
-        <Route path="pengaturan" element={<AdminSettingsView />} />
+        <Route path="dashboard-utama" element={<DashboardUtamaView />} />
+        <Route path="kegiatan" element={<DashboardKegiatanView />} />
+        <Route path="master-butir" element={<MasterButirView />} />
+        <Route path="penugasan" element={<PenugasanView />} />
+        <Route path="penugasan/master-butir/terapkan-ke/:pegawaiId" element={<PenugasanButirFormView />} />
+        <Route path="data-kepegawaian" element={<DataKepegawaianView />} />
+        <Route path="early-warning-system" element={<EarlyWarningSystemView />} />
+        <Route path="notifikasi" element={<Navigate to="/admin/early-warning-system" replace />} />
+        <Route path="sistem" element={<SistemView />} />
+        <Route path="profil" element={<ProfilView />} />
+        <Route path="pengaturan" element={<PengaturanView />} />
         <Route path="overview" element={<Navigate to="/admin/dashboard-utama" replace />} />
         <Route path="projects" element={<Navigate to="/admin/kegiatan" replace />} />
         <Route path="organization" element={<Navigate to="/admin/data-kepegawaian" replace />} />

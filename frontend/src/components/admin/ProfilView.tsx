@@ -24,7 +24,7 @@ const fields = [
   { label: 'Pensiun TMT', value: currentUser.pensiunTmt ?? '-' },
 ];
 
-export function AdminProfilView() {
+export function ProfilView() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
