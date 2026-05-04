@@ -42,23 +42,37 @@ export const displayValue = (value?: string | number | boolean | null) => {
   return String(value);
 };
 
-export const getProfileFields = (profile: UserProfile) => [
-  { label: "Nama", value: displayValue(profile.nama) },
-  { label: "NIP / NIK", value: displayValue(profile.nip) },
-  { label: "Tempat Lahir", value: displayValue(profile.tempat_lahir) },
-  { label: "Tanggal Lahir", value: formatDate(profile.tanggal_lahir) },
-  { label: "Jenis Kelamin", value: "-" },
-  { label: "Fungsional", value: displayValue(profile.fungsional) },
-  { label: "Jabatan", value: displayValue(profile.jabatan) },
-  { label: "TMT Jabatan", value: formatDate(profile.tmt_jabatan) },
-  { label: "Pangkat", value: displayValue(profile.pangkat) },
-  { label: "Golongan", value: displayValue(profile.golongan) },
-  { label: "TMT Golongan", value: formatDate(profile.tmt_golongan) },
-  { label: "Pendidikan", value: displayValue(profile.pendidikan) },
-  { label: "Kualifikasi", value: displayValue(profile.kualifikasi) },
-  { label: "TMT KGB", value: formatDate(profile.tmt_kgb) },
-  { label: "Penempatan", value: displayValue(profile.penempatan) },
-  { label: "Tersertifikasi Pustakawan", value: displayValue(profile.sertifikasi) },
-  { label: "Status", value: displayValue(profile.status_aktif) },
-  { label: "Pensiun TMT", value: formatDate(profile.tmt_pensiun) },
+export const getProfileSections = (profile: UserProfile) => [
+  {
+    title: "Data Pribadi",
+    fields: [
+      { label: "NIP", value: displayValue(profile.nip) },
+      { label: "Nama", value: displayValue(profile.nama) },
+      { label: "Tempat Lahir", value: displayValue(profile.tempat_lahir) },
+      { label: "Tanggal Lahir", value: formatDate(profile.tanggal_lahir) },
+      { label: "Pendidikan", value: displayValue(profile.pendidikan) },
+      { label: "Kualifikasi", value: displayValue(profile.kualifikasi) },
+    ],
+  },
+  {
+    title: "Data Kepegawaian",
+    fields: [
+      { label: "Status", value: displayValue(profile.status_aktif) },
+      { label: "Fungsional", value: displayValue(profile.fungsional) },
+      { label: "Jabatan", value: displayValue(profile.jabatan) },
+      { label: "Pangkat", value: displayValue(profile.pangkat) },
+      { label: "Golongan", value: displayValue(profile.golongan) },
+      { label: "Penempatan", value: displayValue(profile.penempatan) },
+      { label: "Sertifikasi", value: displayValue(profile.sertifikasi) },
+    ],
+  },
+  {
+    title: "Tanggal TMT",
+    fields: [
+      { label: "TMT Golongan", value: formatDate(profile.tmt_golongan) },
+      { label: "TMT KGB", value: formatDate(profile.tmt_kgb) },
+      { label: "TMT Jabatan", value: formatDate(profile.tmt_jabatan) },
+      { label: "TMT Pensiun", value: formatDate(profile.tmt_pensiun) },
+    ],
+  },
 ];

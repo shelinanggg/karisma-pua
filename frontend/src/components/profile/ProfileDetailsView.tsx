@@ -4,7 +4,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { useProfile } from "../../hooks/useProfile";
-import { getInitials, getProfileFields, getRoleLabel } from "../../utils/profile";
+import { getInitials, getProfileSections } from "../../utils/profile";
 
 type ProfileDetailsViewProps = {
   subtitle?: string;
@@ -51,7 +51,7 @@ export function ProfileDetailsView({ subtitle = "Data pengguna" }: ProfileDetail
     );
   }
 
-  const fields = getProfileFields(profile);
+  const sections = getProfileSections(profile);
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -68,26 +68,29 @@ export function ProfileDetailsView({ subtitle = "Data pengguna" }: ProfileDetail
             </div>
             <div>
               <p className="text-lg font-semibold text-gray-900">{profile.nama}</p>
-              <p className="text-sm text-gray-500">
-                {profile.nip ?? "-"} - {getRoleLabel(profile.role)}
-              </p>
+              <p className="text-sm text-gray-500">{profile.nip ?? "-"}</p>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {fields.map(({ label, value }) => (
-              <div key={label} className="space-y-1">
-                <Label className="text-xs text-gray-400">{label}</Label>
-                <Input
-                  value={value}
-                  readOnly
-                  className="bg-gray-50 border-gray-200 text-gray-500 cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
+          {sections.map((section) => (
+            <section key={section.title} className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">{section.title}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {section.fields.map(({ label, value }) => (
+                  <div key={label} className="space-y-1">
+                    <Label className="text-xs text-gray-400">{label}</Label>
+                    <Input
+                      value={value}
+                      readOnly
+                      className="bg-gray-50 border-gray-200 text-gray-500 cursor-default focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </section>
+          ))}
         </CardContent>
       </Card>
     </div>
