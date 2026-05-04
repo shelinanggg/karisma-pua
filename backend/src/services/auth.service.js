@@ -1,6 +1,11 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { findUserByNip } from "../repositories/user.repository.js";
+import {
+  findUserByNip,
+  findUserPasswordById,
+  findUserProfileById,
+  updateUserPasswordHash,
+} from "../repositories/user.repository.js";
 import { saveRefreshToken, findRefreshToken, deleteRefreshToken } from "../repositories/token.repository.js";
 
 const generateTokens = async (pengguna, rememberMe) => {
@@ -81,4 +86,63 @@ export const logoutService = async (refreshToken) => {
   if (refreshToken) {
     await deleteRefreshToken(refreshToken);
   }
+};
+
+export const getCurrentUserService = async (idPengguna) => {
+  const pengguna = await findUserProfileById(idPengguna);
+
+  if (!pengguna) {
+    throw new Error("Pengguna tidak ditemukan");
+  }
+
+  return pengguna;
+};
+
+export const changePasswordService = async (idPengguna, payload) => {
+  const { currentPassword, newPassword, confirmPassword } = payload;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    const error = new Error("Semua kolom wajib diisi.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword !== confirmPassword) {
+    const error = new Error("Password baru dan konfirmasi tidak cocok.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 8) {
+    const error = new Error("Password baru minimal 8 karakter.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (currentPassword === newPassword) {
+    const error = new Error("Password baru harus berbeda dari password saat ini.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const pengguna = await findUserPasswordById(idPengguna);
+
+  if (!pengguna) {
+    const error = new Error("Pengguna tidak ditemukan");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, pengguna.password_hash);
+
+  if (!isCurrentPasswordValid) {
+    const error = new Error("Password saat ini salah.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await updateUserPasswordHash(idPengguna, passwordHash);
+
+  return { message: "Password berhasil diubah." };
 };

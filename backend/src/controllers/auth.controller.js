@@ -1,4 +1,10 @@
-import { loginService, refreshService, logoutService } from "../services/auth.service.js";
+import {
+  changePasswordService,
+  getCurrentUserService,
+  loginService,
+  logoutService,
+  refreshService,
+} from "../services/auth.service.js";
 
 const setRefreshTokenCookie = (res, refreshToken, expiresInMs) => {
   res.cookie("refreshToken", refreshToken, {
@@ -56,5 +62,34 @@ export const logout = async (req, res, next) => {
     res.status(200).json({ message: "Logout berhasil" });
   } catch (err) {
     res.status(500).json({ message: "Gagal logout" });
+  }
+};
+
+export const getCurrentUser = async (req, res, next) => {
+  try {
+    const data = await getCurrentUserService(req.user.id_pengguna);
+
+    res.status(200).json({
+      message: "Profil pengguna berhasil diambil",
+      data,
+    });
+  } catch (err) {
+    res.status(404).json({
+      message: err.message,
+    });
+  }
+};
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const result = await changePasswordService(req.user.id_pengguna, req.body);
+
+    res.status(200).json({
+      message: result.message,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({
+      message: err.message,
+    });
   }
 };
