@@ -7,18 +7,18 @@ import { TopBar } from './components/TopBar';
 import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
 import { PegawaiOverview } from './components/pegawai/PegawaiOverview';
 import { ProjectsView } from './components/projects/ProjectsView';
-import { OrganizationView } from './components/organization/OrganizationView';
-import { AccountView } from './components/account/AccountView';
 import { ProfilPegawaiView } from './components/pegawai/ProfilPegawaiView';
-import { SettingsView } from './components/settings';
 import { PegawaiSettingsView } from './components/pegawai/PegawaiSettingsView';
 import { PersonalDashboard } from './components/personal/PersonalDashboard';
 import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
-import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
+import { PimpinanEarlyWarningSystemView, PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { EarlyWarningSystemView } from './components/admin/EarlyWarningSystemView';
 import { PimpinanApprovalSKPView } from './components/pimpinan/PimpinanApprovalSKPView';
+import { PimpinanDataKepegawaianView } from './components/pimpinan/PimpinanDataKepegawaianView';
+import { PimpinanProfilView } from './components/pimpinan/PimpinanProfilView';
+import { PimpinanPengaturanView } from './components/pimpinan/PimpinanPengaturanView';
 import { LoginPage } from './components/login/LoginPage';
 import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
 import { SistemView } from './components/admin/SistemView';
@@ -109,11 +109,12 @@ export default function App() {
       <Route path="/pimpinan" element={<CommonLayout SidebarComponent={SidebarPimpinan} allowedRole="pimpinan" />}>
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<PimpinanOverview />} />
+        <Route path="early-warning-system" element={<PimpinanEarlyWarningSystemView />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="approval-skp" element={<PimpinanApprovalSKPView />} />
-        <Route path="data-kepegawaian" element={<OrganizationView detailPlacement="bottom" />} />
-        <Route path="profil" element={<AccountView />} />
-        <Route path="pengaturan" element={<SettingsView />} />
+        <Route path="data-kepegawaian" element={<PimpinanDataKepegawaianView />} />
+        <Route path="profil" element={<PimpinanProfilView />} />
+        <Route path="pengaturan" element={<PimpinanPengaturanView />} />
         <Route path="overview" element={<Navigate to="/pimpinan/dashboard-utama" replace />} />
         <Route path="projects" element={<Navigate to="/pimpinan/kegiatan" replace />} />
         <Route path="organization" element={<Navigate to="/pimpinan/data-kepegawaian" replace />} />

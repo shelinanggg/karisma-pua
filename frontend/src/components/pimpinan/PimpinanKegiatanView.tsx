@@ -383,3 +383,5 @@ export function PimpinanKegiatanView() {
     </Card>
   );
 }
+
+export { PimpinanEarlyWarningSystemView } from './PimpinanEarlyWarningSystemView';
