@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 
 // ─── TYPES ─────────────────────
 
-type StatusKegiatan = 'pending' | 'in-progress' | 'completed';
+type StatusKegiatan = 'pending' | 'in-progress' | 'completed' | 'rejected';
 
 interface Kegiatan {
   id: number;
@@ -155,12 +155,14 @@ export function PimpinanApprovalSKPView() {
     pending: 'Menunggu',
     'in-progress': 'Dalam Proses',
     completed: 'Selesai',
+    rejected: 'Ditolak',
   };
 
   const statusClassMap: Record<StatusKegiatan, string> = {
     pending: 'bg-amber-100 text-amber-700',
     'in-progress': 'bg-blue-100 text-blue-700',
     completed: 'bg-emerald-100 text-emerald-700',
+    rejected: 'bg-red-100 text-red-700',
   };
 
   // ── LIST VIEW ─────────────────
@@ -234,7 +236,23 @@ export function PimpinanApprovalSKPView() {
       return;
     }
 
-    alert(`Approve ${selectedItems.size} kegiatan`);
+    // Update local state: mark selected pending items as completed
+    setSelectedPegawai((prev) => {
+      if (!prev) return prev;
+      const updated: Pegawai = {
+        ...prev,
+        kegiatan: prev.kegiatan.map((k) => {
+          if (selectedItems.has(k.id) && k.status === 'pending') {
+            return { ...k, status: 'completed', progress: 100 };
+          }
+          return k;
+        }),
+      };
+
+      return updated;
+    });
+
+    alert(`Berhasil menyetujui ${selectedItems.size} kegiatan.`);
     clear();
   };
 
@@ -244,7 +262,23 @@ export function PimpinanApprovalSKPView() {
       return;
     }
 
-    alert(`Tolak ${selectedItems.size} kegiatan`);
+    // Update local state: mark selected pending items as rejected
+    setSelectedPegawai((prev) => {
+      if (!prev) return prev;
+      const updated: Pegawai = {
+        ...prev,
+        kegiatan: prev.kegiatan.map((k) => {
+          if (selectedItems.has(k.id) && k.status === 'pending') {
+            return { ...k, status: 'rejected' };
+          }
+          return k;
+        }),
+      };
+
+      return updated;
+    });
+
+    alert(`Berhasil menolak ${selectedItems.size} kegiatan.`);
     clear();
   };
 
