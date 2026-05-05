@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, CheckCircle2, Target, CalendarCheck, BarChart3, ChevronDown, ClipboardList, FileText } from 'lucide-react';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  CalendarCheck, 
+  BarChart3, 
+  ChevronDown, 
+  ClipboardList, 
+  FileText,
+  Hourglass,
+  CalendarClock,
+  Calendar,
+  Clock
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -7,30 +19,26 @@ import { Badge } from '../ui/badge';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type KPIData = {
+  label: string;
+  value: string;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
+  changeIcon?: React.ElementType; // Tambahkan ini agar icon keterangan bawah bisa dicustom
+  icon: React.ElementType;
+  color: 'blue' | 'green' | 'amber' | 'purple';
+};
+
 // ── Mock KPI data ─────────────────────────────────────────────────────────────
 
-const mockSKPKPIs = [
-  {
-    label: 'Target Kinerja',
-    value: '120',
-    change: '+8 dari bulan lalu',
-    trend: 'up' as const,
-    icon: Target,
-    color: 'blue',
-  },
-  {
-    label: 'Realisasi Kinerja',
-    value: '89',
-    change: '+12 dari bulan lalu',
-    trend: 'up' as const,
-    icon: CheckCircle2,
-    color: 'green',
-  },
+const mockSKPKPIs: KPIData[] = [
   {
     label: 'Persentase Ketercapaian',
     value: '74.2%',
     change: '-2.3% dari bulan lalu',
-    trend: 'down' as const,
+    trend: 'down',
     icon: BarChart3,
     color: 'amber',
   },
@@ -38,9 +46,27 @@ const mockSKPKPIs = [
     label: 'Jumlah Kegiatan',
     value: '18',
     change: '+3 dari bulan lalu',
-    trend: 'up' as const,
+    trend: 'up',
     icon: CalendarCheck,
     color: 'purple',
+  },
+  {
+    label: 'KGB Berikutnya',
+    value: '8 Bln 12 Hari',
+    change: 'Estimasi: 1 Jan 2027',
+    trend: 'neutral',
+    changeIcon: Calendar, // Icon Kalender
+    icon: CalendarClock,
+    color: 'green',
+  },
+  {
+    label: 'Perkiraan Pensiun',
+    value: '5 Thn 4 Bln',
+    change: 'TMT: 1 Okt 2031',
+    trend: 'neutral',
+    changeIcon: Clock, // Icon Jam (Berbeda)
+    icon: Hourglass,
+    color: 'blue',
   },
 ];
 
@@ -175,14 +201,23 @@ export function PegawaiOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{kpi.value}</div>
-                {kpi.change && (
-                  <div className="flex items-center gap-1 mt-1">
-                    {kpi.trend === 'up' ? (
-                      <TrendingUp className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-red-600" />
+                {kpi.change && kpi.trend && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {kpi.trend === 'up' && <TrendingUp className="w-4 h-4 text-green-600" />}
+                    {kpi.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-600" />}
+                    
+                    {/* Menggunakan custom icon jika trend-nya neutral dan ukurannya w-3 h-3 (lebih kecil) */}
+                    {kpi.trend === 'neutral' && kpi.changeIcon && (
+                      <kpi.changeIcon className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
                     )}
-                    <span className={`text-xs ${kpi.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                    
+                    <span 
+                      className={`text-xs ${
+                        kpi.trend === 'up' ? 'text-green-600' : 
+                        kpi.trend === 'down' ? 'text-red-600' : 
+                        'text-gray-500 font-medium'
+                      }`}
+                    >
                       {kpi.change}
                     </span>
                   </div>

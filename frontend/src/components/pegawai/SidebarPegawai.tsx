@@ -6,7 +6,7 @@ const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/cro
 
 const navItems = [
   { id: 'overview',           label: 'Dasbor Utama',               icon: LayoutDashboard },
-  { id: 'target-kinerja',     label: 'Target Kinerja',        icon: CheckSquare },
+  // { id: 'target-kinerja',     label: 'Target Kinerja',        icon: CheckSquare },
   { id: 'projects',           label: 'Realisasi Kinerja',     icon: FolderCheck },
   { id: 'organization',       label: 'Penugasan Tambahan',    icon: FolderInput },
   { id: 'account',            label: 'Profil',                icon: User },

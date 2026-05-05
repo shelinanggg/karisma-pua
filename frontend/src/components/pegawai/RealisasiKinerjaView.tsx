@@ -384,10 +384,10 @@ function ProgressTab() {
   const berjalan = penugasanList.filter((p) => p.status === 'Sedang Berjalan').length;
 
   const summaryCards = [
-    { label: 'Total Penugasan', value: penugasanList.length, icon: Target, color: '#2563eb' },
-    { label: 'Sedang Berjalan', value: berjalan, icon: TrendingUp, color: '#1d4ed8' },
-    { label: 'Selesai', value: selesai, icon: Check, color: '#16a34a' },
-    { label: 'Capaian Total', value: `${capaianPct}%`, icon: FileText, color: '#9333ea' },
+    { label: 'Total Penugasan', value: penugasanList.length, color: '#2563eb' },
+    { label: 'Sedang Berjalan', value: berjalan, color: '#1d4ed8' },
+    { label: 'Selesai', value: selesai, color: '#16a34a' },
+    { label: 'Capaian Total', value: `${capaianPct}%`, color: '#9333ea' },
   ];
 
   return (
@@ -397,13 +397,6 @@ function ProgressTab() {
         {summaryCards.map((card) => (
           <Card key={card.label} className="overflow-hidden">
             <CardContent className="flex flex-col items-center justify-center gap-2 px-6 py-6 text-center">
-              {/* Icon bubble */}
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl"
-                style={{ background: `${card.color}18`, color: card.color }}
-              >
-                <card.icon className="h-5 w-5" strokeWidth={2} />
-              </div>
               {/* Label dulu, baru angka */}
               <p className="mt-1 text-xs font-medium leading-tight text-gray-500">{card.label}</p>
               <p className="text-2xl font-bold leading-none text-gray-900">{card.value}</p>
