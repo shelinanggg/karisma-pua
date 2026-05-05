@@ -1,493 +1,299 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+
 import {
-  CalendarDays,
-  Clock,
-  MapPin,
+  Download,
   FileText,
-  CheckCircle2,
-  Bell,
-  AlertCircle,
+  Search,
 } from 'lucide-react';
 
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import { cn } from '../ui/utils';
 
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ReviewStatus =
-  | 'Baru'
-  | 'Dikonfirmasi'
-  | 'Berlangsung'
-  | 'Selesai'
-  | 'Tidak Hadir';
-
-export interface DokumenTugas {
+type PenugasanTambahan = {
   id: string;
-  nama: string;
-  tipe: 'PDF' | 'DOC' | 'XLS' | 'PPT' | 'IMG';
-  ukuran: string;
-}
+  namaKegiatan: string;
+  deskripsiKegiatan: string;
+  tanggalKegiatan: string;
+  suratTugas: string; // nama file surat tugas
+};
 
-export interface PenugasanTambahan {
-  id: string;
-  judul: string;
-  status: ReviewStatus;
-  prioritas: 'Penting' | 'Biasa';
-  hariNama: string;
-  tanggalLabel: string;
-  pukul: string;
-  tempat: string;
-  dariNama: string;
-  dariJabatan: string;
-  catatan?: string;
-  dokumen: DokumenTugas[];
-}
+// ─── Seed data ────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// MOCK DATA
-// ─────────────────────────────────────────────────────────────
-
-const dataPenugasanTambahan: PenugasanTambahan[] = [
+const initialData: PenugasanTambahan[] = [
   {
-    id: 'TGS-001',
-    judul: 'Rapat Koordinasi Evaluasi Sistem Keamanan',
-    status: 'Baru',
-    prioritas: 'Penting',
-    hariNama: 'Senin',
-    tanggalLabel: '24 Okt 2023',
-    pukul: '09:00 - 11:00 WIB',
-    tempat: 'Ruang Rapat Utama, Gedung A',
-    dariNama: 'Budi Santoso',
-    dariJabatan: 'Kepala Divisi Operasional',
-    catatan: 'Harap membawa laporan insiden bulan lalu.',
-    dokumen: [
-      {
-        id: 'D-1',
-        nama: 'Agenda_Rapat_Keamanan.pdf',
-        tipe: 'PDF',
-        ukuran: '1.2 MB',
-      },
-    ],
+    id: 'pt-1',
+    namaKegiatan: 'Pendampingan penyusunan laporan akreditasi',
+    deskripsiKegiatan:
+      'Mendampingi tim unit dalam melengkapi bukti dukung dan menyusun ringkasan dokumen akreditasi sesuai standar BAN-PT.',
+    tanggalKegiatan: '2026-05-15',
+    suratTugas: 'ST-001-Akreditasi-Mei2026.pdf',
   },
   {
-    id: 'TGS-002',
-    judul: 'Pelatihan Implementasi Prosedur Baru',
-    status: 'Berlangsung',
-    prioritas: 'Biasa',
-    hariNama: 'Rabu',
-    tanggalLabel: '26 Okt 2023',
-    pukul: '13:00 - 15:00 WIB',
-    tempat: 'Auditorium Lantai 3',
-    dariNama: 'Siti Aminah',
-    dariJabatan: 'HR Manager',
-    catatan: 'Wajib hadir 15 menit sebelum acara dimulai.',
-    dokumen: [
-      {
-        id: 'D-2',
-        nama: 'Materi_Pelatihan_V2.ppt',
-        tipe: 'PPT',
-        ukuran: '4.5 MB',
-      },
-      {
-        id: 'D-3',
-        nama: 'Form_Kehadiran.doc',
-        tipe: 'DOC',
-        ukuran: '200 KB',
-      },
-    ],
+    id: 'pt-2',
+    namaKegiatan: 'Rapat koordinasi pengelolaan arsip digital',
+    deskripsiKegiatan:
+      'Koordinasi lintas unit untuk menyamakan format arsip dan alur validasi dokumen elektronik.',
+    tanggalKegiatan: '2026-05-24',
+    suratTugas: 'ST-002-Arsip-Digital-Mei2026.pdf',
   },
   {
-    id: 'TGS-003',
-    judul: 'Audit Lapangan dan Pengecekan Fasilitas',
-    status: 'Selesai',
-    prioritas: 'Penting',
-    hariNama: 'Jumat',
-    tanggalLabel: '20 Okt 2023',
-    pukul: '08:00 - 12:00 WIB',
-    tempat: 'Area Pabrik Sektor B',
-    dariNama: 'Agus Wijaya',
-    dariJabatan: 'Direktur Kepatuhan',
-    dokumen: [
-      {
-        id: 'D-4',
-        nama: 'Checklist_Audit_Q3.xls',
-        tipe: 'XLS',
-        ukuran: '850 KB',
-      },
-    ],
+    id: 'pt-3',
+    namaKegiatan: 'Sosialisasi kebijakan pengelolaan kinerja',
+    deskripsiKegiatan:
+      'Mengikuti dan melaporkan hasil sosialisasi kebijakan SKP terbaru dari Biro SDM kepada seluruh anggota unit.',
+    tanggalKegiatan: '2026-04-10',
+    suratTugas: 'ST-003-Sosialisasi-SKP-Apr2026.pdf',
   },
 ];
 
-// ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
+const pageSizeOptions = [5, 10, 20];
 
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .slice(0, 2)
-    .map((item) => item[0])
-    .join('')
-    .toUpperCase();
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTanggal(iso: string): string {
+  if (!iso) return '-';
+  const [y, m, d] = iso.split('-');
+  const bulan = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+  ];
+  return `${d} ${bulan[Number(m)]} ${y}`;
 }
 
-function SoftBadge({
-  children,
-  tone = 'gray',
+
+function getAdaptivePages(currentPage: number, totalPages: number): number[] {
+  if (totalPages <= 4) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  if (currentPage === 1) return [1, 2, 3, totalPages];
+  if (currentPage >= totalPages - 1)
+    return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  return Array.from(
+    new Set(
+      [currentPage - 1, currentPage, currentPage + 1, totalPages].filter(
+        (p) => p >= 1 && p <= totalPages,
+      ),
+    ),
+  ).sort((a, b) => a - b);
+}
+
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+function Pagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
 }: {
-  children: React.ReactNode;
-  tone?: 'gray' | 'green' | 'amber' | 'red';
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
 }) {
-  const map = {
-    gray: 'bg-gray-100 text-gray-700 border-gray-200',
-    green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    amber: 'bg-amber-50 text-amber-700 border-amber-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-  };
+  const visiblePages = getAdaptivePages(currentPage, totalPages);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${map[tone]}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: ReviewStatus }) {
-  const style: Record<ReviewStatus, { tone: any; label: string }> = {
-    Baru: { tone: 'amber', label: 'Baru' },
-    Dikonfirmasi: { tone: 'gray', label: 'Dikonfirmasi' },
-    Berlangsung: { tone: 'gray', label: 'Berlangsung' },
-    Selesai: { tone: 'green', label: 'Selesai' },
-    'Tidak Hadir': { tone: 'red', label: 'Tidak Hadir' },
-  };
-
-  return <SoftBadge tone={style[status].tone}>{style[status].label}</SoftBadge>;
-}
-
-function SmallIcon({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="h-7 w-7 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-gray-500 shrink-0">
-      {children}
+    <div className="flex flex-col items-start gap-3 border-t border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-gray-500">
+        Menampilkan {startItem}–{endItem} dari {totalItems} data
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+          <span className="text-xs text-gray-500">Tampilkan</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              onPageSizeChange(Number(e.target.value));
+              onPageChange(1);
+            }}
+            className="bg-transparent text-xs font-medium outline-none"
+          >
+            {pageSizeOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Sebelumnya
+        </button>
+        {visiblePages.map((page, idx) => (
+          <span key={page} className="flex items-center gap-2">
+            {idx > 0 && page - visiblePages[idx - 1] > 1 && (
+              <span className="px-1 text-xs text-gray-500">...</span>
+            )}
+            <button
+              type="button"
+              onClick={() => onPageChange(page)}
+              className={cn(
+                'min-w-8 rounded-lg border px-2 py-1 text-xs font-medium transition',
+                page === currentPage
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50',
+              )}
+            >
+              {page}
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages || totalPages === 0}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Berikutnya
+        </button>
+      </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// TASK CARD (Modal Logic Removed)
-// ─────────────────────────────────────────────────────────────
-
-interface TaskCardProps {
-  item: PenugasanTambahan;
-  onKonfirmasi?: (id: string) => void;
-  onTolak?: (id: string) => void;
-}
-
-function TaskCard({
-  item,
-  onKonfirmasi,
-  onTolak,
-}: TaskCardProps) {
-  const isNew = item.status === 'Baru';
-
-  return (
-    <Card className="rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow bg-white">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex items-start gap-2 min-w-0 flex-1">
-            {/* {item.prioritas === 'Penting' && (
-              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-            )} */}
-
-            <p className="text-sm font-semibold text-gray-900 leading-snug">
-              {item.judul}
-            </p>
-          </div>
-
-          <StatusBadge status={item.status} />
-        </div>
-
-        <div className="grid gap-2 mb-3">
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <SmallIcon>
-              <CalendarDays className="h-3.5 w-3.5" />
-            </SmallIcon>
-            {item.hariNama}, {item.tanggalLabel}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <SmallIcon>
-              <Clock className="h-3.5 w-3.5" />
-            </SmallIcon>
-            {item.pukul}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <SmallIcon>
-              <MapPin className="h-3.5 w-3.5" />
-            </SmallIcon>
-            {item.tempat}
-          </div>
-        </div>
-
-        {/* Dokumen yang bisa di-klik untuk preview */}
-        {item.dokumen.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {item.dokumen.map((dok) => (
-              <button
-                key={dok.id}
-                onClick={() => alert(`Menampilkan preview untuk dokumen: ${dok.nama}`)} // Placeholder aksi
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 hover:bg-gray-100 transition-colors cursor-pointer text-left"
-                title="Klik untuk membuka dokumen"
-              >
-                <FileText className="h-3 w-3 text-gray-500 shrink-0" />
-                <span className="text-[11px] text-gray-700 font-medium">
-                  {dok.nama.length > 28
-                    ? dok.nama.slice(0, 28) + '...'
-                    : dok.nama}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="pt-3 border-t border-gray-200 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-gray-900 text-white text-[10px] font-semibold flex items-center justify-center">
-            {getInitials(item.dariNama)}
-          </div>
-
-          <div className="text-xs text-gray-600">
-            <span className="font-medium text-gray-800">{item.dariNama}</span>
-            <span className="mx-1">•</span>
-            {item.dariJabatan}
-          </div>
-        </div>
-
-        {isNew && onKonfirmasi && onTolak && (
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <Button
-              size="sm"
-              className="bg-gray-900 hover:bg-gray-800 text-white rounded-xl"
-              onClick={() => onKonfirmasi(item.id)}
-            >
-              Konfirmasi
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-xl"
-              onClick={() => onTolak(item.id)}
-            >
-              Tolak
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN VIEW
-// ─────────────────────────────────────────────────────────────
+// ─── Main View ────────────────────────────────────────────────────────────────
 
 export function PenugasanTambahanView() {
-  const [penugasanList, setPenugasanList] =
-    useState<PenugasanTambahan[]>(dataPenugasanTambahan);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
-  const jumlahBaru = penugasanList.filter(
-    (item) => item.status === 'Baru'
-  ).length;
-
-  const listBaru = penugasanList.filter(
-    (item) => item.status === 'Baru'
-  );
-
-  const listBerlangsung = penugasanList.filter((item) =>
-    ['Dikonfirmasi', 'Berlangsung'].includes(item.status)
-  );
-
-  const listSelesai = penugasanList.filter((item) =>
-    ['Selesai', 'Tidak Hadir'].includes(item.status)
-  );
-
-  const handleKonfirmasi = (id: string) => {
-    setPenugasanList((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, status: 'Dikonfirmasi' }
-          : item
-      )
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return initialData;
+    return initialData.filter((item) =>
+      [item.namaKegiatan, item.deskripsiKegiatan, item.tanggalKegiatan, item.suratTugas]
+        .join(' ')
+        .toLowerCase()
+        .includes(q),
     );
-  };
+  }, [search]);
 
-  const handleTolak = (id: string) => {
-    setPenugasanList((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, status: 'Tidak Hadir' }
-          : item
-      )
-    );
-  };
-
-  const handleSelesai = (id: string) => {
-    setPenugasanList((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, status: 'Selesai' }
-          : item
-      )
-    );
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">
-          Penugasan Tambahan
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Penugasan khusus dari admin atau atasan
+        <h1 className="text-2xl font-semibold text-gray-900">Penugasan Tambahan</h1>
+        <p className="mt-1 text-base text-gray-500">
+          Kelola seluruh penugasan tambahan yang diberikan kepegawaian beserta surat tugas
+          pendukungnya.
         </p>
       </div>
 
-      {/* KPI MENGGUNAKAN KOMPONEN CARD AGAR LENGKUNGAN KONSISTEN */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          {
-            label: 'Penugasan Baru',
-            value: jumlahBaru,
-            sub: 'Menunggu konfirmasi',
-          },
-          {
-            label: 'Sedang Berjalan',
-            value: listBerlangsung.length,
-            sub: 'Aktif saat ini',
-          },
-          {
-            label: 'Selesai',
-            value: listSelesai.length,
-            sub: 'Total selesai',
-          },
-        ].map((item) => (
-          <Card key={item.label} className="rounded-xl border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <p className="text-xs text-gray-500 mb-1">{item.label}</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {item.value}
-              </p>
-              <p className="text-[11px] text-gray-400 mt-1">{item.sub}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+      <CardHeader className="pb-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <CardTitle>Daftar Penugasan Tambahan</CardTitle>
+            <CardDescription className="mt-1">
+              Seluruh penugasan tambahan yang telah dicatat beserta surat tugas dari kepegawaian.
+            </CardDescription>
+          </div>
+          <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
+            <Search className="size-4 shrink-0 text-gray-400" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Cari kegiatan, tanggal..."
+              className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            />
+          </div>
+        </div>
+      </CardHeader>
 
-      {/* Notification Banner MENGGUNAKAN CARD */}
-      {jumlahBaru > 0 && (
-        <Card className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gray-900 text-white flex items-center justify-center shrink-0">
-              <Bell className="h-4 w-4" />
-            </div>
+      <CardContent>
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-6 py-3 w-[28%]">Nama Kegiatan</th>
+                  <th className="px-6 py-3 w-[38%]">Deskripsi Kegiatan</th>
+                  <th className="px-6 py-3 w-[16%]">Tanggal</th>
+                  <th className="px-6 py-3 w-[18%]">Surat Tugas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {paginated.length > 0 ? (
+                  paginated.map((item) => (
+                    <tr key={item.id} className="align-top transition hover:bg-gray-50">
+                      <td className="px-6 py-4 pr-8">
+                        <p className="text-sm font-semibold text-gray-900">{item.namaKegiatan}</p>
+                      </td>
+                      <td className="px-6 py-4 pr-8">
+                        <p className="line-clamp-3 text-sm text-gray-600">
+                          {item.deskripsiKegiatan}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {formatTanggal(item.tanggalKegiatan)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {item.suratTugas ? (
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`/surat-tugas/${item.suratTugas}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Buka ${item.suratTugas}`}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                            >
+                              <FileText className="size-4" />
+                            </a>
+                            <a
+                              href={`/surat-tugas/${item.suratTugas}`}
+                              download={item.suratTugas}
+                              title={`Unduh ${item.suratTugas}`}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                            >
+                              <Download className="size-4" />
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Belum diunggah</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                      Tidak ada penugasan ditemukan.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900">
-                {jumlahBaru} penugasan baru menunggu konfirmasi
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Segera lakukan tindakan
-              </p>
-            </div>
-
-            <SoftBadge tone="amber">{jumlahBaru} Baru</SoftBadge>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tabs */}
-      <Tabs defaultValue="baru">
-        <TabsList className="grid grid-cols-3 w-full rounded-xl bg-gray-100 p-1">
-          <TabsTrigger value="baru" className="rounded-lg">Baru</TabsTrigger>
-          <TabsTrigger value="berlangsung" className="rounded-lg">Berjalan</TabsTrigger>
-          <TabsTrigger value="selesai" className="rounded-lg">Selesai</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="baru" className="mt-4 space-y-3">
-          {listBaru.length === 0 ? (
-            <EmptyState text="Tidak ada penugasan baru" />
-          ) : (
-            listBaru.map((item) => (
-              <TaskCard
-                key={item.id}
-                item={item}
-                onKonfirmasi={handleKonfirmasi}
-                onTolak={handleTolak}
-              />
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="berlangsung" className="mt-4 space-y-3">
-          {listBerlangsung.length === 0 ? (
-            <EmptyState text="Belum ada penugasan berjalan" />
-          ) : (
-            listBerlangsung.map((item) => (
-              <div key={item.id}>
-                <TaskCard item={item} />
-
-                <div className="flex justify-end mt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl"
-                    onClick={() => handleSelesai(item.id)}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Tandai Selesai
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="selesai" className="mt-4 space-y-3">
-          {listSelesai.length === 0 ? (
-            <EmptyState text="Belum ada data selesai" />
-          ) : (
-            listSelesai.map((item) => (
-              <TaskCard
-                key={item.id}
-                item={item}
-              />
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filtered.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      </CardContent>
+    </Card>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// EMPTY STATE
-// ─────────────────────────────────────────────────────────────
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-      <CheckCircle2 className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-      <p className="text-sm text-gray-500">{text}</p>
-    </div>
-  );
-}
+export default PenugasanTambahanView;

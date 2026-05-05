@@ -1,8 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 
-
-import { Calendar, Check, ChevronsUpDown, Download, FileText, Plus, Search, Target, TrendingUp, Upload } from 'lucide-react';
-
+import { Check, ChevronsUpDown, Download, FileText, Plus, Search, Target, TrendingUp, Upload } from 'lucide-react';
 
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -138,15 +136,6 @@ const targetPenugasanOptions: Option[] = penugasanList.map((p) => ({
 
 function RequiredStar() {
   return <span className="ml-0.5 text-red-500">*</span>;
-}
-
-function openDatePicker(event: { currentTarget: HTMLInputElement }) {
-  const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
-  try {
-    input.showPicker?.();
-  } catch {
-    /* noop */
-  }
 }
 
 function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
@@ -357,7 +346,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
     <div className="w-full">
       <div className="mb-1.5 flex items-center justify-between text-xs text-gray-500">
         <span>
-          {value} / {max} SKP
+          {value} / {max}
         </span>
         <span className="font-medium">{pct}%</span>
       </div>
@@ -403,20 +392,21 @@ function ProgressTab() {
 
   return (
     <div className="space-y-6">
+      {/* ── Summary Cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {summaryCards.map((card) => (
-          <Card key={card.label}>
-            <CardContent className="flex items-center gap-3 p-5">
+          <Card key={card.label} className="overflow-hidden">
+            <CardContent className="flex flex-col items-center justify-center gap-2 px-6 py-6 text-center">
+              {/* Icon bubble */}
               <div
-                className="flex size-11 shrink-0 items-center justify-center rounded-lg"
-                style={{ background: `${card.color}1a`, color: card.color }}
+                className="flex h-12 w-12 items-center justify-center rounded-xl"
+                style={{ background: `${card.color}18`, color: card.color }}
               >
-                <card.icon className="size-5" />
+                <card.icon className="h-5 w-5" strokeWidth={2} />
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-gray-500">{card.label}</p>
-                <p className="mt-1 text-xl font-semibold text-gray-900">{card.value}</p>
-              </div>
+              {/* Label dulu, baru angka */}
+              <p className="mt-1 text-xs font-medium leading-tight text-gray-500">{card.label}</p>
+              <p className="text-2xl font-bold leading-none text-gray-900">{card.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -453,9 +443,10 @@ function ProgressTab() {
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="px-6 py-3 w-[36%]">Nama Kegiatan</th>
-                    <th className="px-6 py-3 w-[20%]">Periode / Deadline</th>
-                    <th className="px-6 py-3 w-[28%]">Progress</th>
+                    {/* Nama Kegiatan */}
+                    <th className="px-6 py-3 w-[30%]">Nama Kegiatan</th>
+                    {/* Progress diperlebar maksimal */}
+                    <th className="px-6 py-3 w-[54%]">Progress</th>
                     <th className="px-6 py-3 w-[16%]">Status</th>
                   </tr>
                 </thead>
@@ -469,12 +460,9 @@ function ProgressTab() {
                             {p.deskripsi}
                           </p>
                         </td>
-                        <td className="px-6 py-4 pr-8 text-sm text-gray-700 whitespace-nowrap">
-                          <p>{p.periode}</p>
-                          <p className="text-xs text-gray-500">Deadline: {p.deadline}</p>
-                        </td>
-                        <td className="px-6 py-4 pr-8 min-w-[220px]">
+                        <td className="px-6 py-4 pr-8 min-w-[320px]">
                           <ProgressBar value={p.realisasi} max={p.target} />
+                          <p className="mt-1.5 text-xs text-gray-400">Deadline: {p.deadline}</p>
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge status={p.status} />
@@ -483,7 +471,7 @@ function ProgressTab() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan={3} className="px-6 py-10 text-center text-sm text-gray-500">
                         Tidak ada penugasan ditemukan.
                       </td>
                     </tr>
@@ -610,7 +598,7 @@ function TargetTab() {
 
           <div ref={targetJumlahRef} className="space-y-2">
             <Label htmlFor="target-jumlah">
-              Jumlah Target SKP
+              Jumlah Target
               <RequiredStar />
             </Label>
             <Input
@@ -685,7 +673,7 @@ function TargetTab() {
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
                     <th className="px-6 py-3 w-[34%]">Penugasan</th>
-                    <th className="px-6 py-3 w-[14%]">Target SKP</th>
+                    <th className="px-6 py-3 w-[14%]">Target</th>
                     <th className="px-6 py-3 w-[30%]">Uraian Pekerjaan</th>
                     <th className="px-6 py-3 w-[22%]">Keterangan</th>
                   </tr>
@@ -701,7 +689,7 @@ function TargetTab() {
                             <p className="mt-1 text-xs text-gray-500">{pen?.jenis}</p>
                           </td>
                           <td className="px-6 py-4 pr-8 font-medium text-gray-700 whitespace-nowrap">
-                            {t.target} SKP
+                            {t.target}
                           </td>
                           <td className="px-6 py-4 pr-8 text-gray-700">
                             {t.uraianPekerjaan || <span className="text-gray-400">-</span>}
@@ -847,27 +835,24 @@ function RealisasiTab() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Tanggal — tanpa icon kalender */}
             <div ref={tanggalRef} className="space-y-2">
               <Label htmlFor="tanggal-realisasi">
                 Tanggal Realisasi
                 <RequiredStar />
               </Label>
-              <div className="relative">
-                <Input
-                  id="tanggal-realisasi"
-                  type="date"
-                  value={form.tanggal}
-                  onChange={(event) => updateForm('tanggal', event.target.value)}
-                  onClick={openDatePicker}
-                  className="h-11 border-gray-300 bg-white pr-10"
-                />
-                <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
-              </div>
+              <Input
+                id="tanggal-realisasi"
+                type="date"
+                value={form.tanggal}
+                onChange={(event) => updateForm('tanggal', event.target.value)}
+                className="h-11 border-gray-300 bg-white"
+              />
             </div>
 
             <div ref={jumlahRef} className="space-y-2">
               <Label htmlFor="jumlah-realisasi">
-                Jumlah Realisasi SKP
+                Jumlah Realisasi
                 <RequiredStar />
               </Label>
               <Input
@@ -988,13 +973,14 @@ function RealisasiTab() {
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-sm">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
                     <th className="px-6 py-3 w-[12%]">Tanggal</th>
-                    <th className="px-6 py-3 w-[34%]">Kegiatan</th>
-                    <th className="px-6 py-3 w-[12%]">Jumlah SKP</th>
-                    <th className="px-6 py-3 w-[24%]">Bukti</th>
+                    <th className="px-6 py-3 w-[40%]">Kegiatan</th>
+                    <th className="px-6 py-3 w-[10%]">Jumlah</th>
+                    {/* Kolom Bukti — hanya icon */}
+                    <th className="px-6 py-3 w-[14%]">Bukti</th>
                     <th className="px-6 py-3 w-[18%]">Status</th>
                   </tr>
                 </thead>
@@ -1012,21 +998,30 @@ function RealisasiTab() {
                           </p>
                         </td>
                         <td className="px-6 py-4 pr-6 font-medium text-gray-700 whitespace-nowrap">
-                          {item.jumlah} SKP
+                          {item.jumlah}
                         </td>
+                        {/* Icon dokumen — klik buka di tab baru, download langsung */}
                         <td className="px-6 py-4 pr-6">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-gray-700" title={item.bukti}>
-                              {item.bukti}
-                            </p>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="size-8 shrink-0"
-                              aria-label={`Download ${item.bukti}`}
+                            {/* Buka dokumen di browser */}
+                            <a
+                              href={`/dokumen/${item.bukti}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Buka ${item.bukti}`}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                            >
+                              <FileText className="size-4" />
+                            </a>
+                            {/* Unduh dokumen */}
+                            <a
+                              href={`/dokumen/${item.bukti}`}
+                              download={item.bukti}
+                              title={`Unduh ${item.bukti}`}
+                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
                             >
                               <Download className="size-4" />
-                            </Button>
+                            </a>
                           </div>
                         </td>
                         <td className="px-6 py-4">
