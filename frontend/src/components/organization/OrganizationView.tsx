@@ -85,9 +85,10 @@ const employeeFieldLabels = [
 
 type OrganizationViewProps = {
   detailPlacement?: 'row' | 'bottom';
+  showAddUserButton?: boolean;
 };
 
-export function OrganizationView({ detailPlacement = 'row' }: OrganizationViewProps) {
+export function OrganizationView({ detailPlacement = 'row', showAddUserButton = true }: OrganizationViewProps) {
   const [selectedUserId, setSelectedUserId] = useState(mockUsers[0]?.id ?? '');
   const [expandedUserId, setExpandedUserId] = useState(mockUsers[0]?.id ?? '');
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
@@ -128,10 +129,12 @@ export function OrganizationView({ detailPlacement = 'row' }: OrganizationViewPr
           <h1>Organization</h1>
           <p className="text-gray-600 mt-1">Daftar pegawai dan aktivitas pekerjaan berdasarkan user</p>
         </div>
-        <Button>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Add User
-        </Button>
+        {showAddUserButton && (
+          <Button>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add User
+          </Button>
+        )}
       </div>
 
       <Card>
