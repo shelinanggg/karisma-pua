@@ -35,7 +35,7 @@ type KPIData = {
 
 const mockSKPKPIs: KPIData[] = [
   {
-    label: 'Persentase Ketercapaian',
+    label: 'Ketercapaian',
     value: '74.2%',
     change: '-2.3% dari bulan lalu',
     trend: 'down',
