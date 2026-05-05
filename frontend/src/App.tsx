@@ -16,7 +16,7 @@ import { PersonalDashboard } from './components/personal/PersonalDashboard';
 import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
 import { PersonalTasksView } from './components/personal/PersonalTasksView';
 import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
-import { PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
+import { PimpinanEarlyWarningSystemView, PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
 import { EarlyWarningSystemView } from './components/admin/EarlyWarningSystemView';
 import { PimpinanApprovalSKPView } from './components/pimpinan/PimpinanApprovalSKPView';
 import { LoginPage } from './components/login/LoginPage';
@@ -108,6 +108,7 @@ export default function App() {
       <Route path="/pimpinan" element={<CommonLayout SidebarComponent={SidebarPimpinan} allowedRole="pimpinan" />}>
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<PimpinanOverview />} />
+        <Route path="early-warning-system" element={<PimpinanEarlyWarningSystemView />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="approval-skp" element={<PimpinanApprovalSKPView />} />
         <Route path="data-kepegawaian" element={<OrganizationView detailPlacement="bottom" />} />
