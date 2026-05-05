@@ -1,4 +1,4 @@
-import { BellRing, Building2, ServerCog, User, Settings, ChevronRight, LayoutDashboard, FolderKanban, ListChecks, ClipboardList } from 'lucide-react';
+import { BellRing, Building2, ServerCog, User, Settings, ChevronRight, LayoutDashboard, FolderKanban, ListChecks, ClipboardList, CalendarDays } from 'lucide-react';
 import { cn } from './ui/utils';
 
 import { useLocation, Link } from 'react-router-dom';
@@ -9,6 +9,7 @@ const navItems = [
   { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },
   { id: 'kegiatan', label: 'Dashboard Kegiatan', icon: FolderKanban },
   { id: 'master-butir', label: 'Master Butir', icon: ListChecks },
+  { id: 'master-periode', label: 'Master Periode', icon: CalendarDays },
   { id: 'penugasan', label: 'Penugasan', icon: ClipboardList },
   { id: 'data-kepegawaian', label: 'Data Kepegawaian', icon: Building2 },
   { id: 'early-warning-system', label: 'Early Warning System', icon: BellRing },

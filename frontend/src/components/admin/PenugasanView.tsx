@@ -117,6 +117,12 @@ const kegiatanOptions: Option[] = [
   { id: 'keg-6', label: 'Validasi bukti dukung kegiatan SKP' },
 ];
 
+const periodeOptions: Option[] = [
+  { id: 'periode-2026', label: 'SKP 2026 - 1 Januari 2026 s/d 30 Desember 2026' },
+  { id: 'periode-2025', label: 'SKP 2025 - 1 Januari 2025 s/d 30 Desember 2025' },
+  { id: 'periode-2024', label: 'SKP 2024 - 1 Januari 2024 s/d 30 Desember 2024' },
+];
+
 const assignmentHistory = [
   {
     id: 'history-1',
@@ -757,12 +763,10 @@ export function PenugasanButirFormView() {
   const { pegawaiId } = useParams();
   const selectedEmployee = employees.find((employee) => employee.id === pegawaiId) ?? employees[0];
   const kegiatanRef = useRef<HTMLDivElement>(null);
-  const periodeMulaiRef = useRef<HTMLDivElement>(null);
-  const periodeSelesaiRef = useRef<HTMLDivElement>(null);
+  const periodeRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState({
     kegiatanId: '',
-    periodeMulai: '',
-    periodeSelesai: '',
+    periodeId: '',
     deskripsi: '',
     uraian: '',
   });
@@ -773,7 +777,7 @@ export function PenugasanButirFormView() {
     setError('');
   };
 
-  const isFormValid = Boolean(form.kegiatanId && form.periodeMulai && form.periodeSelesai);
+  const isFormValid = Boolean(form.kegiatanId && form.periodeId);
 
   const handleSubmit = () => {
     if (!form.kegiatanId) {
@@ -781,14 +785,9 @@ export function PenugasanButirFormView() {
       focusFormField(kegiatanRef);
       return;
     }
-    if (!form.periodeMulai) {
-      setError('Periode mulai wajib diisi.');
-      focusFormField(periodeMulaiRef);
-      return;
-    }
-    if (!form.periodeSelesai) {
-      setError('Periode selesai wajib diisi.');
-      focusFormField(periodeSelesaiRef);
+    if (!form.periodeId) {
+      setError('Periode wajib dipilih.');
+      focusFormField(periodeRef);
     }
   };
 
@@ -821,7 +820,7 @@ export function PenugasanButirFormView() {
           </div>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1" style={{ gap: '1rem', gridTemplateColumns: 'minmax(0, 3fr) minmax(10rem, 1fr) minmax(10rem, 1fr)' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: '1rem' }}>
               <div ref={kegiatanRef} className="space-y-2">
                 <Label htmlFor="kegiatan">Kegiatan<RequiredStar /></Label>
                 <SearchableSelect
@@ -832,36 +831,14 @@ export function PenugasanButirFormView() {
                 />
               </div>
 
-              <div ref={periodeMulaiRef} className="space-y-2">
-                <Label htmlFor="periode-mulai">Periode Mulai<RequiredStar /></Label>
-                <div className="relative">
-                  <Input
-                    id="periode-mulai"
-                    type="date"
-                    value={form.periodeMulai}
-                    onChange={(event) => updateForm('periodeMulai', event.target.value)}
-                    onClick={openDatePicker}
-                    className="admin-date-input bg-white"
-                    style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb', paddingRight: '2.5rem' }}
-                  />
-                  <Calendar className="text-gray-400" style={{ position: 'absolute', right: '0.875rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                </div>
-              </div>
-
-              <div ref={periodeSelesaiRef} className="space-y-2">
-                <Label htmlFor="periode-selesai">Periode Selesai<RequiredStar /></Label>
-                <div className="relative">
-                  <Input
-                    id="periode-selesai"
-                    type="date"
-                    value={form.periodeSelesai}
-                    onChange={(event) => updateForm('periodeSelesai', event.target.value)}
-                    onClick={openDatePicker}
-                    className="admin-date-input bg-white"
-                    style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb', paddingRight: '2.5rem' }}
-                  />
-                  <Calendar className="text-gray-400" style={{ position: 'absolute', right: '0.875rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                </div>
+              <div ref={periodeRef} className="space-y-2">
+                <Label htmlFor="periode">Periode<RequiredStar /></Label>
+                <SearchableSelect
+                  label="Periode"
+                  options={periodeOptions}
+                  value={form.periodeId}
+                  onChange={(value) => updateForm('periodeId', value)}
+                />
               </div>
             </div>
 
