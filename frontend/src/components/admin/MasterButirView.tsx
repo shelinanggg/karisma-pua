@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Edit, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  createButirKegiatan,
+  deleteButirKegiatan,
+  getButirKegiatanList,
+  updateButirKegiatan,
+  type ButirKegiatan,
+} from '../../api/butirKegiatanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
@@ -14,12 +21,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
-type MasterButir = {
-  id: number;
-  name: string;
-  activeParticipants: number;
-};
-
 function RequiredStar() {
   return <span className="admin-required-star">*</span>;
 }
@@ -33,31 +34,6 @@ function focusMasterButirName() {
 }
 
 const pageSizeOptions = [5, 10, 20];
-
-const initialButirData: MasterButir[] = [
-  { id: 1, name: 'Penyusunan rancangan program kerja unit', activeParticipants: 18 },
-  { id: 2, name: 'Pelaksanaan koordinasi kegiatan akademik', activeParticipants: 27 },
-  { id: 3, name: 'Evaluasi capaian indikator kinerja', activeParticipants: 14 },
-  { id: 4, name: 'Pengelolaan dokumen administrasi kepegawaian', activeParticipants: 33 },
-  { id: 5, name: 'Pendampingan pelaporan kegiatan fakultas', activeParticipants: 21 },
-  { id: 6, name: 'Monitoring realisasi target kinerja pegawai', activeParticipants: 42 },
-  { id: 7, name: 'Validasi bukti dukung kegiatan SKP', activeParticipants: 25 },
-  { id: 8, name: 'Penyusunan laporan berkala bidang administrasi', activeParticipants: 16 },
-  { id: 9, name: 'Pengarsipan dokumen layanan akademik', activeParticipants: 19 },
-  { id: 10, name: 'Koordinasi layanan informasi internal', activeParticipants: 12 },
-  { id: 11, name: 'Rekapitulasi data kegiatan operasional', activeParticipants: 31 },
-  { id: 12, name: 'Pemutakhiran data pendukung penilaian kinerja', activeParticipants: 22 },
-  { id: 13, name: 'Penyusunan instrumen monitoring layanan', activeParticipants: 17 },
-  { id: 14, name: 'Pengelolaan agenda rapat koordinasi', activeParticipants: 28 },
-  { id: 15, name: 'Pengumpulan data evaluasi program kerja', activeParticipants: 24 },
-  { id: 16, name: 'Verifikasi kelengkapan laporan kegiatan', activeParticipants: 20 },
-  { id: 17, name: 'Pendataan kebutuhan pengembangan kompetensi', activeParticipants: 15 },
-  { id: 18, name: 'Penyusunan bahan paparan pimpinan', activeParticipants: 11 },
-  { id: 19, name: 'Pemantauan tindak lanjut hasil evaluasi', activeParticipants: 26 },
-  { id: 20, name: 'Pengelolaan rekap absensi kegiatan unit', activeParticipants: 36 },
-  { id: 21, name: 'Koordinasi penyelesaian dokumen layanan', activeParticipants: 29 },
-  { id: 22, name: 'Validasi data pendukung laporan tahunan', activeParticipants: 23 },
-];
 
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
   if (totalPages <= 4) {
@@ -163,14 +139,36 @@ function Pagination({
 }
 
 export function MasterButirView() {
-  const [items, setItems] = useState<MasterButir[]>(initialButirData);
+  const [items, setItems] = useState<ButirKegiatan[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [formErrorMessage, setFormErrorMessage] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<MasterButir | null>(null);
-  const [deletingItem, setDeletingItem] = useState<MasterButir | null>(null);
+  const [editingItem, setEditingItem] = useState<ButirKegiatan | null>(null);
+  const [deletingItem, setDeletingItem] = useState<ButirKegiatan | null>(null);
   const [formName, setFormName] = useState('');
+
+  const loadButir = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const data = await getButirKegiatanList();
+      setItems(data);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal mengambil data butir kegiatan.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadButir();
+  }, []);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -188,39 +186,75 @@ export function MasterButirView() {
   const openAddForm = () => {
     setEditingItem(null);
     setFormName('');
+    setFormErrorMessage('');
     setIsFormOpen(true);
   };
 
-  const openEditForm = (item: MasterButir) => {
+  const openEditForm = (item: ButirKegiatan) => {
     setEditingItem(item);
     setFormName(item.name);
+    setFormErrorMessage('');
     setIsFormOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const trimmedName = formName.trim();
     if (!trimmedName) {
+      setFormErrorMessage('Nama butir kegiatan wajib diisi.');
       focusMasterButirName();
       return;
     }
 
-    if (editingItem) {
-      setItems((prev) => prev.map((item) => (item.id === editingItem.id ? { ...item, name: trimmedName } : item)));
-    } else {
-      const nextId = Math.max(0, ...items.map((item) => item.id)) + 1;
-      setItems((prev) => [{ id: nextId, name: trimmedName, activeParticipants: 0 }, ...prev]);
-      setPage(1);
+    const normalizedName = trimmedName.toLowerCase();
+    const duplicateItem = items.find(
+      (item) =>
+        item.name.trim().toLowerCase() === normalizedName &&
+        item.id !== editingItem?.id,
+    );
+
+    if (duplicateItem) {
+      setFormErrorMessage('Nama butir kegiatan sudah ada.');
+      focusMasterButirName();
+      return;
     }
 
-    setIsFormOpen(false);
-    setEditingItem(null);
-    setFormName('');
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setFormErrorMessage('');
+
+    try {
+      if (editingItem) {
+        await updateButirKegiatan(editingItem.id, { name: trimmedName });
+      } else {
+        await createButirKegiatan({ name: trimmedName });
+        setPage(1);
+      }
+
+      await loadButir();
+      setIsFormOpen(false);
+      setEditingItem(null);
+      setFormName('');
+    } catch (error: any) {
+      setFormErrorMessage(error.response?.data?.message || 'Gagal menyimpan butir kegiatan.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingItem) return;
-    setItems((prev) => prev.filter((item) => item.id !== deletingItem.id));
-    setDeletingItem(null);
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await deleteButirKegiatan(deletingItem.id);
+      await loadButir();
+      setDeletingItem(null);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal menghapus butir kegiatan.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -262,6 +296,9 @@ export function MasterButirView() {
           </div>
         </CardHeader>
         <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
+          {errorMessage && (
+            <p className="mb-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{errorMessage}</p>
+          )}
           <div className="overflow-hidden rounded-md border">
             <Table>
               <TableHeader>
@@ -272,11 +309,17 @@ export function MasterButirView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedItems.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="py-8 text-center text-gray-500">
+                      Memuat data butir kegiatan...
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedItems.length > 0 ? (
                   paginatedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="px-6 font-medium">{item.name}</TableCell>
-                      <TableCell className="text-center">{item.activeParticipants}</TableCell>
+                      <TableCell className="text-center text-gray-500">Kosong</TableCell>
                       <TableCell className="px-6" style={{ width: '10rem' }}>
                         <div className="flex justify-center gap-2">
                           <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>
@@ -326,16 +369,22 @@ export function MasterButirView() {
             <Input
               id="master-butir-name"
               value={formName}
-              onChange={(e) => setFormName(e.target.value)}
+              onChange={(e) => {
+                setFormName(e.target.value);
+                setFormErrorMessage('');
+              }}
               placeholder="Masukkan nama butir kegiatan"
             />
           </div>
+          {formErrorMessage && (
+            <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{formErrorMessage}</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
               Batal
             </Button>
-            <Button className="admin-proceed-button" onClick={handleSubmit} disabled={!formName.trim()}>
-              Simpan
+            <Button className="admin-proceed-button" onClick={handleSubmit} disabled={isSubmitting || !formName.trim()}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -356,8 +405,8 @@ export function MasterButirView() {
             <Button variant="outline" onClick={() => setDeletingItem(null)}>
               Batal
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Hapus
+            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Menghapus...' : 'Hapus'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -170,6 +170,13 @@ export const up = (pgm) => {
       updated_at timestamp with time zone DEFAULT current_timestamp,
       CONSTRAINT penugasan_tambahan_status_check CHECK (status IN ('aktif', 'selesai', 'batal'))
     );
+
+    CREATE TABLE IF NOT EXISTS pengguna_penugasan_tambahan (
+      id_pengguna_penugasan_tambahan serial PRIMARY KEY,
+      id_pengguna integer NOT NULL REFERENCES pengguna(id_pengguna) ON DELETE CASCADE,
+      id_penugasan_tambahan integer NOT NULL REFERENCES penugasan_tambahan(id_penugasan_tambahan) ON DELETE CASCADE,
+      CONSTRAINT pengguna_penugasan_tambahan_unique UNIQUE (id_pengguna, id_penugasan_tambahan)
+    );
   `);
 };
 
@@ -179,6 +186,8 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
   pgm.sql(`
+    DROP TABLE IF EXISTS pengguna_penugasan_tambahan;
+
     DROP TABLE IF EXISTS penugasan_tambahan;
 
     ALTER TABLE realisasi_kegiatan

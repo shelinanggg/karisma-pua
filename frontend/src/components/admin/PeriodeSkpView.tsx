@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Edit, Plus, Search, Trash2 } from 'lucide-react';
+import {
+  createPeriodeSkp,
+  deletePeriodeSkp,
+  getPeriodeSkpList,
+  updatePeriodeSkp,
+  type PeriodeSkp,
+} from '../../api/periodeSkpApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
@@ -14,21 +21,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
-type PeriodeSkp = {
-  id: number;
-  tahun: number;
-  tanggalMulai: string;
-  tanggalSelesai: string;
-  jumlahPenugasan: number;
-};
-
 const pageSizeOptions = [5, 10, 20];
-
-const initialPeriodeData: PeriodeSkp[] = [
-  { id: 1, tahun: 2026, tanggalMulai: '2026-01-01', tanggalSelesai: '2026-12-30', jumlahPenugasan: 42 },
-  { id: 2, tahun: 2025, tanggalMulai: '2025-01-01', tanggalSelesai: '2025-12-30', jumlahPenugasan: 37 },
-  { id: 3, tahun: 2024, tanggalMulai: '2024-01-01', tanggalSelesai: '2024-12-30', jumlahPenugasan: 29 },
-];
 
 function RequiredStar() {
   return <span className="admin-required-star">*</span>;
@@ -162,16 +155,37 @@ function Pagination({
 }
 
 export function PeriodeSkpView() {
-  const [items, setItems] = useState<PeriodeSkp[]>(initialPeriodeData);
+  const [items, setItems] = useState<PeriodeSkp[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PeriodeSkp | null>(null);
   const [deletingItem, setDeletingItem] = useState<PeriodeSkp | null>(null);
   const [tahun, setTahun] = useState(getDefaultYear());
   const [tanggalMulai, setTanggalMulai] = useState(getDefaultStartDate());
   const [tanggalSelesai, setTanggalSelesai] = useState(getDefaultEndDate());
+
+  const loadPeriode = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const data = await getPeriodeSkpList();
+      setItems(data);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal mengambil data periode SKP.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPeriode();
+  }, []);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -224,32 +238,46 @@ export function PeriodeSkpView() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || tanggalMulai > tanggalSelesai) return;
 
     const tahunValue = Number(tahun);
-    if (editingItem) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? { ...item, tahun: tahunValue, tanggalMulai, tanggalSelesai }
-            : item,
-        ),
-      );
-    } else {
-      const nextId = Math.max(0, ...items.map((item) => item.id)) + 1;
-      setItems((prev) => [{ id: nextId, tahun: tahunValue, tanggalMulai, tanggalSelesai, jumlahPenugasan: 0 }, ...prev]);
-      setPage(1);
-    }
+    const payload = { tahun: tahunValue, tanggalMulai, tanggalSelesai };
+    setIsSubmitting(true);
+    setErrorMessage('');
 
-    setIsFormOpen(false);
-    setEditingItem(null);
+    try {
+      if (editingItem) {
+        await updatePeriodeSkp(editingItem.id, payload);
+      } else {
+        await createPeriodeSkp(payload);
+        setPage(1);
+      }
+
+      await loadPeriode();
+      setIsFormOpen(false);
+      setEditingItem(null);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal menyimpan periode SKP.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingItem) return;
-    setItems((prev) => prev.filter((item) => item.id !== deletingItem.id));
-    setDeletingItem(null);
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      await deletePeriodeSkp(deletingItem.id);
+      await loadPeriode();
+      setDeletingItem(null);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal menghapus periode SKP.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isDateRangeInvalid = Boolean(tanggalMulai && tanggalSelesai && tanggalMulai > tanggalSelesai);
@@ -300,6 +328,9 @@ export function PeriodeSkpView() {
           </div>
         </CardHeader>
         <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
+          {errorMessage && (
+            <p className="mb-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{errorMessage}</p>
+          )}
           <div className="overflow-hidden rounded-md border">
             <Table>
               <TableHeader>
@@ -312,13 +343,19 @@ export function PeriodeSkpView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedItems.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-8 text-center text-gray-500">
+                      Memuat data periode...
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedItems.length > 0 ? (
                   paginatedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="px-6 font-medium">{item.tahun}</TableCell>
                       <TableCell>{formatDate(item.tanggalMulai)}</TableCell>
                       <TableCell>{formatDate(item.tanggalSelesai)}</TableCell>
-                      <TableCell className="text-center">{item.jumlahPenugasan}</TableCell>
+                      <TableCell className="text-center text-gray-500">Kosong</TableCell>
                       <TableCell className="px-6" style={{ width: '10rem' }}>
                         <div className="flex justify-center gap-2">
                           <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>
@@ -426,9 +463,9 @@ export function PeriodeSkpView() {
             <Button
               className="admin-proceed-button"
               onClick={handleSubmit}
-              disabled={!tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || isDateRangeInvalid}
+              disabled={isSubmitting || !tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || isDateRangeInvalid}
             >
-              Simpan
+              {isSubmitting ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -449,8 +486,8 @@ export function PeriodeSkpView() {
             <Button variant="outline" onClick={() => setDeletingItem(null)}>
               Batal
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Hapus
+            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Menghapus...' : 'Hapus'}
             </Button>
           </DialogFooter>
         </DialogContent>
