@@ -5,13 +5,15 @@ import {
   postPeriodeSkp,
   removePeriodeSkp,
 } from "../controllers/periodeSkp.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", authenticate, getPeriodeSkpList);
-router.post("/", authenticate, postPeriodeSkp);
-router.patch("/:id", authenticate, patchPeriodeSkp);
-router.delete("/:id", authenticate, removePeriodeSkp);
+router.use(authenticate, authorizeRoles("admin"));
+
+router.get("/", getPeriodeSkpList);
+router.post("/", postPeriodeSkp);
+router.patch("/:id", patchPeriodeSkp);
+router.delete("/:id", removePeriodeSkp);
 
 export default router;

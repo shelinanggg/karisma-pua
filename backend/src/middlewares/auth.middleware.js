@@ -15,3 +15,18 @@ export const authenticate = (req, res, next) => {
     return res.status(401).json({ message: "Token tidak valid atau sudah kedaluwarsa." });
   }
 };
+
+export const authorizeRoles = (...allowedRoles) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Akses ditolak. Token tidak ditemukan." });
+  }
+
+  const userRole = String(req.user.role || "").toLowerCase();
+  const normalizedAllowedRoles = allowedRoles.map((role) => String(role).toLowerCase());
+
+  if (!normalizedAllowedRoles.includes(userRole)) {
+    return res.status(403).json({ message: "Anda tidak memiliki akses untuk fitur ini." });
+  }
+
+  next();
+};

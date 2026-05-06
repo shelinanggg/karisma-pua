@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { useProfile } from '../hooks/useProfile';
 import { logoutService } from '../services/profileService';
+import { clearAccessToken, getAccessToken } from '../utils/authToken';
 import { getInitials, getRoleLabel } from '../utils/profile';
 
 // ── Notification data ─────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ export function TopBar() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const getTokenRole = () => {
-    const token = sessionStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token) return null;
 
     try {
@@ -283,7 +284,7 @@ export function TopBar() {
                 } catch(e) {
                   // Token lokal tetap dibersihkan meski cookie session gagal dihapus server.
                 }
-                sessionStorage.removeItem('accessToken');
+                clearAccessToken();
                 navigate('/login');
               }}
             >

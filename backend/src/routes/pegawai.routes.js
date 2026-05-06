@@ -7,15 +7,17 @@ import {
   postPegawai,
   removePegawai,
 } from "../controllers/pegawai.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", authenticate, getPegawaiList);
-router.get("/references", authenticate, getPegawaiReferences);
-router.get("/early-warning", authenticate, getPegawaiEarlyWarnings);
-router.post("/", authenticate, postPegawai);
-router.patch("/:id", authenticate, patchPegawai);
-router.delete("/:id", authenticate, removePegawai);
+router.use(authenticate, authorizeRoles("admin"));
+
+router.get("/", getPegawaiList);
+router.get("/references", getPegawaiReferences);
+router.get("/early-warning", getPegawaiEarlyWarnings);
+router.post("/", postPegawai);
+router.patch("/:id", patchPegawai);
+router.delete("/:id", removePegawai);
 
 export default router;

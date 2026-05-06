@@ -10,18 +10,20 @@ import {
   postButirAssignment,
   removeButirAssignment,
 } from "../controllers/penugasan.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/pegawai", authenticate, getPenugasanEmployees);
-router.post("/butir", authenticate, postButirAssignment);
-router.get("/butir/pegawai/:pegawaiId", authenticate, getButirAssignmentsByEmployee);
-router.patch("/butir/:id", authenticate, patchButirAssignment);
-router.delete("/butir/:id", authenticate, removeButirAssignment);
-router.get("/tambahan", authenticate, getAdditionalAssignments);
-router.get("/tambahan/:id", authenticate, getAdditionalAssignment);
-router.post("/tambahan", authenticate, postAdditionalAssignment);
-router.patch("/tambahan/:id", authenticate, patchAdditionalAssignment);
+router.use(authenticate, authorizeRoles("admin"));
+
+router.get("/pegawai", getPenugasanEmployees);
+router.post("/butir", postButirAssignment);
+router.get("/butir/pegawai/:pegawaiId", getButirAssignmentsByEmployee);
+router.patch("/butir/:id", patchButirAssignment);
+router.delete("/butir/:id", removeButirAssignment);
+router.get("/tambahan", getAdditionalAssignments);
+router.get("/tambahan/:id", getAdditionalAssignment);
+router.post("/tambahan", postAdditionalAssignment);
+router.patch("/tambahan/:id", patchAdditionalAssignment);
 
 export default router;

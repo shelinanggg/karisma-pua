@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { SidebarPimpinan } from './components/SidebarPimpinan';
@@ -32,9 +33,11 @@ import { PeriodeSkpView } from './components/admin/PeriodeSkpView';
 import { EditPenugasanButirView, EditPenugasanTambahanView, PenugasanButirFormView, PenugasanView } from './components/admin/PenugasanView';
 import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
 import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
+import { refreshApi } from './api/authApi';
+import { clearAccessToken, getAccessToken, setAccessToken, shouldRememberAuth } from './utils/authToken';
 
 function getUserRole(): string | null {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getAccessToken();
   if (!token) return null;
   try {
     const decoded: { role?: string } = jwtDecode(token);
@@ -51,7 +54,7 @@ function getDefaultRouteByRole(role: string | null): string {
 }
 
 function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: React.ElementType, allowedRole: string }) {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getAccessToken();
   const userRole = getUserRole();
 
   if (!token) {
@@ -76,7 +79,7 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
 }
 
 function PublicLayout() {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getAccessToken();
   const userRole = getUserRole();
 
   if (token && userRole) {
@@ -87,7 +90,7 @@ function PublicLayout() {
 }
 
 function RootRedirect() {
-  const token = sessionStorage.getItem('accessToken');
+  const token = getAccessToken();
   const userRole = getUserRole();
 
   if (token && userRole) {
@@ -97,6 +100,42 @@ function RootRedirect() {
 }
 
 export default function App() {
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const bootstrapAuth = async () => {
+      if (getAccessToken()) {
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      try {
+        const data = await refreshApi(shouldRememberAuth());
+        if (!ignore) setAccessToken(data.accessToken, shouldRememberAuth());
+      } catch {
+        if (!ignore) clearAccessToken();
+      } finally {
+        if (!ignore) setIsCheckingAuth(false);
+      }
+    };
+
+    bootstrapAuth();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500">
+        Memeriksa sesi...
+      </div>
+    );
+  }
+
   return (
     <Routes>
       <Route element={<PublicLayout />}>
