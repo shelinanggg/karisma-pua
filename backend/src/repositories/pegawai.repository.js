@@ -227,3 +227,47 @@ export const findPegawaiReferences = async () => {
     sertifikasi: sertifikasi.rows.map(mapReference),
   };
 };
+
+const mapEarlyWarningRow = (row, dateField) => ({
+  id: String(row.id_pengguna),
+  name: row.nama ?? "",
+  nip: row.nip ?? "",
+  [dateField]: row.warning_date ?? "",
+  daysLeft: Number(row.days_left ?? 0),
+});
+
+export const findPegawaiEarlyWarnings = async () => {
+  const [kgbResult, pensionResult] = await Promise.all([
+    pool.query(`
+      SELECT
+        id_pengguna,
+        nama,
+        nip,
+        ${formatDateColumn("tmt_kgb")} AS warning_date,
+        (tmt_kgb::date - current_date) AS days_left
+      FROM pengguna
+      WHERE status_aktif IS DISTINCT FROM FALSE
+        AND tmt_kgb IS NOT NULL
+        AND tmt_kgb::date BETWEEN current_date AND current_date + INTERVAL '90 days'
+      ORDER BY tmt_kgb ASC, nama ASC, id_pengguna ASC
+    `),
+    pool.query(`
+      SELECT
+        id_pengguna,
+        nama,
+        nip,
+        ${formatDateColumn("tmt_pensiun")} AS warning_date,
+        (tmt_pensiun::date - current_date) AS days_left
+      FROM pengguna
+      WHERE status_aktif IS DISTINCT FROM FALSE
+        AND tmt_pensiun IS NOT NULL
+        AND tmt_pensiun::date BETWEEN current_date AND current_date + INTERVAL '5 years'
+      ORDER BY tmt_pensiun ASC, nama ASC, id_pengguna ASC
+    `),
+  ]);
+
+  return {
+    kgb: kgbResult.rows.map((row) => mapEarlyWarningRow(row, "tmtKgb")),
+    pensiun: pensionResult.rows.map((row) => mapEarlyWarningRow(row, "tmtPension")),
+  };
+};

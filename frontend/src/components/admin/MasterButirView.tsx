@@ -319,7 +319,7 @@ export function MasterButirView() {
                   paginatedItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="px-6 font-medium">{item.name}</TableCell>
-                      <TableCell className="text-center text-gray-500">Kosong</TableCell>
+                      <TableCell className="text-center text-gray-700">{item.activeParticipants} partisipan</TableCell>
                       <TableCell className="px-6" style={{ width: '10rem' }}>
                         <div className="flex justify-center gap-2">
                           <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>

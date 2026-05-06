@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getPegawaiEarlyWarnings,
   getPegawaiList,
   getPegawaiReferences,
   patchPegawai,
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.get("/", authenticate, getPegawaiList);
 router.get("/references", authenticate, getPegawaiReferences);
+router.get("/early-warning", authenticate, getPegawaiEarlyWarnings);
 router.post("/", authenticate, postPegawai);
 router.patch("/:id", authenticate, patchPegawai);
 router.delete("/:id", authenticate, removePegawai);

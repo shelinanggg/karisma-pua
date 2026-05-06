@@ -5,17 +5,26 @@ const mapPeriodeRow = (row) => ({
   tahun: row.tahun,
   tanggalMulai: row.tanggal_mulai,
   tanggalSelesai: row.tanggal_selesai,
+  assignmentCount: Number(row.assignment_count ?? 0),
 });
 
 export const findAllPeriodeSkp = async () => {
   const result = await pool.query(`
     SELECT
-      id_periode_skp,
-      tahun,
-      tanggal_mulai::text AS tanggal_mulai,
-      tanggal_selesai::text AS tanggal_selesai
+      periode_skp.id_periode_skp,
+      periode_skp.tahun,
+      periode_skp.tanggal_mulai::text AS tanggal_mulai,
+      periode_skp.tanggal_selesai::text AS tanggal_selesai,
+      COUNT(pengguna_kegiatan.id_pengguna_kegiatan) AS assignment_count
     FROM periode_skp
-    ORDER BY tahun DESC, tanggal_mulai DESC, id_periode_skp DESC
+    LEFT JOIN pengguna_kegiatan
+      ON pengguna_kegiatan.id_periode_skp = periode_skp.id_periode_skp
+    GROUP BY
+      periode_skp.id_periode_skp,
+      periode_skp.tahun,
+      periode_skp.tanggal_mulai,
+      periode_skp.tanggal_selesai
+    ORDER BY periode_skp.tahun DESC, periode_skp.tanggal_mulai DESC, periode_skp.id_periode_skp DESC
   `);
 
   return result.rows.map(mapPeriodeRow);
@@ -36,6 +45,21 @@ export const createPeriodeSkp = async ({ tahun, tanggalMulai, tanggalSelesai }) 
   );
 
   return mapPeriodeRow(result.rows[0]);
+};
+
+export const findPeriodeSkpByYear = async (tahun, excludeId = null) => {
+  const result = await pool.query(
+    `
+      SELECT id_periode_skp, tahun
+      FROM periode_skp
+      WHERE tahun = $1
+        AND ($2::integer IS NULL OR id_periode_skp <> $2::integer)
+      LIMIT 1
+    `,
+    [tahun, excludeId],
+  );
+
+  return result.rows[0] ?? null;
 };
 
 export const updatePeriodeSkp = async (id, { tahun, tanggalMulai, tanggalSelesai }) => {

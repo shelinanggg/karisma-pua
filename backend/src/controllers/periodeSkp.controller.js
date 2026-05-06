@@ -2,6 +2,7 @@ import {
   createPeriodeSkp,
   deletePeriodeSkp,
   findAllPeriodeSkp,
+  findPeriodeSkpByYear,
   updatePeriodeSkp,
 } from "../repositories/periodeSkp.repository.js";
 
@@ -42,8 +43,14 @@ export const postPeriodeSkp = async (req, res) => {
       return res.status(400).json({ message: validationError });
     }
 
+    const tahun = Number(req.body.tahun);
+    const existing = await findPeriodeSkpByYear(tahun);
+    if (existing) {
+      return res.status(409).json({ message: "Tahun periode SKP sudah ada." });
+    }
+
     const data = await createPeriodeSkp({
-      tahun: Number(req.body.tahun),
+      tahun,
       tanggalMulai: req.body.tanggalMulai,
       tanggalSelesai: req.body.tanggalSelesai,
     });
@@ -61,8 +68,14 @@ export const patchPeriodeSkp = async (req, res) => {
       return res.status(400).json({ message: validationError });
     }
 
+    const tahun = Number(req.body.tahun);
+    const existing = await findPeriodeSkpByYear(tahun, req.params.id);
+    if (existing) {
+      return res.status(409).json({ message: "Tahun periode SKP sudah ada." });
+    }
+
     const data = await updatePeriodeSkp(req.params.id, {
-      tahun: Number(req.body.tahun),
+      tahun,
       tanggalMulai: req.body.tanggalMulai,
       tanggalSelesai: req.body.tanggalSelesai,
     });

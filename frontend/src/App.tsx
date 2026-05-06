@@ -29,7 +29,7 @@ import { ProfilView } from './components/admin/ProfilView';
 import { PengaturanView } from './components/admin/PengaturanView';
 import { MasterButirView } from './components/admin/MasterButirView';
 import { PeriodeSkpView } from './components/admin/PeriodeSkpView';
-import { EditPenugasanTambahanView, PenugasanButirFormView, PenugasanView } from './components/admin/PenugasanView';
+import { EditPenugasanButirView, EditPenugasanTambahanView, PenugasanButirFormView, PenugasanView } from './components/admin/PenugasanView';
 import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
 import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 
@@ -135,6 +135,7 @@ export default function App() {
         <Route path="master-periode" element={<PeriodeSkpView />} />
         <Route path="penugasan" element={<PenugasanView />} />
         <Route path="penugasan/edit-penugasan-tambahan/:penugasanId" element={<EditPenugasanTambahanView />} />
+        <Route path="penugasan/master-butir/ubah/:pegawaiId" element={<EditPenugasanButirView />} />
         <Route path="penugasan/master-butir/terapkan-ke/:pegawaiId" element={<PenugasanButirFormView />} />
         <Route path="data-kepegawaian" element={<DataKepegawaianView />} />
         <Route path="early-warning-system" element={<EarlyWarningSystemView />} />

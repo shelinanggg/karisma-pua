@@ -5,6 +5,7 @@ export type PeriodeSkp = {
   tahun: number;
   tanggalMulai: string;
   tanggalSelesai: string;
+  assignmentCount: number;
 };
 
 export type PeriodeSkpPayload = {
