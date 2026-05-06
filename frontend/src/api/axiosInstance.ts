@@ -2,8 +2,22 @@
 import axios from "axios"
 import { clearAccessToken, getAccessToken, setAccessToken, shouldRememberAuth } from "../utils/authToken";
 
+const getDefaultApiBaseUrl = () => {
+  if (typeof window === "undefined") {
+    return "http://localhost:5000/api";
+  }
+
+  const { hostname, protocol } = window.location;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://localhost:5000/api";
+  }
+
+  return `${protocol}//${hostname}:5000/api`;
+};
+
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || getDefaultApiBaseUrl(),
   headers: {
     "Content-Type": "application/json"
   },
