@@ -3,6 +3,7 @@ import axiosInstance from "./axiosInstance";
 export type ButirKegiatan = {
   id: number;
   name: string;
+  activeParticipants: number;
 };
 
 export type ButirKegiatanPayload = {

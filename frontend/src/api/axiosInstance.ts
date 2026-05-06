@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import axios from "axios"
+import { clearAccessToken, getAccessToken, setAccessToken, shouldRememberAuth } from "../utils/authToken";
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
@@ -12,7 +13,7 @@ const axiosInstance = axios.create({
 // Request Interceptor: Attach Access Token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem("accessToken");
+    const token = getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -35,19 +36,19 @@ axiosInstance.interceptors.response.use(
         // Attempt to refresh
         const { data } = await axios.post(
           `${axiosInstance.defaults.baseURL}/auth/refresh`,
-          {},
+          { rememberMe: shouldRememberAuth() },
           { withCredentials: true }
         );
 
         // Save new Access Token
-        sessionStorage.setItem("accessToken", data.accessToken);
+        setAccessToken(data.accessToken, shouldRememberAuth());
 
         // Update header for original request and retry
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return axiosInstance(originalRequest);
       } catch (err) {
         // Refresh failed (e.g. refresh token expired or missing)
-        sessionStorage.removeItem("accessToken");
+        clearAccessToken();
         // Optional: redirect to login
         window.location.href = "/login";
         return Promise.reject(err);

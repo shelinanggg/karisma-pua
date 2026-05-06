@@ -1,6 +1,22 @@
-import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, Check, ChevronsUpDown, Download, Eye, FileText, Pencil, Search, Upload, X, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Calendar, Check, ChevronsUpDown, Eye, FileText, Pencil, Search, Trash2, Upload, X } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { getButirKegiatanList, type ButirKegiatan } from '../../api/butirKegiatanApi';
+import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
+import {
+  createPenugasanButir,
+  createPenugasanTambahan,
+  deletePenugasanButir,
+  getPenugasanButirByPegawai,
+  getPenugasanEmployees,
+  getPenugasanTambahan,
+  getPenugasanTambahanList,
+  updatePenugasanButir,
+  updatePenugasanTambahan,
+  type PenugasanButir,
+  type PenugasanEmployee,
+  type PenugasanTambahan,
+} from '../../api/penugasanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
@@ -57,56 +73,113 @@ const employeeOptions: Option[] = employees.map((employee) => ({
   label: `${employee.nama} - NIP ${employee.nip}`,
 }));
 
-const kegiatanOptions: Option[] = [
-  { id: 'keg-1', label: 'Penyusunan rancangan program kerja unit' },
-  { id: 'keg-2', label: 'Pelaksanaan koordinasi kegiatan akademik' },
-  { id: 'keg-3', label: 'Evaluasi capaian indikator kinerja' },
-  { id: 'keg-4', label: 'Pengelolaan dokumen administrasi kepegawaian' },
-  { id: 'keg-5', label: 'Monitoring realisasi target kinerja pegawai' },
-  { id: 'keg-6', label: 'Validasi bukti dukung kegiatan SKP' },
-];
-
-const periodeOptions: Option[] = [
-  { id: 'periode-2026', label: 'SKP 2026 - 1 Januari 2026 s/d 30 Desember 2026' },
-  { id: 'periode-2025', label: 'SKP 2025 - 1 Januari 2025 s/d 30 Desember 2025' },
-  { id: 'periode-2024', label: 'SKP 2024 - 1 Januari 2024 s/d 30 Desember 2024' },
-];
-
-const assignmentHistory = [
-  {
-    id: 'pendampingan-akreditasi-mei-2026',
-    namaKegiatan: 'Pendampingan penyusunan laporan akreditasi',
-    deskripsiKegiatan: 'Mendampingi tim unit dalam melengkapi bukti dukung dan menyusun ringkasan dokumen akreditasi.',
-    deadline: '20 Mei 2026',
-    tanggalKegiatan: '-',
-    suratTugas: 'ST-Akreditasi-Mei-2026.pdf',
-    status: 'Aktif',
-    assignedEmployees: ['pegawai-1', 'pegawai-4'],
-  },
-  {
-    id: 'rakor-arsip-digital-mei-2026',
-    namaKegiatan: 'Rapat koordinasi pengelolaan arsip digital',
-    deskripsiKegiatan: 'Koordinasi lintas unit untuk menyamakan format arsip, alur validasi, dan pembagian tanggung jawab.',
-    deadline: '-',
-    tanggalKegiatan: '24 Mei 2026',
-    suratTugas: 'Surat-Tugas-Rakor-Arsip.pdf',
-    status: 'Aktif',
-    assignedEmployees: ['pegawai-2'],
-  },
-  {
-    id: 'validasi-kinerja-triwulan-mei-2026',
-    namaKegiatan: 'Validasi dokumen kinerja triwulan',
-    deskripsiKegiatan: 'Memeriksa kelengkapan dokumen kinerja dan menandai catatan perbaikan sebelum proses rekap final.',
-    deadline: '31 Mei 2026',
-    tanggalKegiatan: '-',
-    suratTugas: 'ST-Validasi-Kinerja-TW2.docx',
-    status: 'Selesai',
-    assignedEmployees: ['pegawai-3', 'pegawai-5'],
-  },
-];
+const pageSizeOptions = [5, 10, 20];
 
 function RequiredStar() {
   return <span className="admin-required-star">*</span>;
+}
+
+function getAdaptivePages(currentPage: number, totalPages: number): number[] {
+  if (totalPages <= 4) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  if (currentPage === 1) {
+    return [1, 2, 3, totalPages];
+  }
+
+  if (currentPage >= totalPages - 1) {
+    return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return Array.from(
+    new Set([currentPage - 1, currentPage, currentPage + 1, totalPages].filter((page) => page >= 1 && page <= totalPages)),
+  ).sort((a, b) => a - b);
+}
+
+function PenugasanPagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}) {
+  const visiblePages = getAdaptivePages(currentPage, totalPages);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <p className="text-xs text-gray-500">
+        Menampilkan {startItem}-{endItem} dari {totalItems} data
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+          <span className="text-xs text-gray-500">Tampilkan</span>
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              onPageSizeChange(Number(event.target.value));
+              onPageChange(1);
+            }}
+            className="text-xs font-medium outline-none"
+          >
+            {pageSizeOptions.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Sebelumnya
+        </button>
+        {visiblePages.map((page, idx) => (
+          <span key={page} className="flex items-center gap-2">
+            {idx > 0 && page - visiblePages[idx - 1] > 1 && (
+              <span className="px-1 text-xs text-gray-500">...</span>
+            )}
+            <button
+              type="button"
+              onClick={() => onPageChange(page)}
+              className="rounded-lg border py-1 text-xs font-medium transition"
+              style={{
+                minWidth: '2rem',
+                paddingLeft: '0.1rem',
+                paddingRight: '0.1rem',
+                ...(page === currentPage
+                  ? { background: 'var(--primary)', color: 'var(--primary-foreground)', borderColor: 'var(--primary)' }
+                  : { background: 'var(--card)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }),
+              }}
+            >
+              {page}
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages || totalPages === 0}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Berikutnya
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function openDatePicker(event: { currentTarget: HTMLInputElement }) {
@@ -126,8 +199,46 @@ function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
   window.setTimeout(() => focusable?.focus(), 250);
 }
 
-function getEmployeeName(employeeId: string) {
-  return employees.find((employee) => employee.id === employeeId)?.nama ?? employeeId;
+function formatDateLabel(value?: string | null) {
+  if (!value) return '-';
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatPeriodeLabel(periode: PeriodeSkp) {
+  return `SKP ${periode.tahun} - ${formatDateLabel(periode.tanggalMulai)} s/d ${formatDateLabel(periode.tanggalSelesai)}`;
+}
+
+function toOptionList(items: ButirKegiatan[] | PeriodeSkp[]) {
+  return items.map((item) => {
+    if ('name' in item) {
+      return { id: String(item.id), label: item.name };
+    }
+
+    return { id: String(item.id), label: formatPeriodeLabel(item) };
+  });
+}
+
+function getAdditionalAssignmentDates(item: PenugasanTambahan) {
+  if (!item.tanggalMulai && !item.tanggalSelesai) {
+    return { deadline: '-', tanggalKegiatan: '-' };
+  }
+
+  if (item.tanggalMulai && item.tanggalMulai === item.tanggalSelesai) {
+    return { deadline: '-', tanggalKegiatan: formatDateLabel(item.tanggalMulai) };
+  }
+
+  return {
+    deadline: `${formatDateLabel(item.tanggalMulai)} - ${formatDateLabel(item.tanggalSelesai)}`,
+    tanggalKegiatan: '-',
+  };
 }
 
 function SearchableSelect({ label, options, value, onChange }: {
@@ -238,8 +349,9 @@ function updateEmployeeSlots(current: string[], index: number, employeeId: strin
   return compacted;
 }
 
-function AssignmentEmployeeFields({ value, onChange, firstFieldRef }: {
+function AssignmentEmployeeFields({ value, options = employeeOptions, onChange, firstFieldRef }: {
   value: string[];
+  options?: Option[];
   onChange: (index: number, employeeId: string) => void;
   firstFieldRef: React.RefObject<HTMLDivElement | null>;
 }) {
@@ -248,7 +360,7 @@ function AssignmentEmployeeFields({ value, onChange, firstFieldRef }: {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {value.map((employeeId, index) => {
-        const availableOptions = employeeOptions.filter((option) => option.id === employeeId || !selectedIds.includes(option.id));
+        const availableOptions = options.filter((option) => option.id === employeeId || !selectedIds.includes(option.id));
         return (
           <div key={index} ref={index === 0 ? firstFieldRef : undefined} className="space-y-2">
             <Label htmlFor={`pegawai-${index + 1}`}>
@@ -287,56 +399,205 @@ function DateInput({ id, value, onChange }: { id: string; value: string; onChang
 
 function EmployeeAssignmentTable() {
   const navigate = useNavigate();
+  const [items, setItems] = useState<PenugasanEmployee[]>([]);
+  const [periodeItems, setPeriodeItems] = useState<PeriodeSkp[]>([]);
+  const [selectedPeriodeId, setSelectedPeriodeId] = useState('');
+  const [selectedPangkat, setSelectedPangkat] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [hasLoadedPeriods, setHasLoadedPeriods] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadPeriods = async () => {
+      setErrorMessage('');
+
+      try {
+        const data = await getPeriodeSkpList();
+        if (ignore) return;
+
+        const currentYear = new Date().getFullYear();
+        const defaultPeriod = data.find((periode) => periode.tahun === currentYear) ?? data[0];
+
+        setPeriodeItems(data);
+        setSelectedPeriodeId(defaultPeriod ? String(defaultPeriod.id) : '');
+      } catch (error: any) {
+        if (!ignore) setErrorMessage(error.response?.data?.message || 'Gagal mengambil data periode SKP.');
+      } finally {
+        if (!ignore) setHasLoadedPeriods(true);
+      }
+    };
+
+    loadPeriods();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedPeriods) return;
+
+    let ignore = false;
+
+    const loadEmployees = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const data = await getPenugasanEmployees(selectedPeriodeId ? { idPeriodeSkp: selectedPeriodeId } : undefined);
+        if (!ignore) setItems(data);
+      } catch (error: any) {
+        if (!ignore) setErrorMessage(error.response?.data?.message || 'Gagal mengambil data pegawai.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadEmployees();
+
+    return () => {
+      ignore = true;
+    };
+  }, [hasLoadedPeriods, selectedPeriodeId]);
+
+  const pangkatOptions = useMemo(
+    () => Array.from(new Set(items.map((employee) => employee.pangkat).filter((pangkat) => pangkat && pangkat !== '-'))).sort(),
+    [items],
+  );
+
   const filteredEmployees = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return employees;
-    return employees.filter((employee) => [employee.nama, employee.nip, employee.role, employee.fungsional].join(' ').toLowerCase().includes(query));
-  }, [search]);
+    return items.filter((employee) => {
+      const matchesSearch = !query || [employee.nama, employee.nip, employee.role, employee.fungsional].join(' ').toLowerCase().includes(query);
+      const matchesPangkat = !selectedPangkat || employee.pangkat === selectedPangkat;
+
+      return matchesSearch && matchesPangkat;
+    });
+  }, [items, search, selectedPangkat]);
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedEmployees = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEmployees.slice(start, start + pageSize);
+  }, [currentPage, filteredEmployees, pageSize]);
 
   return (
     <Card>
       <CardHeader className="pb-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-4">
           <div>
             <CardTitle>Penugasan Butir</CardTitle>
             <CardDescription className="mt-1">Pilih pegawai lalu tetapkan butir kegiatan dan periode SKP.</CardDescription>
           </div>
-          <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
-            <Search className="size-4 shrink-0 text-gray-400" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, NIP, role..." className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0" />
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[760px] gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+              <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                <Search className="size-4 shrink-0 text-gray-400" />
+                <Input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Cari nama, NIP, role..."
+                  className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
+              <select
+                aria-label="Filter periode penugasan butir"
+                value={selectedPeriodeId}
+                onChange={(event) => {
+                  setSelectedPeriodeId(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
+              >
+                {periodeItems.length === 0 ? (
+                  <option value="">Semua periode</option>
+                ) : (
+                  periodeItems.map((periode) => (
+                    <option key={periode.id} value={String(periode.id)}>
+                      {formatPeriodeLabel(periode)}
+                    </option>
+                  ))
+                )}
+              </select>
+              <select
+                aria-label="Filter pangkat penugasan butir"
+                value={selectedPangkat}
+                onChange={(event) => {
+                  setSelectedPangkat(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
+              >
+                <option value="">Semua pangkat</option>
+                {pangkatOptions.map((pangkat) => (
+                  <option key={pangkat} value={pangkat}>
+                    {pangkat}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="grid bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-700" style={{ gridTemplateColumns: 'minmax(240px, 1.4fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 150px' }}>
-            <div className="pl-2">Nama / NIP</div>
-            <div>Role</div>
-            <div>Fungsional</div>
-            <div>Pangkat</div>
-            <div>Golongan</div>
-            <div className="text-center">Aksi</div>
+        {errorMessage && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{errorMessage}</p>}
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <div className="min-w-[1120px]">
+            <div className="grid bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-700" style={{ gridTemplateColumns: 'minmax(220px, 1.35fr) minmax(110px, 0.65fr) minmax(170px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 140px 220px' }}>
+              <div className="pl-2">Nama / NIP</div>
+              <div>Role</div>
+              <div>Fungsional</div>
+              <div>Pangkat</div>
+              <div>Golongan</div>
+              <div className="text-center">Jumlah Penugasan</div>
+              <div className="text-center">Aksi</div>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {isLoading ? (
+                <div className="px-6 py-10 text-center text-sm text-gray-500">Memuat data pegawai...</div>
+              ) : paginatedEmployees.length > 0 ? (
+                paginatedEmployees.map((employee) => (
+                  <div key={employee.id} className="grid items-center px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.35fr) minmax(110px, 0.65fr) minmax(170px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 140px 220px' }}>
+                    <div className="min-w-0 pl-2">
+                      <p className="truncate font-semibold text-gray-900">{employee.nama}</p>
+                      <p className="truncate text-xs text-gray-500">NIP {employee.nip}</p>
+                    </div>
+                    <div>{employee.role}</div>
+                    <div>{employee.fungsional}</div>
+                    <div>{employee.pangkat}</div>
+                    <div>{employee.golongan}</div>
+                    <div className="text-center font-semibold text-gray-900">{employee.assignmentCount ?? 0}</div>
+                    <div className="flex justify-center gap-2">
+                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => navigate(`/admin/penugasan/master-butir/ubah/${employee.id}`)}>
+                        Ubah
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => navigate(`/admin/penugasan/master-butir/terapkan-ke/${employee.id}`)}>
+                        Tetapkan
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="px-6 py-10 text-center text-sm text-gray-500">Data pegawai tidak ditemukan.</div>
+              )}
+            </div>
           </div>
-          <div className="divide-y divide-gray-200">
-            {filteredEmployees.slice(0, 8).map((employee) => (
-              <div key={employee.id} className="grid items-center px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(240px, 1.4fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 150px' }}>
-                <div className="min-w-0 pl-2">
-                  <p className="truncate font-semibold text-gray-900">{employee.nama}</p>
-                  <p className="truncate text-xs text-gray-500">NIP {employee.nip}</p>
-                </div>
-                <div>{employee.role}</div>
-                <div>{employee.fungsional}</div>
-                <div>{employee.pangkat}</div>
-                <div>{employee.golongan}</div>
-                <div className="flex justify-center">
-                  <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => navigate(`/admin/penugasan/master-butir/terapkan-ke/${employee.id}`)}>
-                    Tetapkan
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <PenugasanPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredEmployees.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </CardContent>
     </Card>
@@ -347,7 +608,11 @@ function PenugasanTambahanForm() {
   const navigate = useNavigate();
   const pegawaiRef = useRef<HTMLDivElement>(null);
   const namaKegiatanRef = useRef<HTMLDivElement>(null);
-  const [detailItem, setDetailItem] = useState<(typeof assignmentHistory)[number] | null>(null);
+  const [employeeItems, setEmployeeItems] = useState<PenugasanEmployee[]>([]);
+  const [historyItems, setHistoryItems] = useState<PenugasanTambahan[]>([]);
+  const [detailItem, setDetailItem] = useState<PenugasanTambahan | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(5);
   const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>(['']);
   const [form, setForm] = useState({
     namaKegiatan: '',
@@ -359,6 +624,46 @@ function PenugasanTambahanForm() {
     suratTugas: '',
   });
   const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [historyMessage, setHistoryMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadFormData = async () => {
+    setIsLoading(true);
+    setIsHistoryLoading(true);
+    setErrorMessage('');
+    setHistoryMessage('');
+
+    try {
+      const employeesData = await getPenugasanEmployees();
+      setEmployeeItems(employeesData);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal mengambil data pegawai.');
+    } finally {
+      setIsLoading(false);
+    }
+
+    try {
+      const historyData = await getPenugasanTambahanList();
+      setHistoryItems(historyData);
+    } catch (error: any) {
+      setHistoryItems([]);
+      setHistoryMessage('Belum ada data penugasan tambahan yang dapat ditampilkan.');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFormData();
+  }, []);
+
+  const dynamicEmployeeOptions = useMemo(
+    () => employeeItems.map((employee) => ({ id: employee.id, label: `${employee.nama} - NIP ${employee.nip}` })),
+    [employeeItems],
+  );
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -379,8 +684,14 @@ function PenugasanTambahanForm() {
     Boolean(assignedEmployeeIds[0]) &&
     Boolean(form.namaKegiatan.trim()) &&
     (form.tanggalMode === 'deadline' ? Boolean(form.tanggalMulai && form.tanggalSelesai) : Boolean(form.tanggalKegiatan));
+  const historyTotalPages = Math.max(1, Math.ceil(historyItems.length / historyPageSize));
+  const historyCurrentPage = Math.min(historyPage, historyTotalPages);
+  const paginatedAssignmentHistory = useMemo(() => {
+    const start = (historyCurrentPage - 1) * historyPageSize;
+    return historyItems.slice(start, start + historyPageSize);
+  }, [historyCurrentPage, historyItems, historyPageSize]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!assignedEmployeeIds[0]) {
       setError('Nama pegawai wajib dipilih.');
       focusFormField(pegawaiRef);
@@ -389,6 +700,40 @@ function PenugasanTambahanForm() {
     if (!form.namaKegiatan.trim()) {
       setError('Nama kegiatan wajib diisi.');
       focusFormField(namaKegiatanRef);
+      return;
+    }
+
+    const tanggalMulai = form.tanggalMode === 'deadline' ? form.tanggalMulai : form.tanggalKegiatan;
+    const tanggalSelesai = form.tanggalMode === 'deadline' ? form.tanggalSelesai : form.tanggalKegiatan;
+
+    setIsSubmitting(true);
+    setError('');
+      setHistoryMessage('');
+
+    try {
+      await createPenugasanTambahan({
+        assignedEmployeeIds: assignedEmployeeIds.filter(Boolean),
+        namaKegiatan: form.namaKegiatan,
+        deskripsiKegiatan: form.deskripsiKegiatan,
+        tanggalMulai,
+        tanggalSelesai,
+      });
+      setAssignedEmployeeIds(['']);
+      setForm({
+        namaKegiatan: '',
+        deskripsiKegiatan: '',
+        tanggalMode: 'deadline',
+        tanggalMulai: '',
+        tanggalSelesai: '',
+        tanggalKegiatan: '',
+        suratTugas: '',
+      });
+      setHistoryPage(1);
+      await loadFormData();
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Gagal menyimpan penugasan tambahan.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -400,7 +745,8 @@ function PenugasanTambahanForm() {
           <CardDescription>Tetapkan penugasan tambahan kepada pegawai beserta jadwal dan surat tugas pendukung.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <AssignmentEmployeeFields value={assignedEmployeeIds} onChange={updateAssignedEmployee} firstFieldRef={pegawaiRef} />
+          {errorMessage && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{errorMessage}</p>}
+          <AssignmentEmployeeFields value={assignedEmployeeIds} options={dynamicEmployeeOptions} onChange={updateAssignedEmployee} firstFieldRef={pegawaiRef} />
 
           <div ref={namaKegiatanRef} className="space-y-2">
             <Label htmlFor="nama-kegiatan">Nama Kegiatan<RequiredStar /></Label>
@@ -463,8 +809,8 @@ function PenugasanTambahanForm() {
 
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button variant="outline">Batal</Button>
-            <Button className="admin-proceed-button" disabled={!isFormValid} onClick={handleSubmit}>
-              Simpan Penugasan Tambahan
+            <Button className="admin-proceed-button" disabled={!isFormValid || isSubmitting} onClick={handleSubmit}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Penugasan Tambahan'}
             </Button>
           </div>
         </CardContent>
@@ -486,34 +832,54 @@ function PenugasanTambahanForm() {
               <div className="text-center">Aksi</div>
             </div>
             <div className="divide-y divide-gray-200">
-              {assignmentHistory.map((item) => (
-                <div key={item.id} className="grid items-start px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.35fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(100px, 0.6fr) minmax(150px, 0.9fr) minmax(170px, 0.8fr)' }}>
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
-                    <p className="mt-1 text-xs font-normal leading-relaxed text-gray-500">{item.deskripsiKegiatan}</p>
-                  </div>
-                  <div className="text-center text-gray-700">{item.deadline}</div>
-                  <div className="text-center text-gray-700">{item.tanggalKegiatan}</div>
-                  <div className="text-center text-gray-700">{item.assignedEmployees.length} pegawai</div>
-                  <div className="min-w-0">
-                    <p className="truncate text-gray-700">{item.suratTugas}</p>
-                    <Button variant="outline" className="admin-download-button mt-2 p-0" aria-label={`Download ${item.suratTugas}`}>
-                      <Download className="admin-download-icon" />
-                    </Button>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailItem(item)}>
-                      <Eye className="size-3.5" />
-                      Detail
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => navigate(`/admin/penugasan/edit-penugasan-tambahan/${item.id}`)}>
-                      <Pencil className="size-3.5" />
-                      Edit
-                    </Button>
-                  </div>
+              {isHistoryLoading ? (
+                <div className="px-6 py-10 text-center text-sm text-gray-500">Memuat data penugasan tambahan...</div>
+              ) : paginatedAssignmentHistory.length > 0 ? (
+                paginatedAssignmentHistory.map((item) => (
+                  <div key={item.id} className="grid items-start px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.35fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(100px, 0.6fr) minmax(150px, 0.9fr) minmax(170px, 0.8fr)' }}>
+                    {(() => {
+                      const dates = getAdditionalAssignmentDates(item);
+                      return (
+                        <>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
+                            <p className="mt-1 text-xs font-normal leading-relaxed text-gray-500">{item.deskripsiKegiatan || '-'}</p>
+                          </div>
+                          <div className="text-center text-gray-700">{dates.deadline}</div>
+                          <div className="text-center text-gray-700">{dates.tanggalKegiatan}</div>
+                          <div className="text-center text-gray-700">{item.assignedEmployees.length} pegawai</div>
+                          <div className="min-w-0">
+                            <p className="truncate text-gray-500">Tidak ada surat</p>
+                          </div>
+                          <div className="flex justify-center gap-2">
+                            <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailItem(item)}>
+                              <Eye className="size-3.5" />
+                              Detail
+                            </Button>
+                            <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => navigate(`/admin/penugasan/edit-penugasan-tambahan/${item.id}`)}>
+                              <Pencil className="size-3.5" />
+                              Edit
+                            </Button>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    </div>
+                ))
+              ) : (
+                <div className="px-6 py-10 text-center text-sm text-gray-500">
+                  {historyMessage || 'Belum ada data penugasan tambahan.'}
                 </div>
-              ))}
+              )}
             </div>
+            <PenugasanPagination
+              currentPage={historyCurrentPage}
+              totalPages={historyTotalPages}
+              totalItems={historyItems.length}
+              pageSize={historyPageSize}
+              onPageChange={setHistoryPage}
+              onPageSizeChange={setHistoryPageSize}
+            />
           </div>
         </CardContent>
       </Card>
@@ -524,42 +890,46 @@ function PenugasanTambahanForm() {
             <DialogTitle>Detail Penugasan Tambahan</DialogTitle>
             <DialogDescription>Ringkasan data penugasan dan pegawai yang ditugaskan.</DialogDescription>
           </DialogHeader>
-          {detailItem && (
-            <div className="space-y-4">
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <p className="text-sm font-semibold text-gray-900">{detailItem.namaKegiatan}</p>
-                <p className="mt-1 text-sm leading-relaxed text-gray-600">{detailItem.deskripsiKegiatan}</p>
-              </div>
-              <div className="grid gap-3 text-sm md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium uppercase text-gray-500">Deadline</p>
-                  <p className="mt-1 text-gray-900">{detailItem.deadline}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase text-gray-500">Tanggal Kegiatan</p>
-                  <p className="mt-1 text-gray-900">{detailItem.tanggalKegiatan}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase text-gray-500">Status</p>
-                  <p className="mt-1 text-gray-900">{detailItem.status}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase text-gray-500">Surat Tugas</p>
-                  <p className="mt-1 text-gray-900">{detailItem.suratTugas}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase text-gray-500">Pegawai Ditugaskan</p>
-                <div className="mt-2 space-y-2">
-                  {detailItem.assignedEmployees.map((employeeId, index) => (
-                    <div key={employeeId} className="rounded-md border bg-white px-3 py-2 text-sm text-gray-900">
-                      {index + 1}. {getEmployeeName(employeeId)}
+          {detailItem &&
+            (() => {
+              const dates = getAdditionalAssignmentDates(detailItem);
+              return (
+                <div className="space-y-4">
+                  <div className="rounded-lg border bg-gray-50 p-4">
+                    <p className="text-sm font-semibold text-gray-900">{detailItem.namaKegiatan}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-600">{detailItem.deskripsiKegiatan || '-'}</p>
+                  </div>
+                  <div className="grid gap-3 text-sm md:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-medium uppercase text-gray-500">Deadline</p>
+                      <p className="mt-1 text-gray-900">{dates.deadline}</p>
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-xs font-medium uppercase text-gray-500">Tanggal Kegiatan</p>
+                      <p className="mt-1 text-gray-900">{dates.tanggalKegiatan}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase text-gray-500">Status</p>
+                      <p className="mt-1 text-gray-900">{detailItem.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase text-gray-500">Surat Tugas</p>
+                      <p className="mt-1 text-gray-900">Tidak ada surat</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase text-gray-500">Pegawai Ditugaskan</p>
+                    <div className="mt-2 space-y-2">
+                      {detailItem.assignedEmployees.map((employee, index) => (
+                        <div key={employee.id} className="rounded-md border bg-white px-3 py-2 text-sm text-gray-900">
+                          {index + 1}. {employee.nama} <span className="text-xs text-gray-500">NIP {employee.nip || '-'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailItem(null)}>
               Tutup
@@ -601,21 +971,77 @@ export function PenugasanView() {
 export function EditPenugasanTambahanView() {
   const navigate = useNavigate();
   const { penugasanId } = useParams();
-  const selectedAssignment = assignmentHistory.find((item) => item.id === penugasanId) ?? assignmentHistory[0];
   const pegawaiRef = useRef<HTMLDivElement>(null);
   const namaKegiatanRef = useRef<HTMLDivElement>(null);
-  const initialAssignedEmployeeIds = selectedAssignment.assignedEmployees.length < maxAssignmentEmployees ? [...selectedAssignment.assignedEmployees, ''] : selectedAssignment.assignedEmployees;
-  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>(initialAssignedEmployeeIds);
+  const [employeeItems, setEmployeeItems] = useState<PenugasanEmployee[]>([]);
+  const [assignedEmployeeIds, setAssignedEmployeeIds] = useState<string[]>(['']);
   const [form, setForm] = useState({
-    namaKegiatan: selectedAssignment.namaKegiatan,
-    deskripsiKegiatan: selectedAssignment.deskripsiKegiatan,
-    tanggalMode: selectedAssignment.deadline === '-' ? 'kegiatan' : 'deadline',
-    tanggalMulai: selectedAssignment.deadline === '-' ? '' : '2026-05-01',
-    tanggalSelesai: selectedAssignment.deadline === '-' ? '' : '2026-05-20',
-    tanggalKegiatan: selectedAssignment.tanggalKegiatan === '-' ? '' : '2026-05-24',
-    suratTugas: selectedAssignment.suratTugas,
+    namaKegiatan: '',
+    deskripsiKegiatan: '',
+    tanggalMode: 'deadline',
+    tanggalMulai: '',
+    tanggalSelesai: '',
+    tanggalKegiatan: '',
+    suratTugas: '',
   });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const dynamicEmployeeOptions = useMemo(
+    () => employeeItems.map((employee) => ({ id: employee.id, label: `${employee.nama} - NIP ${employee.nip}` })),
+    [employeeItems],
+  );
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadFormData = async () => {
+      if (!penugasanId) {
+        setError('ID penugasan tambahan tidak ditemukan.');
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [employeesData, assignmentData] = await Promise.all([
+          getPenugasanEmployees(),
+          getPenugasanTambahan(penugasanId),
+        ]);
+
+        if (ignore) return;
+
+        const assignedIds = assignmentData.assignedEmployees.map((employee) => employee.id);
+        const nextAssignedIds = assignedIds.length < maxAssignmentEmployees ? [...assignedIds, ''] : assignedIds;
+        const useTanggalKegiatan = Boolean(assignmentData.tanggalMulai && assignmentData.tanggalMulai === assignmentData.tanggalSelesai);
+
+        setEmployeeItems(employeesData);
+        setAssignedEmployeeIds(nextAssignedIds.length > 0 ? nextAssignedIds : ['']);
+        setForm({
+          namaKegiatan: assignmentData.namaKegiatan,
+          deskripsiKegiatan: assignmentData.deskripsiKegiatan,
+          tanggalMode: useTanggalKegiatan ? 'kegiatan' : 'deadline',
+          tanggalMulai: useTanggalKegiatan ? '' : assignmentData.tanggalMulai,
+          tanggalSelesai: useTanggalKegiatan ? '' : assignmentData.tanggalSelesai,
+          tanggalKegiatan: useTanggalKegiatan ? assignmentData.tanggalMulai : '',
+          suratTugas: assignmentData.suratTugas,
+        });
+      } catch (error: any) {
+        if (!ignore) setError(error.response?.data?.message || 'Gagal mengambil data penugasan tambahan.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadFormData();
+
+    return () => {
+      ignore = true;
+    };
+  }, [penugasanId]);
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -627,9 +1053,12 @@ export function EditPenugasanTambahanView() {
     setError('');
   };
 
-  const isFormValid = Boolean(assignedEmployeeIds[0]) && Boolean(form.namaKegiatan.trim());
+  const isFormValid =
+    Boolean(assignedEmployeeIds[0]) &&
+    Boolean(form.namaKegiatan.trim()) &&
+    (form.tanggalMode === 'deadline' ? Boolean(form.tanggalMulai && form.tanggalSelesai) : Boolean(form.tanggalKegiatan));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!assignedEmployeeIds[0]) {
       setError('Nama pegawai wajib dipilih.');
       focusFormField(pegawaiRef);
@@ -638,6 +1067,33 @@ export function EditPenugasanTambahanView() {
     if (!form.namaKegiatan.trim()) {
       setError('Nama kegiatan wajib diisi.');
       focusFormField(namaKegiatanRef);
+      return;
+    }
+
+    if (!penugasanId) {
+      setError('ID penugasan tambahan tidak ditemukan.');
+      return;
+    }
+
+    const tanggalMulai = form.tanggalMode === 'deadline' ? form.tanggalMulai : form.tanggalKegiatan;
+    const tanggalSelesai = form.tanggalMode === 'deadline' ? form.tanggalSelesai : form.tanggalKegiatan;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await updatePenugasanTambahan(penugasanId, {
+        assignedEmployeeIds: assignedEmployeeIds.filter(Boolean),
+        namaKegiatan: form.namaKegiatan,
+        deskripsiKegiatan: form.deskripsiKegiatan,
+        tanggalMulai,
+        tanggalSelesai,
+      });
+      navigate('/admin/penugasan', { state: { tab: 'tambahan' } });
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Gagal memperbarui penugasan tambahan.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -652,19 +1108,16 @@ export function EditPenugasanTambahanView() {
           <h1 className="text-2xl font-semibold text-gray-900">Edit Penugasan Tambahan</h1>
           <p className="mt-1 text-base text-gray-500">Ubah pegawai, jadwal, dan dokumen pendukung penugasan tambahan.</p>
         </div>
-        <Button variant="destructive" className="h-10 self-start lg:self-auto">
-          <XCircle className="size-4" />
-          Batalkan Penugasan
-        </Button>
       </div>
 
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Form Edit Penugasan Tambahan</CardTitle>
-          <CardDescription>Perubahan pada mockup ini belum tersambung ke API.</CardDescription>
+          <CardDescription>Perbarui pegawai, jadwal, dan ringkasan penugasan tambahan.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <AssignmentEmployeeFields value={assignedEmployeeIds} onChange={updateAssignedEmployee} firstFieldRef={pegawaiRef} />
+          {isLoading && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">Memuat data penugasan tambahan...</p>}
+          <AssignmentEmployeeFields value={assignedEmployeeIds} options={dynamicEmployeeOptions} onChange={updateAssignedEmployee} firstFieldRef={pegawaiRef} />
           <div ref={namaKegiatanRef} className="space-y-2">
             <Label htmlFor="edit-nama-kegiatan">Nama Kegiatan<RequiredStar /></Label>
             <Input id="edit-nama-kegiatan" value={form.namaKegiatan} onChange={(event) => updateForm('namaKegiatan', event.target.value)} className="bg-white" style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
@@ -673,26 +1126,47 @@ export function EditPenugasanTambahanView() {
             <Label htmlFor="edit-deskripsi-kegiatan">Deskripsi Kegiatan</Label>
             <Textarea id="edit-deskripsi-kegiatan" value={form.deskripsiKegiatan} onChange={(event) => updateForm('deskripsiKegiatan', event.target.value)} rows={4} className="resize-none bg-white" style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-tanggal-mulai">Tanggal Mulai</Label>
-              <DateInput id="edit-tanggal-mulai" value={form.tanggalMulai} onChange={(value) => updateForm('tanggalMulai', value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-tanggal-selesai">Tanggal Selesai</Label>
-              <DateInput id="edit-tanggal-selesai" value={form.tanggalSelesai} onChange={(value) => updateForm('tanggalSelesai', value)} />
+
+          <div className="space-y-2">
+            <Label>Jenis Tanggal<RequiredStar /></Label>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+              {[
+                { id: 'deadline', label: 'Deadline' },
+                { id: 'kegiatan', label: 'Tanggal Kegiatan' },
+              ].map((option) => (
+                <button key={option.id} type="button" onClick={() => updateForm('tanggalMode', option.id)} className="rounded-md px-4 py-2 text-sm font-medium transition" style={form.tanggalMode === option.id ? { background: '#ffffff', color: '#111827', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.12)' } : { color: '#6b7280' }}>
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
+
+          {form.tanggalMode === 'deadline' ? (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-tanggal-mulai">Tanggal Mulai<RequiredStar /></Label>
+                <DateInput id="edit-tanggal-mulai" value={form.tanggalMulai} onChange={(value) => updateForm('tanggalMulai', value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-tanggal-selesai">Tanggal Selesai<RequiredStar /></Label>
+                <DateInput id="edit-tanggal-selesai" value={form.tanggalSelesai} onChange={(value) => updateForm('tanggalSelesai', value)} />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="edit-tanggal-kegiatan">Tanggal Kegiatan<RequiredStar /></Label>
+              <DateInput id="edit-tanggal-kegiatan" value={form.tanggalKegiatan} onChange={(value) => updateForm('tanggalKegiatan', value)} />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Surat Tugas</Label>
-            <div className="flex items-center justify-between gap-3 rounded-lg border bg-gray-50 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-900">{form.suratTugas || 'Belum ada file'}</p>
-                <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
+            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center opacity-80" style={{ borderColor: '#d1d5db' }}>
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
+                <FileText className="size-5 text-gray-500" />
               </div>
-              <Button type="button" variant="outline" className="h-9 px-3 text-sm">
-                Ganti File
-              </Button>
+              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Tidak ada surat'}</p>
+              <p className="mt-1 text-xs text-gray-500">Upload file belum diaktifkan pada mode edit.</p>
             </div>
           </div>
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
@@ -700,8 +1174,8 @@ export function EditPenugasanTambahanView() {
             <Button variant="outline" onClick={() => navigate('/admin/penugasan', { state: { tab: 'tambahan' } })}>
               Batal
             </Button>
-            <Button className="admin-proceed-button" disabled={!isFormValid} onClick={handleSubmit}>
-              Simpan Perubahan
+            <Button className="admin-proceed-button" disabled={!isFormValid || isLoading || isSubmitting} onClick={handleSubmit}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Button>
           </div>
         </CardContent>
@@ -710,21 +1184,297 @@ export function EditPenugasanTambahanView() {
   );
 }
 
+export function EditPenugasanButirView() {
+  const navigate = useNavigate();
+  const { pegawaiId } = useParams();
+  const [employeeItems, setEmployeeItems] = useState<PenugasanEmployee[]>([]);
+  const [assignmentItems, setAssignmentItems] = useState<PenugasanButir[]>([]);
+  const [editingItem, setEditingItem] = useState<PenugasanButir | null>(null);
+  const [deletingItem, setDeletingItem] = useState<PenugasanButir | null>(null);
+  const [editForm, setEditForm] = useState({ deskripsi: '', uraian: '' });
+  const [error, setError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const selectedEmployee = employeeItems.find((employee) => employee.id === pegawaiId);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadFormData = async () => {
+      if (!pegawaiId) {
+        setError('ID pegawai tidak ditemukan.');
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [employeesData, assignmentsData] = await Promise.all([
+          getPenugasanEmployees(),
+          getPenugasanButirByPegawai(pegawaiId),
+        ]);
+
+        if (!ignore) {
+          setEmployeeItems(employeesData);
+          setAssignmentItems(assignmentsData);
+        }
+      } catch (error: any) {
+        if (!ignore) setError(error.response?.data?.message || 'Gagal mengambil data penugasan butir.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadFormData();
+
+    return () => {
+      ignore = true;
+    };
+  }, [pegawaiId]);
+
+  const openEditDialog = (item: PenugasanButir) => {
+    setEditingItem(item);
+    setEditForm({ deskripsi: item.deskripsi, uraian: item.uraian });
+    setError('');
+    setStatusMessage('');
+  };
+
+  const handleUpdate = async () => {
+    if (!editingItem) return;
+
+    setIsSaving(true);
+    setError('');
+    setStatusMessage('');
+
+    try {
+      const updatedItem = await updatePenugasanButir(editingItem.id, editForm);
+      setAssignmentItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+      setEditingItem(null);
+      setStatusMessage('Penugasan butir berhasil diperbarui.');
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Gagal memperbarui penugasan butir.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+
+    setIsDeleting(true);
+    setError('');
+    setStatusMessage('');
+
+    try {
+      await deletePenugasanButir(deletingItem.id);
+      setAssignmentItems((current) => current.filter((item) => item.id !== deletingItem.id));
+      setDeletingItem(null);
+      setStatusMessage('Penugasan butir berhasil dihapus.');
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Gagal menghapus penugasan butir.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Button variant="outline" className="mb-4 h-9 px-3 text-sm" onClick={() => navigate('/admin/penugasan', { state: { tab: 'butir' } })}>
+          <ArrowLeft className="size-4" />
+          Kembali
+        </Button>
+        <h1 className="text-2xl font-semibold text-gray-900">Ubah Penugasan Butir</h1>
+        <p className="mt-1 text-base text-gray-500">Kelola butir kegiatan yang sudah ditetapkan untuk pegawai terpilih.</p>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle>Data Pegawai</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">
+              {isLoading ? 'Memuat data pegawai...' : selectedEmployee?.nama ?? 'Pegawai tidak ditemukan'}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">NIP {selectedEmployee?.nip ?? '-'}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle>Daftar Butir Kegiatan</CardTitle>
+          <CardDescription>Ubah deskripsi dan uraian, atau hapus butir kegiatan dari pegawai ini.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && <p className="mb-4 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
+          {statusMessage && <p className="mb-4 rounded-md bg-green-50 p-3 text-sm font-medium text-green-700">{statusMessage}</p>}
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <div className="min-w-[760px]">
+              <div className="grid bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-700" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
+                <div>Butir kegiatan</div>
+                <div>Deskripsi</div>
+                <div>Uraian</div>
+                <div className="text-center">Aksi</div>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {isLoading ? (
+                  <div className="px-6 py-10 text-center text-sm text-gray-500">Memuat data penugasan butir...</div>
+                ) : assignmentItems.length > 0 ? (
+                  assignmentItems.map((item) => (
+                    <div key={item.id} className="grid items-center gap-4 px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
+                      <div className="font-semibold text-gray-900">{item.namaKegiatan || '-'}</div>
+                      <div className="line-clamp-2 text-gray-600">{item.deskripsi || '-'}</div>
+                      <div className="line-clamp-2 text-gray-600">{item.uraian || '-'}</div>
+                      <div className="flex justify-center gap-2">
+                        <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => openEditDialog(item)}>
+                          <Pencil className="size-3.5" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 px-3 text-xs text-red-600 hover:text-red-700" onClick={() => setDeletingItem(item)}>
+                          <Trash2 className="size-3.5" />
+                          Hapus
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-6 py-10 text-center text-sm text-gray-500">Belum ada butir kegiatan yang ditetapkan untuk pegawai ini.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={Boolean(editingItem)} onOpenChange={(open: boolean) => !open && setEditingItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Butir Kegiatan</DialogTitle>
+            <DialogDescription>Perbarui deskripsi dan uraian untuk butir kegiatan terpilih.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-900">{editingItem?.namaKegiatan ?? '-'}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-butir-deskripsi">Deskripsi</Label>
+              <Textarea
+                id="edit-butir-deskripsi"
+                value={editForm.deskripsi}
+                onChange={(event) => setEditForm((current) => ({ ...current, deskripsi: event.target.value }))}
+                rows={5}
+                className="resize-none bg-white"
+                style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-butir-uraian">Uraian</Label>
+              <Textarea
+                id="edit-butir-uraian"
+                value={editForm.uraian}
+                onChange={(event) => setEditForm((current) => ({ ...current, uraian: event.target.value }))}
+                rows={5}
+                className="resize-none bg-white"
+                style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingItem(null)}>
+              Batal
+            </Button>
+            <Button className="admin-proceed-button" disabled={isSaving} onClick={handleUpdate}>
+              {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deletingItem)} onOpenChange={(open: boolean) => !open && setDeletingItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Butir Kegiatan</DialogTitle>
+            <DialogDescription>Butir kegiatan ini akan dihapus dari penugasan pegawai.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">{deletingItem?.namaKegiatan ?? '-'}</p>
+            <p className="mt-1 text-sm text-gray-600">{deletingItem?.deskripsi || '-'}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingItem(null)}>
+              Batal
+            </Button>
+            <Button disabled={isDeleting} className="bg-red-600 text-white hover:bg-red-700" onClick={handleDelete}>
+              {isDeleting ? 'Menghapus...' : 'Hapus'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 export function PenugasanButirFormView() {
   const navigate = useNavigate();
   const { pegawaiId } = useParams();
-  const selectedEmployee = employees.find((employee) => employee.id === pegawaiId) ?? employees[0];
   const kegiatanRef = useRef<HTMLDivElement>(null);
   const periodeRef = useRef<HTMLDivElement>(null);
+  const [employeeItems, setEmployeeItems] = useState<PenugasanEmployee[]>([]);
+  const [butirItems, setButirItems] = useState<ButirKegiatan[]>([]);
+  const [periodeItems, setPeriodeItems] = useState<PeriodeSkp[]>([]);
   const [form, setForm] = useState({ kegiatanId: '', periodeId: '', deskripsi: '', uraian: '' });
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedEmployee = employeeItems.find((employee) => employee.id === pegawaiId);
+  const kegiatanOptionsFromApi = useMemo(() => toOptionList(butirItems), [butirItems]);
+  const periodeOptionsFromApi = useMemo(() => toOptionList(periodeItems), [periodeItems]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadFormData = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [employeesData, butirData, periodeData] = await Promise.all([
+          getPenugasanEmployees(),
+          getButirKegiatanList(),
+          getPeriodeSkpList(),
+        ]);
+
+        if (!ignore) {
+          setEmployeeItems(employeesData);
+          setButirItems(butirData);
+          setPeriodeItems(periodeData);
+        }
+      } catch (error: any) {
+        if (!ignore) setError(error.response?.data?.message || 'Gagal mengambil data form penugasan.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadFormData();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError('');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.kegiatanId) {
       setError('Kegiatan wajib dipilih.');
       focusFormField(kegiatanRef);
@@ -733,6 +1483,30 @@ export function PenugasanButirFormView() {
     if (!form.periodeId) {
       setError('Periode wajib dipilih.');
       focusFormField(periodeRef);
+      return;
+    }
+
+    if (!selectedEmployee) {
+      setError('Data pegawai tidak ditemukan.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await createPenugasanButir({
+        idPengguna: selectedEmployee.id,
+        idButirKegiatan: form.kegiatanId,
+        idPeriodeSkp: form.periodeId,
+        deskripsi: form.deskripsi,
+        uraian: form.uraian,
+      });
+      navigate('/admin/penugasan', { state: { tab: 'butir' } });
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Gagal menyimpan penugasan butir.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -752,32 +1526,35 @@ export function PenugasanButirFormView() {
           <CardTitle>Form Penugasan Butir</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {isLoading && <p className="rounded-md bg-gray-50 p-3 text-sm text-gray-500">Memuat data form penugasan...</p>}
           <div className="rounded-lg border bg-gray-50 p-4">
-            <p className="text-sm font-semibold text-gray-900">{selectedEmployee.nama}</p>
-            <p className="text-xs text-gray-500">NIP {selectedEmployee.nip}</p>
+            <p className="text-sm font-semibold text-gray-900">{selectedEmployee?.nama ?? 'Pegawai tidak ditemukan'}</p>
+            <p className="text-xs text-gray-500">NIP {selectedEmployee?.nip ?? '-'}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div ref={kegiatanRef} className="space-y-2">
               <Label htmlFor="kegiatan">Kegiatan<RequiredStar /></Label>
-              <SearchableSelect label="Kegiatan" options={kegiatanOptions} value={form.kegiatanId} onChange={(value) => updateForm('kegiatanId', value)} />
+              <SearchableSelect label="Kegiatan" options={kegiatanOptionsFromApi} value={form.kegiatanId} onChange={(value) => updateForm('kegiatanId', value)} />
             </div>
             <div ref={periodeRef} className="space-y-2">
               <Label htmlFor="periode">Periode<RequiredStar /></Label>
-              <SearchableSelect label="Periode" options={periodeOptions} value={form.periodeId} onChange={(value) => updateForm('periodeId', value)} />
+              <SearchableSelect label="Periode" options={periodeOptionsFromApi} value={form.periodeId} onChange={(value) => updateForm('periodeId', value)} />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="deskripsi">Deskripsi</Label>
-            <Textarea id="deskripsi" value={form.deskripsi} onChange={(event) => updateForm('deskripsi', event.target.value)} rows={5} className="resize-none bg-white" style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
+            <Textarea id="deskripsi" value={form.deskripsi} onChange={(event) => updateForm('deskripsi', event.target.value)} placeholder="Masukkan deskripsi penugasan butir kegiatan" rows={5} className="resize-none bg-white" style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="uraian">Uraian</Label>
-            <Textarea id="uraian" value={form.uraian} onChange={(event) => updateForm('uraian', event.target.value)} rows={5} className="resize-none bg-white" style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
+            <Textarea id="uraian" value={form.uraian} onChange={(event) => updateForm('uraian', event.target.value)} placeholder="Masukkan uraian tugas atau target yang akan dikerjakan" rows={5} className="resize-none bg-white" style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }} />
           </div>
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button variant="outline" onClick={() => navigate('/admin/penugasan')}>Batal</Button>
-            <Button className="admin-proceed-button" disabled={!form.kegiatanId || !form.periodeId} onClick={handleSubmit}>Simpan Penugasan</Button>
+            <Button className="admin-proceed-button" disabled={!form.kegiatanId || !form.periodeId || !selectedEmployee || isSubmitting} onClick={handleSubmit}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Penugasan'}
+            </Button>
           </div>
         </CardContent>
       </Card>

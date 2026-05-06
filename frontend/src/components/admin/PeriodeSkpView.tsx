@@ -168,6 +168,7 @@ export function PeriodeSkpView() {
   const [tahun, setTahun] = useState(getDefaultYear());
   const [tanggalMulai, setTanggalMulai] = useState(getDefaultStartDate());
   const [tanggalSelesai, setTanggalSelesai] = useState(getDefaultEndDate());
+  const [formErrorMessage, setFormErrorMessage] = useState('');
 
   const loadPeriode = async () => {
     setIsLoading(true);
@@ -217,6 +218,7 @@ export function PeriodeSkpView() {
     setTahun(defaultYear);
     setTanggalMulai(getDefaultStartDate(defaultYear));
     setTanggalSelesai(getDefaultEndDate(defaultYear));
+    setFormErrorMessage('');
     setIsFormOpen(true);
   };
 
@@ -225,12 +227,14 @@ export function PeriodeSkpView() {
     setTahun(item.tahun.toString());
     setTanggalMulai(item.tanggalMulai);
     setTanggalSelesai(item.tanggalSelesai);
+    setFormErrorMessage('');
     setIsFormOpen(true);
   };
 
   const handleYearChange = (value: string) => {
     const numericValue = value.replace(/\D/g, '').slice(0, 4);
     setTahun(numericValue);
+    setFormErrorMessage('');
 
     if (numericValue.length === 4) {
       setTanggalMulai(`${numericValue}-01-01`);
@@ -242,9 +246,16 @@ export function PeriodeSkpView() {
     if (!tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || tanggalMulai > tanggalSelesai) return;
 
     const tahunValue = Number(tahun);
+    const duplicateYear = items.find((item) => item.tahun === tahunValue && item.id !== editingItem?.id);
+    if (duplicateYear) {
+      setFormErrorMessage('Tahun periode SKP sudah ada.');
+      return;
+    }
+
     const payload = { tahun: tahunValue, tanggalMulai, tanggalSelesai };
     setIsSubmitting(true);
     setErrorMessage('');
+    setFormErrorMessage('');
 
     try {
       if (editingItem) {
@@ -258,7 +269,7 @@ export function PeriodeSkpView() {
       setIsFormOpen(false);
       setEditingItem(null);
     } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Gagal menyimpan periode SKP.');
+      setFormErrorMessage(error.response?.data?.message || 'Gagal menyimpan periode SKP.');
     } finally {
       setIsSubmitting(false);
     }
@@ -282,6 +293,7 @@ export function PeriodeSkpView() {
 
   const isDateRangeInvalid = Boolean(tanggalMulai && tanggalSelesai && tanggalMulai > tanggalSelesai);
   const isYearInvalid = Boolean(tahun && tahun.length !== 4);
+  const isYearDuplicate = Boolean(tahun.length === 4 && items.some((item) => item.tahun === Number(tahun) && item.id !== editingItem?.id));
   const dateInputStyle = {
     height: '2.75rem',
     paddingRight: '2.75rem',
@@ -355,7 +367,7 @@ export function PeriodeSkpView() {
                       <TableCell className="px-6 font-medium">{item.tahun}</TableCell>
                       <TableCell>{formatDate(item.tanggalMulai)}</TableCell>
                       <TableCell>{formatDate(item.tanggalSelesai)}</TableCell>
-                      <TableCell className="text-center text-gray-500">Kosong</TableCell>
+                      <TableCell className="text-center text-gray-700">{item.assignmentCount} penugasan</TableCell>
                       <TableCell className="px-6" style={{ width: '10rem' }}>
                         <div className="flex justify-center gap-2">
                           <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => openEditForm(item)}>
@@ -451,9 +463,19 @@ export function PeriodeSkpView() {
               Tahun harus berisi 4 digit.
             </p>
           )}
+          {isYearDuplicate && (
+            <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+              Tahun periode SKP sudah ada.
+            </p>
+          )}
           {isDateRangeInvalid && (
             <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
               Tanggal selesai tidak boleh lebih awal dari tanggal mulai.
+            </p>
+          )}
+          {formErrorMessage && (
+            <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+              {formErrorMessage}
             </p>
           )}
           <DialogFooter>
@@ -463,7 +485,7 @@ export function PeriodeSkpView() {
             <Button
               className="admin-proceed-button"
               onClick={handleSubmit}
-              disabled={isSubmitting || !tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || isDateRangeInvalid}
+              disabled={isSubmitting || !tahun || tahun.length !== 4 || !tanggalMulai || !tanggalSelesai || isDateRangeInvalid || isYearDuplicate}
             >
               {isSubmitting ? 'Menyimpan...' : 'Simpan'}
             </Button>

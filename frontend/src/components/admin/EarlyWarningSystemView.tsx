@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Send } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
+import { getEarlyWarningData, type KgbWarning, type PensionWarning } from '../../api/earlyWarningApi';
 
 // --- MOCK DATA ---
 const promotionData = Array.from({ length: 45 }).map((_, i) => ({
@@ -18,31 +19,6 @@ const promotionData = Array.from({ length: 45 }).map((_, i) => ({
   currentScore: Math.floor(Math.random() * (150 - 50) + 50),
   requiredScore: 150,
 }));
-
-const today = new Date();
-type KgbWarning = {
-  id: string;
-  name: string;
-  nip: string;
-  tmtKgb: string;
-  daysLeft: number;
-};
-
-const kgbData: KgbWarning[] = [];
-
-const pensionData = Array.from({ length: 18 }).map((_, i) => {
-  const daysLeft = Math.floor(Math.random() * (365 * 5)) + 1;
-  const tmtDate = new Date(today);
-  tmtDate.setDate(today.getDate() + daysLeft);
-
-  return {
-    id: `user-r-${i}`,
-    name: `Pegawai Pensiun ${i + 1}`,
-    nip: `196${(i % 10).toString().padStart(1, '0')}03032000${(i + 1).toString().padStart(4, '0')}`,
-    tmtPension: tmtDate.toISOString(),
-    daysLeft,
-  };
-});
 
 function formatDateId(date: string) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -180,6 +156,10 @@ function CustomPagination({
 }
 
 export function EarlyWarningSystemView() {
+  const [kgbData, setKgbData] = useState<KgbWarning[]>([]);
+  const [pensionData, setPensionData] = useState<PensionWarning[]>([]);
+  const [isLoadingWarnings, setIsLoadingWarnings] = useState(true);
+  const [warningError, setWarningError] = useState('');
   const [promoPage, setPromoPage] = useState(1);
   const [promoPageSize, setPromoPageSize] = useState(10);
   const [kgbPage, setKgbPage] = useState(1);
@@ -193,6 +173,33 @@ export function EarlyWarningSystemView() {
   const [sendAllPromo, setSendAllPromo] = useState(false);
   const [sendAllKgb, setSendAllKgb] = useState(false);
   const [sendAllPension, setSendAllPension] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadWarnings = async () => {
+      setIsLoadingWarnings(true);
+      setWarningError('');
+
+      try {
+        const data = await getEarlyWarningData();
+        if (!ignore) {
+          setKgbData(data.kgb);
+          setPensionData(data.pensiun);
+        }
+      } catch (error: any) {
+        if (!ignore) setWarningError(error.response?.data?.message || 'Gagal mengambil data early warning pegawai.');
+      } finally {
+        if (!ignore) setIsLoadingWarnings(false);
+      }
+    };
+
+    loadWarnings();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const totalPromoPages = Math.max(1, Math.ceil(promotionData.length / promoPageSize));
   const normalizedPromoPage = Math.min(promoPage, totalPromoPages);
@@ -215,6 +222,7 @@ export function EarlyWarningSystemView() {
         <h1 className="text-2xl font-bold tracking-tight">Notifikasi Kepegawaian</h1>
         <p className="text-gray-600 mt-1">Kelola dan kirim notifikasi terkait kenaikan jabatan dan gaji berkala</p>
       </div>
+      {warningError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{warningError}</p>}
 
       <Tabs defaultValue="jabatan" className="w-full">
         <TabsList className="grid w-full grid-cols-3" style={{ maxWidth: '42rem' }}>
@@ -354,7 +362,9 @@ export function EarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedKgb.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data KGB..." />
+                    ) : paginatedKgb.length > 0 ? (
                       paginatedKgb.map((user) => {
                         return (
                           <TableRow key={user.id}>
@@ -374,7 +384,7 @@ export function EarlyWarningSystemView() {
                         );
                       })
                     ) : (
-                      <EmptyTableRow colSpan={3} message="Tidak ada data KGB dalam 31 hari ke depan." />
+                      <EmptyTableRow colSpan={3} message="Tidak ada data KGB dalam 90 hari ke depan." />
                     )}
                   </TableBody>
                 </Table>
@@ -394,7 +404,7 @@ export function EarlyWarningSystemView() {
               <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button disabled={kgbData.length === 0}>
+                    <Button disabled>
                       <Send className="w-4 h-4 mr-2" />
                       Kirim Notifikasi
                     </Button>
@@ -435,7 +445,7 @@ export function EarlyWarningSystemView() {
                       </div>
                       <div className="flex gap-3">
                         <Button variant="outline">Batal</Button>
-                        <Button className="admin-proceed-button" disabled={!selectedKgbUser && !sendAllKgb}>Kirim via Sistem</Button>
+                        <Button className="admin-proceed-button" disabled>Kirim via Sistem</Button>
                       </div>
                     </div>
                   </DialogContent>
@@ -465,7 +475,9 @@ export function EarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPension.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data pensiun..." />
+                    ) : paginatedPension.length > 0 ? (
                       paginatedPension.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell style={{ width: '33.33%', paddingLeft: '1.5rem' }}>
@@ -503,7 +515,7 @@ export function EarlyWarningSystemView() {
               <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button disabled={pensionData.length === 0}>
+                    <Button disabled>
                       <Send className="w-4 h-4 mr-2" />
                       Kirim Notifikasi
                     </Button>
@@ -544,7 +556,7 @@ export function EarlyWarningSystemView() {
                       </div>
                       <div className="flex gap-3">
                         <Button variant="outline">Batal</Button>
-                        <Button className="admin-proceed-button" disabled={!selectedPensionUser && !sendAllPension}>Kirim via Sistem</Button>
+                        <Button className="admin-proceed-button" disabled>Kirim via Sistem</Button>
                       </div>
                     </div>
                   </DialogContent>

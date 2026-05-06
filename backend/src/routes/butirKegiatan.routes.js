@@ -5,13 +5,15 @@ import {
   postButirKegiatan,
   removeButirKegiatan,
 } from "../controllers/butirKegiatan.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/", authenticate, getButirKegiatanList);
-router.post("/", authenticate, postButirKegiatan);
-router.patch("/:id", authenticate, patchButirKegiatan);
-router.delete("/:id", authenticate, removeButirKegiatan);
+router.use(authenticate, authorizeRoles("admin"));
+
+router.get("/", getButirKegiatanList);
+router.post("/", postButirKegiatan);
+router.patch("/:id", patchButirKegiatan);
+router.delete("/:id", removeButirKegiatan);
 
 export default router;
