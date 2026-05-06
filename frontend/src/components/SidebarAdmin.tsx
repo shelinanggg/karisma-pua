@@ -18,7 +18,7 @@ const navItems = [
   { id: 'pengaturan', label: 'Pengaturan', icon: Settings },
 ];
 
-export function SidebarAdmin() {
+export function SidebarAdmin({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const segments = location.pathname.split('/');
   const activeView = segments[2] || 'dashboard-utama';
@@ -52,6 +52,7 @@ export function SidebarAdmin() {
               <li key={item.id}>
                 <Link
                   to={`/admin/${item.id}`}
+                  onClick={onNavigate}
                   className={cn(
                     "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     activeView === item.id

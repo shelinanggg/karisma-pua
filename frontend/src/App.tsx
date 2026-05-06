@@ -35,6 +35,7 @@ import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
 import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 import { refreshApi } from './api/authApi';
 import { clearAccessToken, getAccessToken, setAccessToken, shouldRememberAuth } from './utils/authToken';
+import { useIsMobile } from './components/ui/use-mobile';
 
 function getUserRole(): string | null {
   const token = getAccessToken();
@@ -54,8 +55,16 @@ function getDefaultRouteByRole(role: string | null): string {
 }
 
 function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: React.ElementType, allowedRole: string }) {
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const token = getAccessToken();
   const userRole = getUserRole();
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -67,10 +76,25 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
 
   return (
     <div className={`flex h-screen bg-gray-50 ${allowedRole === 'admin' ? 'admin-layout' : ''}`}>
-      <SidebarComponent />
+      {!isMobile && (
+        <SidebarComponent />
+      )}
+      {isMobile && isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            aria-label="Tutup menu navigasi"
+            className="absolute inset-0 bg-black/45"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-xl">
+            <SidebarComponent onNavigate={() => setIsMobileSidebarOpen(false)} />
+          </div>
+        </div>
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <TopBar onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>

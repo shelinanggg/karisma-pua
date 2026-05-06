@@ -13,7 +13,7 @@ const navItems = [
   { id: 'settings',           label: 'Pengaturan',            icon: Settings },
 ];
 
-export function SidebarPegawai() {
+export function SidebarPegawai({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const segments = location.pathname.split('/');
   const activeView = segments[2] || 'overview';
@@ -47,6 +47,7 @@ export function SidebarPegawai() {
               <li key={item.id}>
                 <Link
                   to={`/pegawai/${item.id}`}
+                  onClick={onNavigate}
                   className={cn(
                     "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     activeView === item.id

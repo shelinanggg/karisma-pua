@@ -15,7 +15,7 @@ const navItems = [
   { id: 'pengaturan', label: 'Pengaturan', icon: Settings },
 ];
 
-export function SidebarPimpinan() {
+export function SidebarPimpinan({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const segments = location.pathname.split('/');
   const activeView = segments[2] || 'dashboard-utama';
@@ -49,6 +49,7 @@ export function SidebarPimpinan() {
               <li key={item.id}>
                 <Link
                   to={`/pimpinan/${item.id}`}
+                  onClick={onNavigate}
                   className={cn(
                     "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     activeView === item.id

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { Bell, ChevronDown, AlertCircle, AlertTriangle, Info, CheckCircle2, X } from 'lucide-react';
+import { Bell, ChevronDown, AlertCircle, AlertTriangle, Info, CheckCircle2, Menu, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -9,6 +9,7 @@ import { useProfile } from '../hooks/useProfile';
 import { logoutService } from '../services/profileService';
 import { clearAccessToken, getAccessToken } from '../utils/authToken';
 import { getInitials, getRoleLabel } from '../utils/profile';
+import { cn } from './ui/utils';
 
 // ── Notification data ─────────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ const notifConfig: Record<NotifType, {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function TopBar() {
+export function TopBar({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState(mockNotifications);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -158,8 +159,21 @@ export function TopBar() {
   };
 
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6">
-      <div className="flex items-center gap-4">
+    <div className={cn(
+      "h-16 bg-white border-b border-gray-200 flex items-center px-4 md:px-6",
+      onOpenSidebar ? "justify-between" : "justify-end",
+    )}>
+      {onOpenSidebar && (
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-gray-200 text-gray-700 transition hover:bg-gray-50"
+          aria-label="Buka menu navigasi"
+        >
+          <Menu className="size-5" />
+        </button>
+      )}
+      <div className="flex items-center gap-2 md:gap-4">
 
         {/* ── Notification Bell ── */}
         <div className="relative" ref={panelRef}>
@@ -177,7 +191,7 @@ export function TopBar() {
 
           {/* ── Early Warning Panel ── */}
           {showNotif && (
-            <div className="fixed right-0 mt-2 w-[480px] bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div className="fixed left-3 right-3 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden md:left-auto md:right-0 md:w-[480px]">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
@@ -258,7 +272,7 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-3 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
-              <div className="text-right">
+              <div className="hidden text-right sm:block">
                 <p className="text-sm">{displayName}</p>
                 <p className="text-xs text-gray-500">{displayRole}</p>
               </div>
