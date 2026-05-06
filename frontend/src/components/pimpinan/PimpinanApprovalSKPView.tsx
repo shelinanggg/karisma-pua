@@ -150,6 +150,7 @@ const DATA: Pegawai[] = [
 export function PimpinanApprovalSKPView() {
   const [selectedPegawai, setSelectedPegawai] = useState<Pegawai | null>(null);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [acceptFilter, setAcceptFilter] = useState<'all' | 'accepted' | 'not-accepted'>('all');
 
   const statusLabelMap: Record<StatusKegiatan, string> = {
     pending: 'Menunggu',
@@ -217,6 +218,11 @@ export function PimpinanApprovalSKPView() {
   // ── DETAIL VIEW ─────────────────
 
   const pendingList = selectedPegawai.kegiatan.filter(k => k.status === 'pending');
+  const filteredKegiatan = selectedPegawai.kegiatan.filter((k) => {
+    if (acceptFilter === 'accepted') return k.status === 'completed';
+    if (acceptFilter === 'not-accepted') return k.status !== 'completed';
+    return true;
+  });
 
   const toggle = (id: number) => {
     const newSet = new Set(selectedItems);
@@ -301,6 +307,15 @@ export function PimpinanApprovalSKPView() {
         <button onClick={clear} className="text-sm text-gray-500">
           Reset
         </button>
+        <select
+          value={acceptFilter}
+          onChange={(event) => setAcceptFilter(event.target.value as 'all' | 'accepted' | 'not-accepted')}
+          className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
+        >
+          <option value="all">Semua Status Accept</option>
+          <option value="accepted">Sudah di-accept</option>
+          <option value="not-accepted">Belum di-accept</option>
+        </select>
         <span className="ml-auto text-sm text-gray-600">
           {selectedItems.size} item dipilih
         </span>
@@ -321,7 +336,7 @@ export function PimpinanApprovalSKPView() {
           </thead>
 
           <tbody>
-            {selectedPegawai.kegiatan.map((k) => (
+            {filteredKegiatan.map((k) => (
               <tr key={k.id} className="border-b">
                 <td className="p-3">
                   {k.status === 'pending' && (
