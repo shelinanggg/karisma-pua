@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Search } from 'lucide-react';
 import { mockDeliverables, mockProjects, mockTasks } from '../../data/mockData';
-import type { Project } from '../../types';
-import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Progress } from '../ui/progress';
@@ -10,48 +8,75 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE_OPTIONS = [10, 20, 30] as const;
 
-const getStatusLabel = (status: Project['status']) => {
-  if (status === 'Active') return 'Aktif';
-  return 'Selesai';
-};
+const MONTH_OPTIONS = [
+  { value: 'all', label: 'Semua Bulan' },
+  { value: '0', label: 'Januari' },
+  { value: '1', label: 'Februari' },
+  { value: '2', label: 'Maret' },
+  { value: '3', label: 'April' },
+  { value: '4', label: 'Mei' },
+  { value: '5', label: 'Juni' },
+  { value: '6', label: 'Juli' },
+  { value: '7', label: 'Agustus' },
+  { value: '8', label: 'September' },
+  { value: '9', label: 'Oktober' },
+  { value: '10', label: 'November' },
+  { value: '11', label: 'Desember' },
+] as const;
 
-const getStatusClassName = (status: Project['status']) => {
-  if (status === 'Active') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  return 'bg-slate-100 text-slate-700 border-slate-200';
-};
+function getAdaptivePages(currentPage: number, totalPages: number): number[] {
+  if (totalPages <= 4) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  if (currentPage === 1) return [1, 2, 3, totalPages];
+  if (currentPage >= totalPages - 1) return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  return Array.from(
+    new Set([currentPage - 1, currentPage, currentPage + 1, totalPages].filter((page) => page >= 1 && page <= totalPages)),
+  ).sort((a, b) => a - b);
+}
 
 export function PimpinanKegiatanView() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Completed'>('all');
+  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [monthFilter, setMonthFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [selectedProjectId, setSelectedProjectId] = useState(mockProjects[0]?.id ?? '');
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
 
+  const availableYears = useMemo(() => {
+    return Array.from(new Set(mockProjects.map((project) => new Date(project.deadline).getFullYear().toString())))
+      .sort((a, b) => Number(b) - Number(a));
+  }, []);
+
   const filteredProjects = useMemo(() => {
     return mockProjects.filter((project) => {
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'Active' && project.status === 'Active') ||
-        (statusFilter === 'Completed' && project.status !== 'Active');
+      const projectDate = new Date(project.deadline);
+      const projectYear = projectDate.getFullYear().toString();
+      const projectMonth = projectDate.getMonth().toString();
+
+      const matchesYear = yearFilter === 'all' || projectYear === yearFilter;
+      const matchesMonth = monthFilter === 'all' || projectMonth === monthFilter;
       const q = search.trim().toLowerCase();
       const matchesSearch =
         q.length === 0 ||
         project.name.toLowerCase().includes(q) ||
         project.client.toLowerCase().includes(q) ||
         project.workspace.toLowerCase().includes(q);
-      return matchesStatus && matchesSearch;
+      return matchesYear && matchesMonth && matchesSearch;
     });
-  }, [search, statusFilter]);
+  }, [search, yearFilter, monthFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
   const currentPage = Math.min(page, totalPages);
+  const visiblePages = getAdaptivePages(currentPage, totalPages);
+  const startItem = filteredProjects.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, filteredProjects.length);
 
   const rows = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredProjects.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredProjects]);
+    const start = (currentPage - 1) * pageSize;
+    return filteredProjects.slice(start, start + pageSize);
+  }, [currentPage, filteredProjects, pageSize]);
 
   const selectedProject = useMemo(
     () =>
@@ -73,8 +98,6 @@ export function PimpinanKegiatanView() {
     [selectedProject.id],
   );
 
-  const selectedTarget = selectedProject.activeTasks;
-  const selectedRealization = selectedProject.completedTasks;
   const selectedPercent = selectedProject.progress;
   const selectedDeadline = new Date(selectedProject.deadline).toLocaleDateString('id-ID');
   const selectedDaysRemaining = Math.ceil(
@@ -100,19 +123,41 @@ export function PimpinanKegiatanView() {
               />
             </div>
             <Select
-              value={statusFilter}
-              onValueChange={(value: 'all' | 'Active' | 'Completed') => {
-                setStatusFilter(value);
+              value={yearFilter}
+              onValueChange={(value: string) => {
+                setYearFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tahun</SelectItem>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={monthFilter}
+              onValueChange={(value: string) => {
+                setMonthFilter(value);
                 setPage(1);
               }}
             >
               <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Bulan" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="Active">Aktif</SelectItem>
-                <SelectItem value="Completed">Selesai</SelectItem>
+                {MONTH_OPTIONS.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -121,14 +166,17 @@ export function PimpinanKegiatanView() {
 
       <CardContent className="flex min-h-0 flex-1 flex-col pt-0 space-y-4 overflow-y-auto">
         <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[30%]">Butir Kegiatan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Progress</TableHead>
-              </TableRow>
-            </TableHeader>
+          <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="border-b border-slate-300" style={{ backgroundColor: '#e2e8f0' }}>
+                  <TableHead className="w-1/2 text-slate-900 font-bold px-4 py-3" style={{ backgroundColor: '#e2e8f0' }}>
+                    Butir Kegiatan
+                  </TableHead>
+                  <TableHead className="w-1/2 text-slate-900 font-bold px-4 py-3" style={{ backgroundColor: '#e2e8f0' }}>
+                    Progress
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {rows.length > 0 ? (
                 rows.map((project) => {
@@ -144,22 +192,19 @@ export function PimpinanKegiatanView() {
                         setIsDetailExpanded(true);
                       }}
                     >
-                      <TableCell className="font-medium">{project.name}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusClassName(project.status)}>{getStatusLabel(project.status)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="text-xs text-gray-600">{progressPercent}%</div>
-                          <Progress value={progressPercent} className="h-2" />
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium px-4 py-3">{project.name}</TableCell>
+                        <TableCell className="px-4 py-3">
+                          <div className="w-full space-y-1">
+                            <div className="text-xs text-gray-600">{progressPercent}%</div>
+                            <Progress value={progressPercent} className="h-2 w-full" />
+                          </div>
+                        </TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-gray-500">
+                  <TableCell colSpan={2} className="py-8 text-center text-gray-500">
                     Data kegiatan tidak ditemukan.
                   </TableCell>
                 </TableRow>
@@ -168,11 +213,25 @@ export function PimpinanKegiatanView() {
           </Table>
         </div>
 
-        <div className="mt-3 flex items-center justify-between text-sm text-gray-600">
+        <div className="mt-3 flex flex-col gap-3 text-sm text-gray-600 lg:flex-row lg:items-center lg:justify-between">
           <p>
-            Menampilkan {rows.length} dari {filteredProjects.length} kegiatan
+            Menampilkan {startItem}-{endItem} dari {filteredProjects.length} kegiatan
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+              className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size} / halaman
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
@@ -181,9 +240,20 @@ export function PimpinanKegiatanView() {
             >
               Sebelumnya
             </button>
-            <span>
-              Halaman {currentPage} / {totalPages}
-            </span>
+            {visiblePages.map((pageNumber, idx) => (
+              <div key={pageNumber} className="flex items-center gap-2">
+                {idx > 0 && pageNumber - visiblePages[idx - 1] > 1 && <span className="px-1 text-gray-400">...</span>}
+                <button
+                  type="button"
+                  onClick={() => setPage(pageNumber)}
+                  className={`h-9 min-w-9 rounded border px-3 ${
+                    pageNumber === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              </div>
+            ))}
             <button
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
@@ -222,22 +292,6 @@ export function PimpinanKegiatanView() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-semibold">{selectedPercent}%</div>
-                  </CardContent>
-                </Card>
-                <Card className="min-w-[210px] flex-1">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Target Kinerja</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-semibold">{selectedTarget}</div>
-                  </CardContent>
-                </Card>
-                <Card className="min-w-[210px] flex-1">
-                  <CardHeader className="pb-2">
-                    <CardDescription>Realisasi Kinerja</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-semibold">{selectedRealization}</div>
                   </CardContent>
                 </Card>
                 <Card className="min-w-[210px] flex-1">
