@@ -20,6 +20,7 @@ export interface UserProfile {
   tmt_golongan: string | null
   pendidikan: string | null
   kualifikasi: string | null
+  target_ketercapaian: string | null
   tmt_kgb: string | null
   status_aktif: boolean
   tmt_jabatan: string | null

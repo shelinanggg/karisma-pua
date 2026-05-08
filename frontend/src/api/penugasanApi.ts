@@ -87,6 +87,21 @@ export type PenugasanTambahanPayload = {
   tanggalSelesai: string;
 };
 
+export type MyDashboardSummary = {
+  summary: {
+    achievementPercentage: number | null;
+    realisasiTotal: number;
+    targetKetercapaian: number;
+    totalKegiatan: number;
+  };
+  timeline: {
+    tmtKgb: string;
+    tmtPensiun: string;
+  };
+  kinerja: MyPenugasanButir[];
+  penugasanTambahan: PenugasanTambahan[];
+};
+
 export async function getPenugasanEmployees(params?: { idPeriodeSkp?: string }) {
   const response = await axiosInstance.get<{ data: PenugasanEmployee[] }>("/penugasan/pegawai", { params });
   return response.data.data;
@@ -104,6 +119,11 @@ export async function getPenugasanButirByPegawai(pegawaiId: string) {
 
 export async function getMyPenugasanButir() {
   const response = await axiosInstance.get<{ data: MyPenugasanButir[] }>("/penugasan/butir/saya");
+  return response.data.data;
+}
+
+export async function getMyDashboardSummary(params?: { idPeriodeSkp?: string; tahun?: number }) {
+  const response = await axiosInstance.get<{ data: MyDashboardSummary }>("/penugasan/dashboard/saya", { params });
   return response.data.data;
 }
 

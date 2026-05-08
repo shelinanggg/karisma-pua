@@ -64,6 +64,7 @@ export const getProfileSections = (profile: UserProfile) => [
       { label: "Golongan", value: displayValue(profile.golongan) },
       { label: "Penempatan", value: displayValue(profile.penempatan) },
       { label: "Sertifikasi", value: displayValue(profile.sertifikasi) },
+      { label: "Target Ketercapaian", value: displayValue(profile.target_ketercapaian) },
     ],
   },
   {

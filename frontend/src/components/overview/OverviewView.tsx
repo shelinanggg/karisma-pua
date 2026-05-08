@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, CheckCircle2, Target, CalendarCheck, Users, Eye, ChevronDown, ChevronUp, Award, ClipboardList, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
+import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
 
 // ── Mock KPI data for SKP Dashboard ──────────────────────────────────────────
 
@@ -109,8 +110,6 @@ const mockKegiatan = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const YEARS = [2025, 2024, 2023, 2022];
-
 const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> = {
   blue:   { bg: 'bg-blue-50',   icon: 'text-blue-600',   border: 'border-blue-100' },
   green:  { bg: 'bg-green-50',  icon: 'text-green-600',  border: 'border-green-100' },
@@ -118,13 +117,46 @@ const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> 
   purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
 };
 
+function formatPeriodeLabel(periode: PeriodeSkp) {
+  return String(periode.tahun);
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OverviewView() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [expandedKegiatan, setExpandedKegiatan] = useState<number | null>(null);
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const [periodeItems, setPeriodeItems] = useState<PeriodeSkp[]>([]);
+  const [selectedPeriodeId, setSelectedPeriodeId] = useState('');
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const selectedPeriode = periodeItems.find((periode) => String(periode.id) === selectedPeriodeId) ?? null;
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadPeriode = async () => {
+      try {
+        const data = await getPeriodeSkpList();
+        if (ignore) return;
+
+        const currentYear = new Date().getFullYear();
+        const defaultPeriod = data.find((periode) => periode.tahun === currentYear) ?? data[0] ?? null;
+        setPeriodeItems(data);
+        setSelectedPeriodeId(defaultPeriod ? String(defaultPeriod.id) : '');
+      } catch {
+        if (!ignore) {
+          setPeriodeItems([]);
+          setSelectedPeriodeId('');
+        }
+      }
+    };
+
+    loadPeriode();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   if (selectedWorkspace) {
     return <WorkspaceDashboard workspace={selectedWorkspace} onBack={() => setSelectedWorkspace(null)} />;
@@ -145,22 +177,24 @@ export function OverviewView() {
             className="gap-2"
             onClick={() => setShowYearDropdown((v) => !v)}
           >
-            {selectedYear}
+            {selectedPeriode ? formatPeriodeLabel(selectedPeriode) : 'Periode'}
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </Button>
           {showYearDropdown && (
             <div className="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-              {YEARS.map((year) => (
+              {periodeItems.length > 0 ? periodeItems.map((periode) => (
                 <button
-                  key={year}
+                  key={periode.id}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                    year === selectedYear ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-700'
+                    String(periode.id) === selectedPeriodeId ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-700'
                   }`}
-                  onClick={() => { setSelectedYear(year); setShowYearDropdown(false); }}
+                  onClick={() => { setSelectedPeriodeId(String(periode.id)); setShowYearDropdown(false); }}
                 >
-                  {year}
+                  {formatPeriodeLabel(periode)}
                 </button>
-              ))}
+              )) : (
+                <div className="px-4 py-2 text-sm text-gray-500">Tidak ada periode</div>
+              )}
             </div>
           )}
         </div>

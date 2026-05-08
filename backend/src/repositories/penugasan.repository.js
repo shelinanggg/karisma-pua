@@ -94,6 +94,17 @@ const mapTambahanRow = (row) => {
   };
 };
 
+const mapDashboardProfileRow = (row) => ({
+  tmtKgb: row.tmt_kgb ?? "",
+  tmtPensiun: row.tmt_pensiun ?? "",
+  targetKetercapaian: row.target_ketercapaian ?? "",
+});
+
+const toNumeric = (value) => {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export const findAssignableEmployees = async ({ idPeriodeSkp = null } = {}) => {
   const result = await pool.query(
     `
@@ -195,7 +206,9 @@ export const findButirAssignmentsByEmployee = async (idPengguna) => {
   return result.rows.map(mapButirAssignmentRow);
 };
 
-export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna) => {
+export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filters = {}) => {
+  const { idPeriodeSkp = null, tahun = null } = typeof filters === "object" && filters !== null ? filters : { tahun: filters };
+
   const result = await pool.query(
     `
       SELECT
@@ -230,7 +243,10 @@ export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna) => {
       LEFT JOIN realisasi_kegiatan
         ON realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
       WHERE pengguna_kegiatan.id_pengguna = $1
-        AND periode_skp.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::integer
+        AND (
+          ($2::integer IS NOT NULL AND pengguna_kegiatan.id_periode_skp = $2::integer)
+          OR ($2::integer IS NULL AND periode_skp.tahun = COALESCE($3::integer, EXTRACT(YEAR FROM CURRENT_DATE)::integer))
+        )
       GROUP BY
         pengguna_kegiatan.id_pengguna_kegiatan,
         butir_kegiatan.nama_kegiatan,
@@ -239,10 +255,55 @@ export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna) => {
         periode_skp.tanggal_selesai
       ORDER BY pengguna_kegiatan.created_at DESC, pengguna_kegiatan.id_pengguna_kegiatan DESC
     `,
-    [idPengguna],
+    [idPengguna, idPeriodeSkp, tahun],
   );
 
   return result.rows.map(mapMyButirAssignmentRow);
+};
+
+const findDashboardProfileByEmployee = async (idPengguna) => {
+  const result = await pool.query(
+    `
+      SELECT
+        ${formatDateColumn("tmt_kgb")} AS tmt_kgb,
+        ${formatDateColumn("tmt_pensiun")} AS tmt_pensiun,
+        target_ketercapaian
+      FROM pengguna
+      WHERE id_pengguna = $1
+      LIMIT 1
+    `,
+    [idPengguna],
+  );
+
+  return result.rows[0] ? mapDashboardProfileRow(result.rows[0]) : null;
+};
+
+export const findMyDashboardSummary = async (idPengguna, filters = {}) => {
+  const [kinerja, penugasanTambahan, profile] = await Promise.all([
+    findCurrentYearButirAssignmentsByEmployee(idPengguna, filters),
+    findAdditionalAssignmentsByEmployee(idPengguna),
+    findDashboardProfileByEmployee(idPengguna),
+  ]);
+
+  const realisasiTotal = kinerja.reduce((total, item) => total + toNumeric(item.realisasiTotal), 0);
+  const targetKetercapaian = toNumeric(profile?.targetKetercapaian);
+  const achievementPercentage =
+    targetKetercapaian > 0 ? Math.round((realisasiTotal / targetKetercapaian) * 1000) / 10 : null;
+
+  return {
+    summary: {
+      achievementPercentage,
+      realisasiTotal,
+      targetKetercapaian,
+      totalKegiatan: kinerja.length,
+    },
+    timeline: {
+      tmtKgb: profile?.tmtKgb ?? "",
+      tmtPensiun: profile?.tmtPensiun ?? "",
+    },
+    kinerja: kinerja.slice(0, 4),
+    penugasanTambahan: penugasanTambahan.slice(0, 4),
+  };
 };
 
 export const findButirAssignmentById = async (id) => {

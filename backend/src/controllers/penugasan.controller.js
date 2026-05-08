@@ -9,6 +9,7 @@ import {
   findAssignableEmployees,
   findButirAssignmentsByEmployee,
   findCurrentYearButirAssignmentsByEmployee,
+  findMyDashboardSummary,
   findMyRealisasiKegiatan,
   updateAdditionalAssignment,
   updateButirAssignment,
@@ -130,6 +131,31 @@ export const getMyButirAssignments = async (req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data kinerja pegawai." });
+  }
+};
+
+export const getMyDashboard = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+    const idPeriodeSkp = requiredInteger(req.query.idPeriodeSkp);
+    const tahun = requiredInteger(req.query.tahun);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+
+    if (Number.isNaN(idPeriodeSkp)) {
+      return res.status(400).json({ message: "Periode SKP tidak valid." });
+    }
+
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun dashboard tidak valid." });
+    }
+
+    const data = await findMyDashboardSummary(idPengguna, { idPeriodeSkp, tahun });
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data dashboard pegawai." });
   }
 };
 

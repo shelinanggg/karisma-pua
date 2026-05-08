@@ -148,6 +148,7 @@ const employeeSeeds: Employee[] = [
     tmt_golongan: '2022-04-01',
     pendidikan: 'S2 Ilmu Perpustakaan',
     kualifikasi: 'Manajemen perpustakaan digital',
+    target_ketercapaian: '',
     tmt_kgb: '2025-04-01',
     tmt_jabatan: '2021-08-01',
     tmt_pensiun: '2048-01-05',
@@ -168,6 +169,7 @@ const employeeSeeds: Employee[] = [
     tmt_golongan: '2023-10-01',
     pendidikan: 'S2 Administrasi Publik',
     kualifikasi: 'Pengembangan layanan informasi',
+    target_ketercapaian: '',
     tmt_kgb: '2026-10-01',
     tmt_jabatan: '2022-01-01',
     tmt_pensiun: '2047-09-12',
@@ -188,6 +190,7 @@ const employeeSeeds: Employee[] = [
     tmt_golongan: '2021-04-01',
     pendidikan: 'S1 Psikologi',
     kualifikasi: 'Analisis jabatan dan kinerja',
+    target_ketercapaian: '',
     tmt_kgb: '2025-04-01',
     tmt_jabatan: '2020-07-01',
     tmt_pensiun: '2050-01-18',
@@ -208,6 +211,7 @@ const employeeSeeds: Employee[] = [
     tmt_golongan: '2020-10-01',
     pendidikan: 'S1 Ilmu Informasi',
     kualifikasi: 'Pengolahan koleksi dan metadata',
+    target_ketercapaian: '',
     tmt_kgb: '2024-10-01',
     tmt_jabatan: '2019-05-01',
     tmt_pensiun: '2051-03-07',
@@ -228,6 +232,7 @@ const employeeSeeds: Employee[] = [
     tmt_golongan: '2022-10-01',
     pendidikan: 'S1 Sistem Informasi',
     kualifikasi: 'Sistem informasi perpustakaan',
+    target_ketercapaian: '',
     tmt_kgb: '2026-10-01',
     tmt_jabatan: '2021-02-01',
     tmt_pensiun: '2052-04-22',
@@ -263,6 +268,7 @@ function createEmptyEmployee(): Employee {
     tmt_golongan: '',
     pendidikan: '',
     kualifikasi: '',
+    target_ketercapaian: '',
     tmt_kgb: '',
     tmt_jabatan: '',
     tmt_pensiun: '',
@@ -327,6 +333,7 @@ const detailSections = [
       ['golongan_id', 'Golongan'],
       ['penempatan_id', 'Penempatan'],
       ['sertifikasi_id', 'Sertifikasi'],
+      ['target_ketercapaian', 'Target Ketercapaian'],
     ],
   },
   {
@@ -354,6 +361,7 @@ const editableFields = [
   { key: 'golongan_id', label: 'Golongan', type: 'relation', group: 'Data Kepegawaian' },
   { key: 'penempatan_id', label: 'Penempatan', type: 'relation', group: 'Data Kepegawaian' },
   { key: 'sertifikasi_id', label: 'Sertifikasi', type: 'relation', group: 'Data Kepegawaian' },
+  { key: 'target_ketercapaian', label: 'Target Ketercapaian', type: 'number', group: 'Data Kepegawaian' },
   { key: 'tmt_golongan', label: 'TMT Golongan', type: 'date', group: 'Tanggal TMT' },
   { key: 'tmt_kgb', label: 'TMT KGB', type: 'date', group: 'Tanggal TMT' },
   { key: 'tmt_jabatan', label: 'TMT Jabatan', type: 'date', group: 'Tanggal TMT' },
@@ -637,10 +645,16 @@ function EditEmployeeModal({
   const handleSubmit = async () => {
     const requiredFields: (keyof Employee)[] = ['nama', 'role_id'];
     const hasEmptyField = requiredFields.some((key) => !form[key].trim());
+    const targetKetercapaian = Number(String(form.target_ketercapaian).replace(',', '.'));
 
     if (hasEmptyField) {
       setError(!form.nama.trim() ? 'Nama pegawai wajib diisi.' : 'Role wajib diisi.');
       focusEmployeeField(roleFieldRef);
+      return;
+    }
+
+    if (form.target_ketercapaian.trim() && (!Number.isFinite(targetKetercapaian) || targetKetercapaian <= 0)) {
+      setError('Target ketercapaian wajib berupa angka lebih dari 0.');
       return;
     }
 
@@ -714,7 +728,15 @@ function EditEmployeeModal({
                             id={`employee-${field.key}`}
                             type={field.type}
                             value={form[key]}
-                            onChange={(event) => updateField(key, event.target.value)}
+                            min={field.type === 'number' ? 0 : undefined}
+                            step={field.type === 'number' ? 'any' : undefined}
+                            inputMode={field.type === 'number' ? 'decimal' : undefined}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(',', '.');
+                              if (field.type !== 'number' || value === '' || /^\d*\.?\d*$/.test(value)) {
+                                updateField(key, value);
+                              }
+                            }}
                             className="bg-white"
                             style={{ height: '2.25rem', fontSize: '0.8125rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
                           />

@@ -3,6 +3,7 @@ import {
   getAdditionalAssignment,
   getAdditionalAssignments,
   getButirAssignmentsByEmployee,
+  getMyDashboard,
   getMyButirAssignments,
   getMyAdditionalAssignments,
   getMyRealisasi,
@@ -23,6 +24,7 @@ router.use(authenticate);
 
 router.get("/pegawai", authorizeRoles("admin"), getPenugasanEmployees);
 router.post("/butir", authorizeRoles("admin"), postButirAssignment);
+router.get("/dashboard/saya", authorizeRoles("pegawai"), getMyDashboard);
 router.get("/butir/saya", authorizeRoles("pegawai"), getMyButirAssignments);
 router.patch("/butir/saya/:id/target", authorizeRoles("pegawai"), patchMyButirTarget);
 router.get("/butir/pegawai/:pegawaiId", authorizeRoles("admin"), getButirAssignmentsByEmployee);

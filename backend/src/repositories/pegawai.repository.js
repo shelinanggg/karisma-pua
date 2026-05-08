@@ -13,6 +13,7 @@ const mapPegawaiRow = (row) => ({
   tmt_golongan: row.tmt_golongan ?? "",
   pendidikan: row.pendidikan ?? "",
   kualifikasi: row.kualifikasi ?? "",
+  target_ketercapaian: row.target_ketercapaian ?? "",
   tmt_kgb: row.tmt_kgb ?? "",
   tmt_jabatan: row.tmt_jabatan ?? "",
   tmt_pensiun: row.tmt_pensiun ?? "",
@@ -35,6 +36,7 @@ const pegawaiSelect = `
     ${formatDateColumn("tmt_golongan")} AS tmt_golongan,
     pendidikan,
     kualifikasi,
+    target_ketercapaian,
     ${formatDateColumn("tmt_kgb")} AS tmt_kgb,
     ${formatDateColumn("tmt_jabatan")} AS tmt_jabatan,
     ${formatDateColumn("tmt_pensiun")} AS tmt_pensiun,
@@ -99,6 +101,7 @@ export const createPegawai = async (payload) => {
         tmt_golongan,
         pendidikan,
         kualifikasi,
+        target_ketercapaian,
         tmt_kgb,
         tmt_jabatan,
         tmt_pensiun,
@@ -110,7 +113,7 @@ export const createPegawai = async (payload) => {
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16, $17, $18
+        $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
       )
       RETURNING id_pengguna
     `,
@@ -125,6 +128,7 @@ export const createPegawai = async (payload) => {
       payload.tmt_golongan,
       payload.pendidikan,
       payload.kualifikasi,
+      payload.target_ketercapaian,
       payload.tmt_kgb,
       payload.tmt_jabatan,
       payload.tmt_pensiun,
@@ -153,14 +157,15 @@ export const updatePegawai = async (id, payload) => {
         tmt_golongan = $8,
         pendidikan = $9,
         kualifikasi = $10,
-        tmt_kgb = $11,
-        tmt_jabatan = $12,
-        tmt_pensiun = $13,
-        id_jabatan = $14,
-        id_pangkat = $15,
-        id_golongan = $16,
-        id_penempatan = $17,
-        id_sertifikasi = $18
+        target_ketercapaian = $11,
+        tmt_kgb = $12,
+        tmt_jabatan = $13,
+        tmt_pensiun = $14,
+        id_jabatan = $15,
+        id_pangkat = $16,
+        id_golongan = $17,
+        id_penempatan = $18,
+        id_sertifikasi = $19
       WHERE id_pengguna = $1
       RETURNING id_pengguna
     `,
@@ -175,6 +180,7 @@ export const updatePegawai = async (id, payload) => {
       payload.tmt_golongan,
       payload.pendidikan,
       payload.kualifikasi,
+      payload.target_ketercapaian,
       payload.tmt_kgb,
       payload.tmt_jabatan,
       payload.tmt_pensiun,

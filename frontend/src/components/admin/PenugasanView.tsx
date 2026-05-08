@@ -518,7 +518,7 @@ function EmployeeAssignmentTable() {
                 className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
               >
                 {periodeItems.length === 0 ? (
-                  <option value="">Semua periode</option>
+                  <option value="" disabled>Tidak ada periode</option>
                 ) : (
                   periodeItems.map((periode) => (
                     <option key={periode.id} value={String(periode.id)}>

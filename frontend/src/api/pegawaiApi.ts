@@ -16,6 +16,7 @@ export type Pegawai = {
   tmt_golongan: string;
   pendidikan: string;
   kualifikasi: string;
+  target_ketercapaian: string;
   tmt_kgb: string;
   tmt_jabatan: string;
   tmt_pensiun: string;
