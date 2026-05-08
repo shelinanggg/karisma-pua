@@ -504,6 +504,109 @@ function DetailModal({
   );
 }
 
+type KegiatanDetail = {
+  id: number;
+  nama_kegiatan: string;
+  progress: number;
+  status: 'belum_dimulai' | 'sedang_berjalan' | 'selesai';
+  deadline: string;
+};
+
+function DetailKegiatanModal({
+  employee,
+  open,
+  onOpenChange,
+}: {
+  employee: Employee | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  if (!employee) return null;
+
+  const kegiatanList: KegiatanDetail[] = [
+    {
+      id: 1,
+      nama_kegiatan: 'Perencanaan Program Kerja Triwulan',
+      progress: 100,
+      status: 'selesai',
+      deadline: '2026-03-31',
+    },
+    {
+      id: 2,
+      nama_kegiatan: 'Penyusunan Laporan Capaian Kinerja Bulanan',
+      progress: 75,
+      status: 'sedang_berjalan',
+      deadline: '2026-05-15',
+    },
+    {
+      id: 3,
+      nama_kegiatan: 'Monitoring Disiplin Kehadiran Pegawai',
+      progress: 0,
+      status: 'belum_dimulai',
+      deadline: '2026-06-30',
+    },
+  ];
+
+  const statusLabelMap = {
+    'belum_dimulai': 'Belum Dimulai',
+    'sedang_berjalan': 'Sedang Berjalan',
+    'selesai': 'Selesai',
+  };
+
+  const statusClassMap = {
+    'belum_dimulai': 'bg-gray-100 text-gray-700',
+    'sedang_berjalan': 'bg-blue-100 text-blue-700',
+    'selesai': 'bg-green-100 text-green-700',
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent style={{ maxWidth: '720px', maxHeight: '64vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
+        <DialogHeader style={{ gap: '0.25rem' }}>
+          <DialogTitle style={{ fontSize: '1rem' }}>Detail Kegiatan</DialogTitle>
+          <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip}</DialogDescription>
+        </DialogHeader>
+
+        <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(64vh - 5rem)' }}>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-gray-100 border-b">
+                <th className="p-3 text-left font-semibold text-gray-700">Nama Kegiatan</th>
+                <th className="p-3 text-left font-semibold text-gray-700">Progress</th>
+                <th className="p-3 text-left font-semibold text-gray-700">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kegiatanList.map((kegiatan) => (
+                <tr key={kegiatan.id} className="border-b hover:bg-gray-50">
+                  <td className="p-3 text-gray-900">{kegiatan.nama_kegiatan}</td>
+                  <td className="p-3">
+                    <div className="space-y-1" style={{ maxWidth: '220px' }}>
+                      <div className="text-xs text-gray-600">{kegiatan.progress}%</div>
+                      <div className="h-2 w-full bg-gray-200 rounded overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500"
+                          style={{ width: `${kegiatan.progress}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-500">Deadline: {new Date(kegiatan.deadline).toLocaleDateString('id-ID')}</div>
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClassMap[kegiatan.status]}`}>
+                      {statusLabelMap[kegiatan.status]}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [search, setSearch] = useState('');
@@ -511,6 +614,7 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
+  const [detailKegiatanEmployee, setDetailKegiatanEmployee] = useState<Employee | null>(null);
   const employeeGridStyle = {
     minWidth: '1080px',
     gridTemplateColumns: 'minmax(240px, 1.35fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 100px',
@@ -619,10 +723,12 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
                       <div className="text-sm text-gray-700">{employee.fungsional}</div>
                       <div className="text-sm text-gray-700">{getRelationLabel('pangkat_id', employee.pangkat_id)}</div>
                       <div className="text-sm text-gray-700">{getRelationLabel('golongan_id', employee.golongan_id)}</div>
-                      <div className="flex justify-center gap-2">
-                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailEmployee(employee)}>
-                          <Eye className="size-3.5" />
-                          Detail
+                      <div className="flex flex-col justify-center gap-1">
+                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setDetailEmployee(employee)}>
+                          Detail Pegawai
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setDetailKegiatanEmployee(employee)}>
+                          Detail Kegiatan
                         </Button>
                       </div>
                     </div>
@@ -645,6 +751,7 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
         </CardContent>
       </Card>
 
+      <DetailKegiatanModal employee={detailKegiatanEmployee} open={Boolean(detailKegiatanEmployee)} onOpenChange={(open) => !open && setDetailKegiatanEmployee(null)} />
       <DetailModal employee={detailEmployee} open={Boolean(detailEmployee)} onOpenChange={(open) => !open && setDetailEmployee(null)} />
     </div>
   );

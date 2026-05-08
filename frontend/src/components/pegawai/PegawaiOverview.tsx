@@ -10,7 +10,8 @@ import {
   Hourglass,
   CalendarClock,
   Calendar,
-  Clock
+  Clock,
+  Download // <-- Ditambahkan icon Download
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -26,7 +27,7 @@ type KPIData = {
   value: string;
   change?: string;
   trend?: 'up' | 'down' | 'neutral';
-  changeIcon?: React.ElementType; // Tambahkan ini agar icon keterangan bawah bisa dicustom
+  changeIcon?: React.ElementType; 
   icon: React.ElementType;
   color: 'blue' | 'green' | 'amber' | 'purple';
 };
@@ -55,7 +56,7 @@ const mockSKPKPIs: KPIData[] = [
     value: '8 Bln 12 Hari',
     change: 'Estimasi: 1 Jan 2027',
     trend: 'neutral',
-    changeIcon: Calendar, // Icon Kalender
+    changeIcon: Calendar, 
     icon: CalendarClock,
     color: 'green',
   },
@@ -64,7 +65,7 @@ const mockSKPKPIs: KPIData[] = [
     value: '5 Thn 4 Bln',
     change: 'TMT: 1 Okt 2031',
     trend: 'neutral',
-    changeIcon: Clock, // Icon Jam (Berbeda)
+    changeIcon: Clock, 
     icon: Hourglass,
     color: 'blue',
   },
@@ -107,22 +108,25 @@ const mockKegiatan = [
   },
 ];
 
-// ── Mock: Penugasan Tambahan ──────────────────────────────────────────────────
+// ── Mock: Penugasan Tambahan (Diperbarui) ─────────────────────────────────────
 
 const mockPenugasan = [
   {
     id: 1,
-    judul: 'Surat Tugas Rapat Koordinasi Nasional',
+    namaKegiatan: 'Rapat Koordinasi Nasional Kepegawaian',
+    namaDokumen: 'Surat_Tugas_Rakornas.pdf',
     keterangan: 'Diterbitkan 2 jam lalu',
   },
   {
     id: 2,
-    judul: 'Surat Tugas Pendampingan Audit Internal',
+    namaKegiatan: 'Pendampingan Audit Internal BPK',
+    namaDokumen: 'ST_Audit_Internal.pdf',
     keterangan: 'Diterbitkan 1 hari lalu',
   },
   {
     id: 3,
-    judul: 'Surat Tugas Pelatihan Kepemimpinan Tk. II',
+    namaKegiatan: 'Pelatihan Kepemimpinan Tingkat II',
+    namaDokumen: 'Undangan_Diklat_Pim.pdf',
     keterangan: 'Diterbitkan 3 April 2026',
   },
 ];
@@ -284,7 +288,7 @@ export function PegawaiOverview() {
           </CardContent>
         </Card>
 
-        {/* Penugasan Tambahan */}
+        {/* Penugasan Tambahan (Diperbarui) */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -294,21 +298,42 @@ export function PegawaiOverview() {
               </div>
               <Button variant="link" className="text-xs p-0 h-auto">Lihat Semua →</Button>
             </div>
-            <CardDescription>Surat tugas yang diterbitkan</CardDescription>
+            <CardDescription>Daftar kegiatan penugasan tambahan</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {mockPenugasan.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50/50 p-4 hover:bg-gray-100/60 transition-colors cursor-pointer"
+                className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 p-4 hover:bg-gray-100 transition-colors"
               >
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-gray-500" />
+                <div className="flex items-center gap-4 min-w-0">
+                  {/* Icon Dokumen */}
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  
+                  {/* Info Kegiatan */}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
+                      {item.namaKegiatan}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                      <span className="truncate max-w-[120px] lg:max-w-[150px]">{item.namaDokumen}</span>
+                      <span>•</span>
+                      <span>{item.keterangan}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 leading-tight">{item.judul}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.keterangan}</p>
-                </div>
+
+                {/* Tombol Unduh */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="flex-shrink-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 ml-2"
+                  title="Unduh Dokumen"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </CardContent>
