@@ -1,141 +1,72 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Check, ChevronsUpDown, Download, FileText, Plus, Search, Target, TrendingUp, Upload } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus, Search } from 'lucide-react';
 
-import { Badge } from '../ui/badge';
+import {
+  createMyRealisasiKegiatan,
+  getMyPenugasanButir,
+  getMyRealisasiKegiatan,
+  updateMyPenugasanButirTarget,
+  type MyPenugasanButir,
+  type MyRealisasiKegiatan,
+} from '../../api/penugasanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { cn } from '../ui/utils';
 
 type Option = { id: string; label: string };
-
-type Penugasan = {
-  id: string;
-  namaKegiatan: string;
-  deskripsi: string;
-  jenis: 'Butir Kegiatan' | 'Penugasan Tambahan';
-  periode: string;
-  deadline: string;
-  target: number;
-  realisasi: number;
-  status: 'Belum Dimulai' | 'Sedang Berjalan' | 'Selesai' | 'Terlambat';
-};
-
-type RealisasiHistory = {
-  id: string;
-  tanggal: string;
-  namaKegiatan: string;
-  deskripsi: string;
-  jumlah: number;
-  bukti: string;
-  status: 'Menunggu Verifikasi' | 'Disetujui' | 'Ditolak';
-};
+type AssignmentStatus = 'Belum Ditetapkan' | 'Belum Ada Realisasi' | 'Sedang Berjalan' | 'Selesai' | 'Terlambat';
 
 const pageSizeOptions = [5, 10, 20];
 
-const penugasanList: Penugasan[] = [
-  {
-    id: 'pen-1',
-    namaKegiatan: 'Penyusunan rancangan program kerja unit',
-    deskripsi:
-      'Menyiapkan dokumen rancangan program kerja tahunan unit kerja beserta indikator capaiannya.',
-    jenis: 'Butir Kegiatan',
-    periode: '01 Jan 2026 - 30 Jun 2026',
-    deadline: '30 Jun 2026',
-    target: 4,
-    realisasi: 2,
-    status: 'Sedang Berjalan',
-  },
-  {
-    id: 'pen-2',
-    namaKegiatan: 'Validasi bukti dukung kegiatan SKP',
-    deskripsi: 'Melakukan validasi atas bukti dukung kegiatan SKP pegawai pada unit kerja.',
-    jenis: 'Butir Kegiatan',
-    periode: '01 Jan 2026 - 31 Des 2026',
-    deadline: '31 Des 2026',
-    target: 12,
-    realisasi: 5,
-    status: 'Sedang Berjalan',
-  },
-  {
-    id: 'pen-3',
-    namaKegiatan: 'Pendampingan penyusunan laporan akreditasi',
-    deskripsi:
-      'Mendampingi tim unit dalam melengkapi bukti dukung dan menyusun ringkasan dokumen akreditasi.',
-    jenis: 'Penugasan Tambahan',
-    periode: '01 Mei 2026 - 20 Mei 2026',
-    deadline: '20 Mei 2026',
-    target: 1,
-    realisasi: 0,
-    status: 'Belum Dimulai',
-  },
-  {
-    id: 'pen-4',
-    namaKegiatan: 'Monitoring realisasi target kinerja pegawai',
-    deskripsi: 'Memantau realisasi target kinerja bulanan dan menyusun rekap untuk laporan pimpinan.',
-    jenis: 'Butir Kegiatan',
-    periode: '01 Jan 2026 - 31 Des 2026',
-    deadline: '31 Des 2026',
-    target: 12,
-    realisasi: 4,
-    status: 'Sedang Berjalan',
-  },
-  {
-    id: 'pen-5',
-    namaKegiatan: 'Rapat koordinasi pengelolaan arsip digital',
-    deskripsi: 'Koordinasi lintas unit untuk menyamakan format arsip dan alur validasi dokumen.',
-    jenis: 'Penugasan Tambahan',
-    periode: '24 Mei 2026',
-    deadline: '24 Mei 2026',
-    target: 1,
-    realisasi: 1,
-    status: 'Selesai',
-  },
-];
-
-const initialHistory: RealisasiHistory[] = [
-  {
-    id: 'hist-1',
-    tanggal: '02 Mei 2026',
-    namaKegiatan: 'Penyusunan rancangan program kerja unit',
-    deskripsi: 'Menyusun draft awal program kerja triwulan kedua dan diskusi internal tim.',
-    jumlah: 1,
-    bukti: 'Draft-Program-Kerja-TW2.pdf',
-    status: 'Disetujui',
-  },
-  {
-    id: 'hist-2',
-    tanggal: '10 Mei 2026',
-    namaKegiatan: 'Validasi bukti dukung kegiatan SKP',
-    deskripsi: 'Memvalidasi bukti dukung 5 pegawai untuk periode April 2026.',
-    jumlah: 5,
-    bukti: 'Rekap-Validasi-SKP-April.xlsx',
-    status: 'Menunggu Verifikasi',
-  },
-  {
-    id: 'hist-3',
-    tanggal: '18 Mei 2026',
-    namaKegiatan: 'Monitoring realisasi target kinerja pegawai',
-    deskripsi: 'Membuat laporan monitoring kinerja pegawai bulan April 2026.',
-    jumlah: 1,
-    bukti: 'Laporan-Monitoring-April-2026.pdf',
-    status: 'Disetujui',
-  },
-];
-
-const targetPenugasanOptions: Option[] = penugasanList.map((p) => ({
-  id: p.id,
-  label: p.namaKegiatan,
-}));
-
 function RequiredStar() {
   return <span className="ml-0.5 text-red-500">*</span>;
+}
+
+function toNumber(value: string | number | null | undefined): number {
+  const parsed = Number(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatTanggal(iso: string): string {
+  if (!iso) return '-';
+  const [year, month, day] = iso.slice(0, 10).split('-');
+  const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${day} ${monthNames[Number(month)] ?? month} ${year}`;
+}
+
+function formatPeriode(item: MyPenugasanButir): string {
+  if (!item.tanggalMulai && !item.tanggalSelesai) return `Tahun ${item.tahun}`;
+  return `${formatTanggal(item.tanggalMulai)} - ${formatTanggal(item.tanggalSelesai)}`;
+}
+
+function getAssignmentTarget(item: MyPenugasanButir): number {
+  return toNumber(item.targetKetercapaian);
+}
+
+function hasTarget(item: MyPenugasanButir): boolean {
+  return getAssignmentTarget(item) > 0;
+}
+
+function getAssignmentStatus(item: MyPenugasanButir): AssignmentStatus {
+  const target = getAssignmentTarget(item);
+  const realisasi = item.realisasiTotal;
+
+  if (target <= 0) return 'Belum Ditetapkan';
+  if (realisasi >= target) return 'Selesai';
+
+  const deadline = item.tanggalSelesai ? new Date(`${item.tanggalSelesai}T23:59:59`) : null;
+  if (deadline && deadline.getTime() < Date.now()) return 'Terlambat';
+  if (realisasi > 0) return 'Sedang Berjalan';
+  return 'Belum Ada Realisasi';
 }
 
 function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
@@ -149,14 +80,9 @@ function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
   if (totalPages <= 4) return Array.from({ length: totalPages }, (_, i) => i + 1);
   if (currentPage === 1) return [1, 2, 3, totalPages];
-  if (currentPage >= totalPages - 1)
-    return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  if (currentPage >= totalPages - 1) return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
   return Array.from(
-    new Set(
-      [currentPage - 1, currentPage, currentPage + 1, totalPages].filter(
-        (page) => page >= 1 && page <= totalPages,
-      ),
-    ),
+    new Set([currentPage - 1, currentPage, currentPage + 1, totalPages].filter((page) => page >= 1 && page <= totalPages)),
   ).sort((a, b) => a - b);
 }
 
@@ -212,9 +138,7 @@ function Pagination({
         </button>
         {visiblePages.map((page, idx) => (
           <span key={page} className="flex items-center gap-2">
-            {idx > 0 && page - visiblePages[idx - 1] > 1 && (
-              <span className="px-1 text-xs text-gray-500">...</span>
-            )}
+            {idx > 0 && page - visiblePages[idx - 1] > 1 && <span className="px-1 text-xs text-gray-500">...</span>}
             <button
               type="button"
               onClick={() => onPageChange(page)}
@@ -256,9 +180,7 @@ function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const selected = options.find((option) => option.id === value);
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="relative">
@@ -280,7 +202,7 @@ function SearchableSelect({
       </Button>
 
       {open && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg">
           <div className="border-b border-gray-200 p-2">
             <Input
               value={query}
@@ -290,7 +212,7 @@ function SearchableSelect({
               autoFocus
             />
           </div>
-          <div className="max-h-40 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
                 <button
@@ -303,9 +225,7 @@ function SearchableSelect({
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                 >
-                  <Check
-                    className={cn('size-4', value === option.id ? 'opacity-100' : 'opacity-0')}
-                  />
+                  <Check className={cn('size-4', value === option.id ? 'opacity-100' : 'opacity-0')} />
                   <span>{option.label}</span>
                 </button>
               ))
@@ -319,34 +239,29 @@ function SearchableSelect({
   );
 }
 
-function StatusBadge({ status }: { status: Penugasan['status'] | RealisasiHistory['status'] }) {
-  const styleMap: Record<string, { bg: string; color: string }> = {
-    'Belum Dimulai': { bg: '#f3f4f6', color: '#374151' },
-    'Sedang Berjalan': { bg: '#dbeafe', color: '#1d4ed8' },
-    Selesai: { bg: '#dcfce7', color: '#166534' },
-    Terlambat: { bg: '#fee2e2', color: '#b91c1c' },
-    'Menunggu Verifikasi': { bg: '#fef3c7', color: '#92400e' },
-    Disetujui: { bg: '#dcfce7', color: '#166534' },
-    Ditolak: { bg: '#fee2e2', color: '#b91c1c' },
+function StatusBadge({ status }: { status: AssignmentStatus }) {
+  const styleMap: Record<AssignmentStatus, string> = {
+    'Belum Ditetapkan': 'bg-gray-100 text-gray-700',
+    'Belum Ada Realisasi': 'bg-slate-100 text-slate-700',
+    'Sedang Berjalan': 'bg-blue-50 text-blue-700',
+    Selesai: 'bg-green-50 text-green-700',
+    Terlambat: 'bg-red-50 text-red-700',
   };
-  const s = styleMap[status] ?? { bg: '#f3f4f6', color: '#374151' };
+
   return (
-    <span
-      className="inline-flex whitespace-nowrap items-center rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ background: s.bg, color: s.color }}
-    >
+    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
       {status}
     </span>
   );
 }
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = max === 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
+  const pct = max <= 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
   return (
     <div className="w-full">
       <div className="mb-1.5 flex items-center justify-between text-xs text-gray-500">
         <span>
-          {value} / {max}
+          {formatNumber(value)} / {formatNumber(max)}
         </span>
         <span className="font-medium">{pct}%</span>
       </div>
@@ -360,44 +275,44 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
-function ProgressTab() {
+function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir[]; isLoading: boolean }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return penugasanList;
-    return penugasanList.filter((p) =>
-      [p.namaKegiatan, p.deskripsi, p.status].join(' ').toLowerCase().includes(q),
+    const query = search.trim().toLowerCase();
+    if (!query) return assignments;
+    return assignments.filter((item) =>
+      [item.namaKegiatan, item.deskripsi, item.uraian, getAssignmentStatus(item), formatPeriode(item)]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
     );
-  }, [search]);
+  }, [assignments, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const totalTarget = penugasanList.reduce((acc, p) => acc + p.target, 0);
-  const totalRealisasi = penugasanList.reduce((acc, p) => acc + p.realisasi, 0);
-  const capaianPct = totalTarget === 0 ? 0 : Math.round((totalRealisasi / totalTarget) * 100);
-  const selesai = penugasanList.filter((p) => p.status === 'Selesai').length;
-  const berjalan = penugasanList.filter((p) => p.status === 'Sedang Berjalan').length;
+  const targeted = assignments.filter(hasTarget);
+  const totalTarget = targeted.reduce((acc, item) => acc + getAssignmentTarget(item), 0);
+  const totalRealisasi = targeted.reduce((acc, item) => acc + item.realisasiTotal, 0);
+  const capaianPct = totalTarget === 0 ? 0 : Math.min(100, Math.round((totalRealisasi / totalTarget) * 100));
 
   const summaryCards = [
-    { label: 'Total Penugasan', value: penugasanList.length, color: '#2563eb' },
-    { label: 'Sedang Berjalan', value: berjalan, color: '#1d4ed8' },
-    { label: 'Selesai', value: selesai, color: '#16a34a' },
-    { label: 'Capaian Total', value: `${capaianPct}%`, color: '#9333ea' },
+    { label: 'Total Penugasan', value: assignments.length },
+    { label: 'Target Ditetapkan', value: targeted.length },
+    { label: 'Total Realisasi', value: formatNumber(totalRealisasi) },
+    { label: 'Capaian Total', value: `${capaianPct}%` },
   ];
 
   return (
     <div className="space-y-6">
-      {/* ── Summary Cards ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {summaryCards.map((card) => (
           <Card key={card.label} className="overflow-hidden">
             <CardContent className="flex flex-col items-center justify-center gap-2 px-6 py-6 text-center">
-              {/* Label dulu, baru angka */}
               <p className="mt-1 text-xs font-medium leading-tight text-gray-500">{card.label}</p>
               <p className="text-2xl font-bold leading-none text-gray-900">{card.value}</p>
             </CardContent>
@@ -411,8 +326,7 @@ function ProgressTab() {
             <div>
               <CardTitle>Progress Pekerjaan</CardTitle>
               <CardDescription className="mt-1">
-                Pantau kemajuan setiap penugasan butir maupun penugasan tambahan yang menjadi
-                tanggung jawab Anda.
+                Butir kegiatan periode tahun berjalan dan progres terhadap target yang Anda tetapkan.
               </CardDescription>
             </div>
             <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
@@ -429,50 +343,56 @@ function ProgressTab() {
             </div>
           </div>
         </CardHeader>
-
         <CardContent>
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-sm">
+              <table className="w-full min-w-[960px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    {/* Nama Kegiatan */}
-                    <th className="px-6 py-3 w-[30%]">Nama Kegiatan</th>
-                    {/* Progress diperlebar maksimal */}
-                    <th className="px-6 py-3 w-[54%]">Progress</th>
-                    <th className="px-6 py-3 w-[16%]">Status</th>
+                    <th className="w-[30%] px-6 py-3">Nama Kegiatan</th>
+                    <th className="w-[16%] px-6 py-3">Periode</th>
+                    <th className="w-[34%] px-6 py-3">Progress</th>
+                    <th className="w-[20%] px-6 py-3">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {paginated.length > 0 ? (
-                    paginated.map((p) => (
-                      <tr key={p.id} className="align-middle transition hover:bg-gray-50">
-                        <td className="px-6 py-4 pr-8">
-                          <p className="text-sm font-semibold text-gray-900">{p.namaKegiatan}</p>
-                          <p className="mt-0.5 line-clamp-2 text-xs font-normal text-gray-500">
-                            {p.deskripsi}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 pr-8 min-w-[320px]">
-                          <ProgressBar value={p.realisasi} max={p.target} />
-                          <p className="mt-1.5 text-xs text-gray-400">Deadline: {p.deadline}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={p.status} />
-                        </td>
-                      </tr>
-                    ))
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                        Memuat progress pekerjaan...
+                      </td>
+                    </tr>
+                  ) : paginated.length > 0 ? (
+                    paginated.map((item) => {
+                      const target = getAssignmentTarget(item);
+                      return (
+                        <tr key={item.id} className="align-middle transition hover:bg-gray-50">
+                          <td className="px-6 py-4 pr-8">
+                            <p className="text-sm font-semibold text-gray-900">{item.namaKegiatan}</p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
+                              {item.deskripsi || item.uraian || '-'}
+                            </p>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{formatPeriode(item)}</td>
+                          <td className="min-w-[320px] px-6 py-4 pr-8">
+                            <ProgressBar value={item.realisasiTotal} max={target} />
+                          </td>
+                          <td className="px-6 py-4">
+                            <StatusBadge status={getAssignmentStatus(item)} />
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={3} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Tidak ada penugasan ditemukan.
+                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                        Tidak ada butir kegiatan pada periode tahun ini.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -488,15 +408,13 @@ function ProgressTab() {
   );
 }
 
-type TargetItem = {
-  id: string;
-  penugasanId: string;
-  target: number;
-  uraianPekerjaan: string;
-  keterangan: string;
-};
-
-function TargetTab() {
+function TargetTab({
+  assignments,
+  onSaved,
+}: {
+  assignments: MyPenugasanButir[];
+  onSaved: () => Promise<void>;
+}) {
   const penugasanRef = useRef<HTMLDivElement>(null);
   const targetJumlahRef = useRef<HTMLDivElement>(null);
   const uraianRef = useRef<HTMLDivElement>(null);
@@ -504,66 +422,64 @@ function TargetTab() {
   const [form, setForm] = useState({
     penugasanId: '',
     target: '',
-    uraianPekerjaan: '',
-    keterangan: '',
+    uraian: '',
+    deskripsi: '',
   });
   const [error, setError] = useState('');
-  const [targets, setTargets] = useState<TargetItem[]>([
-    {
-      id: 'tgt-1',
-      penugasanId: 'pen-1',
-      target: 4,
-      uraianPekerjaan:
-        'Menyusun dokumen rancangan program kerja tahunan unit beserta indikator capaian dan rencana anggaran.',
-      keterangan: 'Target capaian semester pertama.',
-    },
-    {
-      id: 'tgt-2',
-      penugasanId: 'pen-2',
-      target: 12,
-      uraianPekerjaan:
-        'Validasi berkas SKP pegawai tiap bulan, mencakup kelengkapan dokumen dan kesesuaian dengan indikator kinerja.',
-      keterangan: 'Target validasi bulanan sepanjang tahun.',
-    },
-  ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const options = useMemo(
+    () => assignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
+    [assignments],
+  );
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError('');
   };
 
-  const isFormValid =
-    Boolean(form.penugasanId) &&
-    Boolean(form.target) &&
-    Number(form.target) > 0 &&
-    Boolean(form.uraianPekerjaan.trim());
+  const handleSelectAssignment = (id: string) => {
+    const assignment = assignments.find((item) => item.id === id);
+    setForm({
+      penugasanId: id,
+      target: assignment?.targetKetercapaian ?? '',
+      uraian: assignment?.uraian ?? '',
+      deskripsi: assignment?.deskripsi ?? '',
+    });
+    setError('');
+  };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.penugasanId) {
       setError('Penugasan wajib dipilih.');
       focusFormField(penugasanRef);
       return;
     }
     if (!form.target || Number(form.target) <= 0) {
-      setError('Jumlah target wajib diisi (> 0).');
+      setError('Jumlah target wajib diisi lebih dari 0.');
       focusFormField(targetJumlahRef);
       return;
     }
-    if (!form.uraianPekerjaan.trim()) {
+    if (!form.uraian.trim()) {
       setError('Uraian pekerjaan wajib diisi.');
       focusFormField(uraianRef);
       return;
     }
 
-    const newItem: TargetItem = {
-      id: `tgt-${Date.now()}`,
-      penugasanId: form.penugasanId,
-      target: Number(form.target),
-      uraianPekerjaan: form.uraianPekerjaan.trim(),
-      keterangan: form.keterangan.trim(),
-    };
-    setTargets((prev) => [newItem, ...prev]);
-    setForm({ penugasanId: '', target: '', uraianPekerjaan: '', keterangan: '' });
+    try {
+      setIsSubmitting(true);
+      await updateMyPenugasanButirTarget(form.penugasanId, {
+        targetKetercapaian: form.target,
+        uraian: form.uraian,
+        deskripsi: form.deskripsi,
+      });
+      await onSaved();
+      setForm({ penugasanId: '', target: '', uraian: '', deskripsi: '' });
+    } catch {
+      setError('Gagal menyimpan target kinerja.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -572,20 +488,20 @@ function TargetTab() {
         <CardHeader className="pb-4">
           <CardTitle>Tetapkan Target Kinerja</CardTitle>
           <CardDescription>
-            Tentukan target capaian SKP untuk setiap penugasan yang Anda terima.
+            Pilih butir kegiatan yang sudah di-assign admin, lalu tetapkan target, uraian, dan deskripsi pekerjaan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div ref={penugasanRef} className="space-y-2">
             <Label>
-              Penugasan
+              Butir Kegiatan
               <RequiredStar />
             </Label>
             <SearchableSelect
-              label="Penugasan"
-              options={targetPenugasanOptions}
+              label="Butir Kegiatan"
+              options={options}
               value={form.penugasanId}
-              onChange={(value) => updateForm('penugasanId', value)}
+              onChange={handleSelectAssignment}
             />
           </div>
 
@@ -612,41 +528,38 @@ function TargetTab() {
             </Label>
             <Textarea
               id="uraian-pekerjaan"
-              value={form.uraianPekerjaan}
-              onChange={(event) => updateForm('uraianPekerjaan', event.target.value)}
-              placeholder="Tuliskan uraian pekerjaan yang akan dilakukan untuk mencapai target SKP ini."
+              value={form.uraian}
+              onChange={(event) => updateForm('uraian', event.target.value)}
+              placeholder="Tuliskan uraian pekerjaan untuk mencapai target ini."
               rows={4}
               className="resize-none border-gray-300 bg-white"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="keterangan-target">Keterangan</Label>
+            <Label htmlFor="deskripsi-target">Deskripsi</Label>
             <Textarea
-              id="keterangan-target"
-              value={form.keterangan}
-              onChange={(event) => updateForm('keterangan', event.target.value)}
-              placeholder="Tuliskan keterangan tambahan terkait target kinerja yang akan dicapai."
+              id="deskripsi-target"
+              value={form.deskripsi}
+              onChange={(event) => updateForm('deskripsi', event.target.value)}
+              placeholder="Tuliskan deskripsi tambahan bila diperlukan."
               rows={3}
               className="resize-none border-gray-300 bg-white"
             />
           </div>
 
-          {error && (
-            <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>
-          )}
+          {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
 
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() =>
-                setForm({ penugasanId: '', target: '', uraianPekerjaan: '', keterangan: '' })
-              }
+              onClick={() => setForm({ penugasanId: '', target: '', uraian: '', deskripsi: '' })}
+              disabled={isSubmitting}
             >
               Reset
             </Button>
-            <Button disabled={!isFormValid} onClick={handleSubmit}>
-              Simpan Target
+            <Button disabled={isSubmitting} onClick={handleSubmit}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Target'}
             </Button>
           </div>
         </CardContent>
@@ -655,48 +568,43 @@ function TargetTab() {
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Daftar Target Kinerja</CardTitle>
-          <CardDescription>
-            Target kinerja SKP yang sudah Anda tetapkan untuk setiap penugasan.
-          </CardDescription>
+          <CardDescription>Target, uraian, dan deskripsi yang tersimpan pada butir kegiatan tahun berjalan.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] border-collapse text-sm">
+              <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="px-6 py-3 w-[34%]">Penugasan</th>
-                    <th className="px-6 py-3 w-[14%]">Target</th>
-                    <th className="px-6 py-3 w-[30%]">Uraian Pekerjaan</th>
-                    <th className="px-6 py-3 w-[22%]">Keterangan</th>
+                    <th className="w-[30%] px-6 py-3">Butir Kegiatan</th>
+                    <th className="w-[12%] px-6 py-3">Target</th>
+                    <th className="w-[28%] px-6 py-3">Uraian</th>
+                    <th className="w-[30%] px-6 py-3">Deskripsi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {targets.length > 0 ? (
-                    targets.map((t) => {
-                      const pen = penugasanList.find((p) => p.id === t.penugasanId);
-                      return (
-                        <tr key={t.id} className="align-top">
-                          <td className="px-6 py-4 pr-8">
-                            <p className="font-medium text-gray-900">{pen?.namaKegiatan ?? '-'}</p>
-                            <p className="mt-1 text-xs text-gray-500">{pen?.jenis}</p>
-                          </td>
-                          <td className="px-6 py-4 pr-8 font-medium text-gray-700 whitespace-nowrap">
-                            {t.target}
-                          </td>
-                          <td className="px-6 py-4 pr-8 text-gray-700">
-                            {t.uraianPekerjaan || <span className="text-gray-400">-</span>}
-                          </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            {t.keterangan || <span className="text-gray-400">-</span>}
-                          </td>
-                        </tr>
-                      );
-                    })
+                  {assignments.length > 0 ? (
+                    assignments.map((item) => (
+                      <tr key={item.id} className="align-top">
+                        <td className="px-6 py-4 pr-8">
+                          <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
+                          <p className="mt-1 text-xs text-gray-500">{formatPeriode(item)}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 pr-8 font-medium text-gray-700">
+                          {hasTarget(item) ? item.targetKetercapaian : <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="px-6 py-4 pr-8 text-gray-700">
+                          {item.uraian || <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="px-6 py-4 text-gray-700">
+                          {item.deskripsi || <span className="text-gray-400">-</span>}
+                        </td>
+                      </tr>
+                    ))
                   ) : (
                     <tr>
                       <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Belum ada target ditetapkan.
+                        Belum ada butir kegiatan yang di-assign pada periode tahun ini.
                       </td>
                     </tr>
                   )}
@@ -710,45 +618,44 @@ function TargetTab() {
   );
 }
 
-function RealisasiTab() {
+function RealisasiTab({
+  assignments,
+  history,
+  onSaved,
+}: {
+  assignments: MyPenugasanButir[];
+  history: MyRealisasiKegiatan[];
+  onSaved: () => Promise<void>;
+}) {
   const penugasanRef = useRef<HTMLDivElement>(null);
   const tanggalRef = useRef<HTMLDivElement>(null);
   const jumlahRef = useRef<HTMLDivElement>(null);
-  const deskripsiRef = useRef<HTMLDivElement>(null);
-  const buktiRef = useRef<HTMLDivElement>(null);
+  const keteranganRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     penugasanId: '',
     tanggal: '',
     jumlah: '',
-    deskripsi: '',
-    bukti: '',
+    keterangan: '',
   });
   const [error, setError] = useState('');
-  const [history, setHistory] = useState<RealisasiHistory[]>(initialHistory);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+
+  const targetAssignments = useMemo(() => assignments.filter(hasTarget), [assignments]);
+  const options = useMemo(
+    () => targetAssignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
+    [targetAssignments],
+  );
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError('');
   };
 
-  const handleFile = (file: File | null) => {
-    if (!file) return;
-    updateForm('bukti', file.name);
-  };
-
-  const isFormValid =
-    Boolean(form.penugasanId) &&
-    Boolean(form.tanggal) &&
-    Boolean(form.jumlah) &&
-    Number(form.jumlah) > 0 &&
-    Boolean(form.deskripsi.trim()) &&
-    Boolean(form.bukti);
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.penugasanId) {
       setError('Penugasan wajib dipilih.');
       focusFormField(penugasanRef);
@@ -760,43 +667,41 @@ function RealisasiTab() {
       return;
     }
     if (!form.jumlah || Number(form.jumlah) <= 0) {
-      setError('Jumlah realisasi wajib diisi (> 0).');
+      setError('Jumlah realisasi wajib diisi lebih dari 0.');
       focusFormField(jumlahRef);
       return;
     }
-    if (!form.deskripsi.trim()) {
-      setError('Deskripsi realisasi wajib diisi.');
-      focusFormField(deskripsiRef);
-      return;
-    }
-    if (!form.bukti) {
-      setError('Dokumen bukti wajib diunggah.');
-      focusFormField(buktiRef);
+    if (!form.keterangan.trim()) {
+      setError('Keterangan realisasi wajib diisi.');
+      focusFormField(keteranganRef);
       return;
     }
 
-    const pen = penugasanList.find((p) => p.id === form.penugasanId);
-    const newItem: RealisasiHistory = {
-      id: `hist-${Date.now()}`,
-      tanggal: form.tanggal,
-      namaKegiatan: pen?.namaKegiatan ?? '-',
-      deskripsi: form.deskripsi.trim(),
-      jumlah: Number(form.jumlah),
-      bukti: form.bukti,
-      status: 'Menunggu Verifikasi',
-    };
-    setHistory((prev) => [newItem, ...prev]);
-    setForm({ penugasanId: '', tanggal: '', jumlah: '', deskripsi: '', bukti: '' });
+    try {
+      setIsSubmitting(true);
+      await createMyRealisasiKegiatan({
+        idPenggunaKegiatan: form.penugasanId,
+        tanggalRealisasi: form.tanggal,
+        realisasiTarget: form.jumlah,
+        keterangan: form.keterangan,
+      });
+      await onSaved();
+      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '' });
+    } catch {
+      setError('Gagal menyimpan realisasi kegiatan.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return history;
-    return history.filter((h) =>
-      [h.namaKegiatan, h.deskripsi, h.bukti, h.status, h.tanggal]
+    const query = search.trim().toLowerCase();
+    if (!query) return history;
+    return history.filter((item) =>
+      [item.namaKegiatan, item.keterangan, item.realisasiTarget, item.tanggalRealisasi]
         .join(' ')
         .toLowerCase()
-        .includes(q),
+        .includes(query),
     );
   }, [history, search]);
 
@@ -809,26 +714,23 @@ function RealisasiTab() {
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Update Realisasi Kegiatan</CardTitle>
-          <CardDescription>
-            Catatkan realisasi kegiatan yang sudah Anda capai beserta dokumen bukti pendukung.
-          </CardDescription>
+          <CardDescription>Catat realisasi untuk butir kegiatan yang targetnya sudah Anda tetapkan.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div ref={penugasanRef} className="space-y-2">
             <Label>
-              Penugasan
+              Butir Kegiatan
               <RequiredStar />
             </Label>
             <SearchableSelect
-              label="Penugasan"
-              options={targetPenugasanOptions}
+              label="Butir Kegiatan"
+              options={options}
               value={form.penugasanId}
               onChange={(value) => updateForm('penugasanId', value)}
             />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* Tanggal — tanpa icon kalender */}
             <div ref={tanggalRef} className="space-y-2">
               <Label htmlFor="tanggal-realisasi">
                 Tanggal Realisasi
@@ -860,81 +762,34 @@ function RealisasiTab() {
             </div>
           </div>
 
-          <div ref={deskripsiRef} className="space-y-2">
-            <Label htmlFor="deskripsi-realisasi">
-              Deskripsi Realisasi
+          <div ref={keteranganRef} className="space-y-2">
+            <Label htmlFor="keterangan-realisasi">
+              Keterangan Realisasi
               <RequiredStar />
             </Label>
             <Textarea
-              id="deskripsi-realisasi"
-              value={form.deskripsi}
-              onChange={(event) => updateForm('deskripsi', event.target.value)}
-              placeholder="Jelaskan secara singkat realisasi kegiatan yang sudah dilakukan, hasil yang dicapai, dan catatan penting lainnya."
+              id="keterangan-realisasi"
+              value={form.keterangan}
+              onChange={(event) => updateForm('keterangan', event.target.value)}
+              placeholder="Jelaskan realisasi kegiatan yang sudah dilakukan."
               rows={4}
               className="resize-none border-gray-300 bg-white"
             />
           </div>
 
-          <div ref={buktiRef} className="space-y-2">
-            <Label>
-              Dokumen Bukti
-              <RequiredStar />
-            </Label>
-            <input
-              id="bukti-realisasi"
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
-              onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
-            />
-            <div
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                handleFile(event.dataTransfer.files?.[0] ?? null);
-              }}
-              className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center transition hover:bg-gray-100"
-            >
-              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                {form.bukti ? (
-                  <FileText className="size-5 text-gray-700" />
-                ) : (
-                  <Upload className="size-5 text-gray-500" />
-                )}
-              </div>
-              <p className="text-sm font-semibold text-gray-900">
-                {form.bukti || 'Seret dokumen bukti ke area ini'}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                PDF, DOC, DOCX, XLS, XLSX, JPG, atau PNG
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-4 h-9 px-3 text-sm"
-                onClick={() => document.getElementById('bukti-realisasi')?.click()}
-              >
-                Cari File Manual
-              </Button>
-            </div>
-          </div>
-
-          {error && (
-            <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>
-          )}
+          {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
 
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() =>
-                setForm({ penugasanId: '', tanggal: '', jumlah: '', deskripsi: '', bukti: '' })
-              }
+              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '' })}
+              disabled={isSubmitting}
             >
               Reset
             </Button>
-            <Button disabled={!isFormValid} onClick={handleSubmit}>
+            <Button disabled={isSubmitting} onClick={handleSubmit}>
               <Plus className="size-4" />
-              Simpan Realisasi
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Realisasi'}
             </Button>
           </div>
         </CardContent>
@@ -944,10 +799,8 @@ function RealisasiTab() {
         <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>History Realisasi Kegiatan</CardTitle>
-              <CardDescription className="mt-1">
-                Riwayat realisasi yang Anda input beserta status verifikasi pimpinan.
-              </CardDescription>
+              <CardTitle>Riwayat Realisasi Kegiatan</CardTitle>
+              <CardDescription className="mt-1">Realisasi kegiatan yang sudah Anda catat pada periode tahun berjalan.</CardDescription>
             </div>
             <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
               <Search className="size-4 shrink-0 text-gray-400" />
@@ -957,7 +810,7 @@ function RealisasiTab() {
                   setSearch(event.target.value);
                   setPage(1);
                 }}
-                placeholder="Cari kegiatan, status, tanggal..."
+                placeholder="Cari kegiatan, tanggal..."
                 className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
               />
             </div>
@@ -966,73 +819,39 @@ function RealisasiTab() {
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] border-collapse text-sm">
+              <table className="w-full min-w-[820px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="px-6 py-3 w-[12%]">Tanggal</th>
-                    <th className="px-6 py-3 w-[40%]">Kegiatan</th>
-                    <th className="px-6 py-3 w-[10%]">Jumlah</th>
-                    {/* Kolom Bukti — hanya icon */}
-                    <th className="px-6 py-3 w-[14%]">Bukti</th>
-                    <th className="px-6 py-3 w-[18%]">Status</th>
+                    <th className="w-[14%] px-6 py-3">Tanggal</th>
+                    <th className="w-[34%] px-6 py-3">Kegiatan</th>
+                    <th className="w-[14%] px-6 py-3">Realisasi</th>
+                    <th className="w-[38%] px-6 py-3">Keterangan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {paginated.length > 0 ? (
                     paginated.map((item) => (
                       <tr key={item.id} className="align-top">
-                        <td className="px-6 py-4 pr-6 text-gray-700 whitespace-nowrap">
-                          {item.tanggal}
+                        <td className="whitespace-nowrap px-6 py-4 pr-6 text-gray-700">
+                          {formatTanggal(item.tanggalRealisasi)}
                         </td>
-                        <td className="px-6 py-4 pr-8">
-                          <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
-                          <p className="mt-1 text-xs font-normal leading-relaxed text-gray-500">
-                            {item.deskripsi}
-                          </p>
+                        <td className="px-6 py-4 pr-8 font-medium text-gray-900">{item.namaKegiatan}</td>
+                        <td className="whitespace-nowrap px-6 py-4 pr-6 font-medium text-gray-700">
+                          {item.realisasiTarget}
                         </td>
-                        <td className="px-6 py-4 pr-6 font-medium text-gray-700 whitespace-nowrap">
-                          {item.jumlah}
-                        </td>
-                        {/* Icon dokumen — klik buka di tab baru, download langsung */}
-                        <td className="px-6 py-4 pr-6">
-                          <div className="flex items-center gap-2">
-                            {/* Buka dokumen di browser */}
-                            <a
-                              href={`/dokumen/${item.bukti}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`Buka ${item.bukti}`}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
-                            >
-                              <FileText className="size-4" />
-                            </a>
-                            {/* Unduh dokumen */}
-                            <a
-                              href={`/dokumen/${item.bukti}`}
-                              download={item.bukti}
-                              title={`Unduh ${item.bukti}`}
-                              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
-                            >
-                              <Download className="size-4" />
-                            </a>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={item.status} />
-                        </td>
+                        <td className="px-6 py-4 text-gray-700">{item.keterangan || '-'}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Belum ada history realisasi.
+                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                        Belum ada riwayat realisasi.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -1049,15 +868,57 @@ function RealisasiTab() {
 }
 
 export function RealisasiKinerjaView() {
+  const [assignments, setAssignments] = useState<MyPenugasanButir[]>([]);
+  const [history, setHistory] = useState<MyRealisasiKegiatan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadAssignments = async () => {
+    const data = await getMyPenugasanButir();
+    setAssignments(data);
+  };
+
+  const loadHistory = async () => {
+    const data = await getMyRealisasiKegiatan();
+    setHistory(data);
+  };
+
+  const loadData = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const [assignmentData, historyData] = await Promise.all([
+        getMyPenugasanButir(),
+        getMyRealisasiKegiatan(),
+      ]);
+      setAssignments(assignmentData);
+      setHistory(historyData);
+    } catch {
+      setError('Gagal memuat data realisasi kinerja.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const refreshAfterRealisasi = async () => {
+    await Promise.all([loadAssignments(), loadHistory()]);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Realisasi Kinerja</h1>
         <p className="mt-1 text-base text-gray-500">
-          Pantau progress pekerjaan, tetapkan target kinerja, dan catat realisasi kegiatan Anda
-          beserta dokumen bukti.
+          Pantau progress pekerjaan, tetapkan target kinerja, dan catat realisasi kegiatan Anda.
         </p>
       </div>
+
+      {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
 
       <Tabs defaultValue="progress" className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-3">
@@ -1067,15 +928,15 @@ export function RealisasiKinerjaView() {
         </TabsList>
 
         <TabsContent value="progress" className="mt-6">
-          <ProgressTab />
+          <ProgressTab assignments={assignments} isLoading={isLoading} />
         </TabsContent>
 
         <TabsContent value="target" className="mt-6">
-          <TargetTab />
+          <TargetTab assignments={assignments} onSaved={loadAssignments} />
         </TabsContent>
 
         <TabsContent value="realisasi" className="mt-6">
-          <RealisasiTab />
+          <RealisasiTab assignments={assignments} history={history} onSaved={refreshAfterRealisasi} />
         </TabsContent>
       </Tabs>
     </div>

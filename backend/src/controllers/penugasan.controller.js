@@ -1,14 +1,18 @@
 import {
   createAdditionalAssignment,
   createButirAssignment,
+  createMyRealisasiKegiatan,
   deleteButirAssignment,
   findAdditionalAssignmentById,
   findAdditionalAssignmentsByEmployee,
   findAdditionalAssignments,
   findAssignableEmployees,
   findButirAssignmentsByEmployee,
+  findCurrentYearButirAssignmentsByEmployee,
+  findMyRealisasiKegiatan,
   updateAdditionalAssignment,
   updateButirAssignment,
+  updateOwnButirTarget,
 } from "../repositories/penugasan.repository.js";
 
 const nullableText = (value) => {
@@ -23,6 +27,15 @@ const requiredInteger = (value) => {
 
   const parsed = Number(text);
   return Number.isInteger(parsed) ? parsed : NaN;
+};
+
+const positiveNumberText = (value) => {
+  const text = nullableText(value);
+  if (!text) return null;
+
+  const normalized = text.replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : NaN;
 };
 
 const uniqueIntegerList = (value) => {
@@ -105,17 +118,33 @@ export const getButirAssignmentsByEmployee = async (req, res) => {
   }
 };
 
+export const getMyButirAssignments = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+
+    const data = await findCurrentYearButirAssignmentsByEmployee(idPengguna);
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data kinerja pegawai." });
+  }
+};
+
 export const patchButirAssignment = async (req, res) => {
   try {
     const id = requiredInteger(req.params.id);
     const uraian = nullableText(req.body.uraian);
     const deskripsi = nullableText(req.body.deskripsi);
+    const targetKetercapaian = nullableText(req.body.targetKetercapaian);
 
     if (!id || Number.isNaN(id)) {
       return res.status(400).json({ message: "ID penugasan butir tidak valid." });
     }
 
-    const data = await updateButirAssignment({ id, uraian, deskripsi });
+    const data = await updateButirAssignment({ id, uraian, deskripsi, targetKetercapaian });
 
     if (!data) {
       return res.status(404).json({ message: "Penugasan butir tidak ditemukan." });
@@ -124,6 +153,40 @@ export const patchButirAssignment = async (req, res) => {
     res.status(200).json({ message: "Penugasan butir berhasil diperbarui.", data });
   } catch (err) {
     res.status(500).json({ message: "Gagal memperbarui penugasan butir." });
+  }
+};
+
+export const patchMyButirTarget = async (req, res) => {
+  try {
+    const id = requiredInteger(req.params.id);
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+    const targetKetercapaian = positiveNumberText(req.body.targetKetercapaian);
+    const uraian = nullableText(req.body.uraian);
+    const deskripsi = nullableText(req.body.deskripsi);
+
+    if (!id || Number.isNaN(id) || !idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID penugasan butir tidak valid." });
+    }
+
+    if (!targetKetercapaian || Number.isNaN(targetKetercapaian)) {
+      return res.status(400).json({ message: "Target kinerja wajib berupa angka lebih dari 0." });
+    }
+
+    const data = await updateOwnButirTarget({
+      id,
+      idPengguna,
+      targetKetercapaian,
+      uraian,
+      deskripsi,
+    });
+
+    if (!data) {
+      return res.status(404).json({ message: "Penugasan butir tidak ditemukan untuk akun ini." });
+    }
+
+    res.status(200).json({ message: "Target kinerja berhasil disimpan.", data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal menyimpan target kinerja." });
   }
 };
 
@@ -144,6 +207,69 @@ export const removeButirAssignment = async (req, res) => {
     res.status(200).json({ message: "Penugasan butir berhasil dihapus." });
   } catch (err) {
     res.status(500).json({ message: "Gagal menghapus penugasan butir." });
+  }
+};
+
+export const getMyRealisasi = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+
+    const data = await findMyRealisasiKegiatan(idPengguna);
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil riwayat realisasi kegiatan." });
+  }
+};
+
+export const postMyRealisasi = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+    const idPenggunaKegiatan = requiredInteger(req.body.idPenggunaKegiatan);
+    const tanggalRealisasi = nullableText(req.body.tanggalRealisasi);
+    const realisasiTarget = positiveNumberText(req.body.realisasiTarget);
+    const keterangan = nullableText(req.body.keterangan);
+
+    if (!idPengguna || Number.isNaN(idPengguna) || !idPenggunaKegiatan || Number.isNaN(idPenggunaKegiatan)) {
+      return res.status(400).json({ message: "Penugasan kegiatan tidak valid." });
+    }
+
+    if (!tanggalRealisasi) {
+      return res.status(400).json({ message: "Tanggal realisasi wajib diisi." });
+    }
+
+    if (!realisasiTarget || Number.isNaN(realisasiTarget)) {
+      return res.status(400).json({ message: "Jumlah realisasi wajib berupa angka lebih dari 0." });
+    }
+
+    if (!keterangan) {
+      return res.status(400).json({ message: "Keterangan realisasi wajib diisi." });
+    }
+
+    const data = await createMyRealisasiKegiatan({
+      idPengguna,
+      idPenggunaKegiatan,
+      tanggalRealisasi,
+      realisasiTarget,
+      keterangan,
+    });
+
+    if (!data) {
+      return res.status(404).json({
+        message: "Penugasan tidak ditemukan, bukan periode tahun ini, atau target belum ditetapkan.",
+      });
+    }
+
+    res.status(201).json({ message: "Realisasi kegiatan berhasil disimpan.", data });
+  } catch (err) {
+    if (err.code === "23502" || err.code === "23503") {
+      return res.status(400).json({ message: "Data realisasi kegiatan tidak valid." });
+    }
+
+    res.status(500).json({ message: "Gagal menyimpan realisasi kegiatan." });
   }
 };
 
