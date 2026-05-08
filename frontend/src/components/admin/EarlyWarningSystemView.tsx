@@ -9,16 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Send } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
-import { getEarlyWarningData, type KgbWarning, type PensionWarning } from '../../api/earlyWarningApi';
-
-// --- MOCK DATA ---
-const promotionData = Array.from({ length: 45 }).map((_, i) => ({
-  id: `user-p-${i}`,
-  name: `Pegawai Promotion ${i + 1}`,
-  nip: `198${(i % 10).toString().padStart(1, '0')}01012010${(i + 1).toString().padStart(4, '0')}`,
-  currentScore: Math.floor(Math.random() * (150 - 50) + 50),
-  requiredScore: 150,
-}));
+import { getEarlyWarningData, type KgbWarning, type PensionWarning, type PromotionWarning } from '../../api/earlyWarningApi';
 
 function formatDateId(date: string) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -156,6 +147,7 @@ function CustomPagination({
 }
 
 export function EarlyWarningSystemView() {
+  const [promotionData, setPromotionData] = useState<PromotionWarning[]>([]);
   const [kgbData, setKgbData] = useState<KgbWarning[]>([]);
   const [pensionData, setPensionData] = useState<PensionWarning[]>([]);
   const [isLoadingWarnings, setIsLoadingWarnings] = useState(true);
@@ -184,6 +176,7 @@ export function EarlyWarningSystemView() {
       try {
         const data = await getEarlyWarningData();
         if (!ignore) {
+          setPromotionData(data.jabatan);
           setKgbData(data.kgb);
           setPensionData(data.pensiun);
         }
@@ -237,7 +230,7 @@ export function EarlyWarningSystemView() {
             <CardHeader>
               <CardTitle>Daftar Kandidat Kenaikan Jabatan</CardTitle>
               <CardDescription>
-                Pegawai dengan progres angka ketercapaian menuju target yang dipersyaratkan.
+                Pegawai yang sisa angka ketercapaiannya kurang dari sama dengan 100 dari target kenaikan jabatan.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
@@ -251,7 +244,9 @@ export function EarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPromo.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data kenaikan jabatan..." />
+                    ) : paginatedPromo.length > 0 ? (
                       paginatedPromo.map((user) => {
                         const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
                         return (
@@ -262,6 +257,7 @@ export function EarlyWarningSystemView() {
                             </TableCell>
                             <TableCell>
                               <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
+                              <div className="mt-0.5 text-xs text-gray-500">Sisa {user.remainingScore}</div>
                             </TableCell>
                             <TableCell style={{ paddingRight: '1.5rem' }}>
                               <div className="flex items-center gap-3">
@@ -278,14 +274,16 @@ export function EarlyWarningSystemView() {
                   </TableBody>
                 </Table>
 
-                <CustomPagination
-                  currentPage={normalizedPromoPage}
-                  totalPages={totalPromoPages}
-                  totalItems={promotionData.length}
-                  pageSize={promoPageSize}
-                  onPageChange={setPromoPage}
-                  onPageSizeChange={setPromoPageSize}
-                />
+                {promotionData.length > 0 && (
+                  <CustomPagination
+                    currentPage={normalizedPromoPage}
+                    totalPages={totalPromoPages}
+                    totalItems={promotionData.length}
+                    pageSize={promoPageSize}
+                    onPageChange={setPromoPage}
+                    onPageSizeChange={setPromoPageSize}
+                  />
+                )}
               </div>
 
               <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">

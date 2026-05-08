@@ -242,8 +242,52 @@ const mapEarlyWarningRow = (row, dateField) => ({
   daysLeft: Number(row.days_left ?? 0),
 });
 
+const mapPromotionWarningRow = (row) => ({
+  id: String(row.id_pengguna),
+  name: row.nama ?? "",
+  nip: row.nip ?? "",
+  currentScore: Number(row.current_score ?? 0),
+  requiredScore: Number(row.required_score ?? 0),
+  remainingScore: Number(row.remaining_score ?? 0),
+});
+
 export const findPegawaiEarlyWarnings = async () => {
-  const [kgbResult, pensionResult] = await Promise.all([
+  const [promotionResult, kgbResult, pensionResult] = await Promise.all([
+    pool.query(`
+      WITH realisasi_pengguna AS (
+        SELECT
+          pengguna_kegiatan.id_pengguna,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                  THEN realisasi_kegiatan.realisasi_target::numeric
+                ELSE 0
+              END
+            ),
+            0
+          ) AS current_score
+        FROM pengguna_kegiatan
+        LEFT JOIN realisasi_kegiatan
+          ON realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+        GROUP BY pengguna_kegiatan.id_pengguna
+      )
+      SELECT
+        pengguna.id_pengguna,
+        pengguna.nama,
+        pengguna.nip,
+        COALESCE(realisasi_pengguna.current_score, 0) AS current_score,
+        pengguna.target_ketercapaian AS required_score,
+        pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) AS remaining_score
+      FROM pengguna
+      LEFT JOIN realisasi_pengguna
+        ON realisasi_pengguna.id_pengguna = pengguna.id_pengguna
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND pengguna.target_ketercapaian IS NOT NULL
+        AND pengguna.target_ketercapaian > 0
+        AND pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) BETWEEN 0 AND 100
+      ORDER BY remaining_score ASC, pengguna.nama ASC, pengguna.id_pengguna ASC
+    `),
     pool.query(`
       SELECT
         id_pengguna,
@@ -273,6 +317,7 @@ export const findPegawaiEarlyWarnings = async () => {
   ]);
 
   return {
+    jabatan: promotionResult.rows.map(mapPromotionWarningRow),
     kgb: kgbResult.rows.map((row) => mapEarlyWarningRow(row, "tmtKgb")),
     pensiun: pensionResult.rows.map((row) => mapEarlyWarningRow(row, "tmtPension")),
   };
