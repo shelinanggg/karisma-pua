@@ -92,6 +92,11 @@ export async function getPenugasanTambahanList() {
   return response.data.data;
 }
 
+export async function getMyPenugasanTambahanList() {
+  const response = await axiosInstance.get<{ data: PenugasanTambahan[] }>("/penugasan/tambahan/saya");
+  return response.data.data;
+}
+
 export async function getPenugasanTambahan(id: string) {
   const response = await axiosInstance.get<{ data: PenugasanTambahan }>(`/penugasan/tambahan/${id}`);
   return response.data.data;

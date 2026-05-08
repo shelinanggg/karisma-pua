@@ -1,6 +1,36 @@
 import pool from "../config/db.js";
 
 const formatDateColumn = (column) => `to_char(${column}, 'YYYY-MM-DD')`;
+const additionalAssignmentRelationTables = [
+  "penugasan_tambahan_pengguna",
+  "pengguna_penugasan_tambahan",
+];
+let additionalAssignmentRelationTable = null;
+
+const getAdditionalAssignmentRelationTable = async (queryable = pool) => {
+  if (additionalAssignmentRelationTable) return additionalAssignmentRelationTable;
+
+  const result = await queryable.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1::text[])
+    `,
+    [additionalAssignmentRelationTables],
+  );
+
+  const existingTables = new Set(result.rows.map((row) => row.table_name));
+  additionalAssignmentRelationTable = additionalAssignmentRelationTables.find((tableName) =>
+    existingTables.has(tableName),
+  );
+
+  if (!additionalAssignmentRelationTable) {
+    throw new Error("Tabel relasi penugasan tambahan tidak ditemukan.");
+  }
+
+  return additionalAssignmentRelationTable;
+};
 
 const mapEmployeeRow = (row) => ({
   id: String(row.id_pengguna),
@@ -192,6 +222,7 @@ export const deleteButirAssignment = async (id) => {
 };
 
 export const findAdditionalAssignments = async () => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
   const result = await pool.query(`
     SELECT
       penugasan_tambahan.id_penugasan_tambahan,
@@ -213,10 +244,10 @@ export const findAdditionalAssignments = async () => {
         '[]'::json
       ) AS assigned_employees
     FROM penugasan_tambahan
-    LEFT JOIN penugasan_tambahan_pengguna
-      ON penugasan_tambahan_pengguna.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+    LEFT JOIN ${relationTable}
+      ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
     LEFT JOIN pengguna
-      ON pengguna.id_pengguna = penugasan_tambahan_pengguna.id_pengguna
+      ON pengguna.id_pengguna = ${relationTable}.id_pengguna
     GROUP BY penugasan_tambahan.id_penugasan_tambahan
     ORDER BY penugasan_tambahan.created_at DESC, penugasan_tambahan.id_penugasan_tambahan DESC
   `);
@@ -224,7 +255,8 @@ export const findAdditionalAssignments = async () => {
   return result.rows.map(mapTambahanRow);
 };
 
-export const findAdditionalAssignmentById = async (id) => {
+export const findAdditionalAssignmentsByEmployee = async (idPengguna) => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
   const result = await pool.query(
     `
       SELECT
@@ -247,10 +279,54 @@ export const findAdditionalAssignmentById = async (id) => {
           '[]'::json
         ) AS assigned_employees
       FROM penugasan_tambahan
-      LEFT JOIN penugasan_tambahan_pengguna
-        ON penugasan_tambahan_pengguna.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+      LEFT JOIN ${relationTable}
+        ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
       LEFT JOIN pengguna
-        ON pengguna.id_pengguna = penugasan_tambahan_pengguna.id_pengguna
+        ON pengguna.id_pengguna = ${relationTable}.id_pengguna
+      WHERE penugasan_tambahan.id_pengguna = $1
+        OR EXISTS (
+          SELECT 1
+          FROM ${relationTable} ppt
+          WHERE ppt.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+            AND ppt.id_pengguna = $1
+        )
+      GROUP BY penugasan_tambahan.id_penugasan_tambahan
+      ORDER BY penugasan_tambahan.created_at DESC, penugasan_tambahan.id_penugasan_tambahan DESC
+    `,
+    [idPengguna],
+  );
+
+  return result.rows.map(mapTambahanRow);
+};
+
+export const findAdditionalAssignmentById = async (id) => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
+  const result = await pool.query(
+    `
+      SELECT
+        penugasan_tambahan.id_penugasan_tambahan,
+        penugasan_tambahan.nama_kegiatan,
+        penugasan_tambahan.deskripsi,
+        penugasan_tambahan.status,
+        ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
+        ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
+        penugasan_tambahan.surat_tugas,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', pengguna.id_pengguna,
+              'nama', pengguna.nama,
+              'nip', pengguna.nip
+            )
+            ORDER BY pengguna.nama ASC
+          ) FILTER (WHERE pengguna.id_pengguna IS NOT NULL),
+          '[]'::json
+        ) AS assigned_employees
+      FROM penugasan_tambahan
+      LEFT JOIN ${relationTable}
+        ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+      LEFT JOIN pengguna
+        ON pengguna.id_pengguna = ${relationTable}.id_pengguna
       WHERE penugasan_tambahan.id_penugasan_tambahan = $1
       GROUP BY penugasan_tambahan.id_penugasan_tambahan
       LIMIT 1
@@ -272,6 +348,7 @@ export const createAdditionalAssignment = async ({
 
   try {
     await client.query("BEGIN");
+    const relationTable = await getAdditionalAssignmentRelationTable(client);
 
     const result = await client.query(
       `
@@ -295,7 +372,7 @@ export const createAdditionalAssignment = async ({
     for (const idPengguna of assignedEmployeeIds) {
       await client.query(
         `
-          INSERT INTO penugasan_tambahan_pengguna (id_penugasan_tambahan, id_pengguna)
+          INSERT INTO ${relationTable} (id_penugasan_tambahan, id_pengguna)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
         `,
@@ -326,6 +403,7 @@ export const updateAdditionalAssignment = async ({
 
   try {
     await client.query("BEGIN");
+    const relationTable = await getAdditionalAssignmentRelationTable(client);
 
     const result = await client.query(
       `
@@ -350,7 +428,7 @@ export const updateAdditionalAssignment = async ({
 
     await client.query(
       `
-        DELETE FROM penugasan_tambahan_pengguna
+        DELETE FROM ${relationTable}
         WHERE id_penugasan_tambahan = $1
       `,
       [id],
@@ -359,7 +437,7 @@ export const updateAdditionalAssignment = async ({
     for (const idPengguna of assignedEmployeeIds) {
       await client.query(
         `
-          INSERT INTO penugasan_tambahan_pengguna (id_penugasan_tambahan, id_pengguna)
+          INSERT INTO ${relationTable} (id_penugasan_tambahan, id_pengguna)
           VALUES ($1, $2)
         `,
         [id, idPengguna],

@@ -3,6 +3,7 @@ import {
   createButirAssignment,
   deleteButirAssignment,
   findAdditionalAssignmentById,
+  findAdditionalAssignmentsByEmployee,
   findAdditionalAssignments,
   findAssignableEmployees,
   findButirAssignmentsByEmployee,
@@ -152,6 +153,21 @@ export const getAdditionalAssignments = async (_req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data penugasan tambahan." });
+  }
+};
+
+export const getMyAdditionalAssignments = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+
+    const data = await findAdditionalAssignmentsByEmployee(idPengguna);
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data penugasan tambahan pegawai." });
   }
 };
 
