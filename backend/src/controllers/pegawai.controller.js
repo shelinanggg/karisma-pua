@@ -27,6 +27,14 @@ const nullableInteger = (value) => {
   return Number.isInteger(parsed) ? parsed : NaN;
 };
 
+const nullablePositiveNumber = (value) => {
+  const text = nullableText(value);
+  if (!text) return null;
+
+  const parsed = Number(text.replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : NaN;
+};
+
 const normalizePayload = (body, passwordHash = null) => {
   const payload = {
     nip: nullableText(body.nip),
@@ -38,6 +46,7 @@ const normalizePayload = (body, passwordHash = null) => {
     tmt_golongan: nullableDate(body.tmt_golongan),
     pendidikan: nullableText(body.pendidikan),
     kualifikasi: nullableText(body.kualifikasi),
+    target_ketercapaian: nullablePositiveNumber(body.target_ketercapaian),
     tmt_kgb: nullableDate(body.tmt_kgb),
     tmt_jabatan: nullableDate(body.tmt_jabatan),
     tmt_pensiun: nullableDate(body.tmt_pensiun),
@@ -70,6 +79,10 @@ const validatePayload = (payload) => {
 
   if (integerFields.some((field) => Number.isNaN(payload[field]))) {
     return "Data referensi pegawai tidak valid.";
+  }
+
+  if (Number.isNaN(payload.target_ketercapaian)) {
+    return "Target ketercapaian wajib berupa angka lebih dari 0.";
   }
 
   return null;

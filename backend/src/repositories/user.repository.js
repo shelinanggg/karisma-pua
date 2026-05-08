@@ -26,6 +26,7 @@ export const findUserProfileById = async (idPengguna) => {
       pengguna.tmt_golongan,
       pengguna.pendidikan,
       pengguna.kualifikasi,
+      pengguna.target_ketercapaian,
       pengguna.tmt_kgb,
       pengguna.status_aktif,
       pengguna.tmt_jabatan,

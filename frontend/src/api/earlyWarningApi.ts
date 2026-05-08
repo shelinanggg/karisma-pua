@@ -16,7 +16,17 @@ export type PensionWarning = {
   daysLeft: number;
 };
 
+export type PromotionWarning = {
+  id: string;
+  name: string;
+  nip: string;
+  currentScore: number;
+  requiredScore: number;
+  remainingScore: number;
+};
+
 export type EarlyWarningData = {
+  jabatan: PromotionWarning[];
   kgb: KgbWarning[];
   pensiun: PensionWarning[];
 };

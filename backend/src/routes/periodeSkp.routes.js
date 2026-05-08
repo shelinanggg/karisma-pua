@@ -9,11 +9,11 @@ import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js"
 
 const router = express.Router();
 
-router.use(authenticate, authorizeRoles("admin"));
+router.use(authenticate);
 
 router.get("/", getPeriodeSkpList);
-router.post("/", postPeriodeSkp);
-router.patch("/:id", patchPeriodeSkp);
-router.delete("/:id", removePeriodeSkp);
+router.post("/", authorizeRoles("admin"), postPeriodeSkp);
+router.patch("/:id", authorizeRoles("admin"), patchPeriodeSkp);
+router.delete("/:id", authorizeRoles("admin"), removePeriodeSkp);
 
 export default router;

@@ -171,12 +171,101 @@ export const up = (pgm) => {
       CONSTRAINT penugasan_tambahan_status_check CHECK (status IN ('aktif', 'selesai', 'batal'))
     );
 
-    CREATE TABLE IF NOT EXISTS pengguna_penugasan_tambahan (
-      id_pengguna_penugasan_tambahan serial PRIMARY KEY,
-      id_pengguna integer NOT NULL REFERENCES pengguna(id_pengguna) ON DELETE CASCADE,
+    DO $$
+    BEGIN
+      IF to_regclass('public.pengguna_penugasan_tambahan') IS NOT NULL
+        AND to_regclass('public.penugasan_tambahan_pengguna') IS NULL THEN
+        ALTER TABLE pengguna_penugasan_tambahan RENAME TO penugasan_tambahan_pengguna;
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'penugasan_tambahan_pengguna'
+          AND column_name = 'id_pengguna_penugasan_tambahan'
+      ) AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'penugasan_tambahan_pengguna'
+          AND column_name = 'id_penugasan_tambahan_pengguna'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          RENAME COLUMN id_pengguna_penugasan_tambahan TO id_penugasan_tambahan_pengguna;
+      END IF;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS penugasan_tambahan_pengguna (
+      id_penugasan_tambahan_pengguna serial PRIMARY KEY,
       id_penugasan_tambahan integer NOT NULL REFERENCES penugasan_tambahan(id_penugasan_tambahan) ON DELETE CASCADE,
-      CONSTRAINT pengguna_penugasan_tambahan_unique UNIQUE (id_pengguna, id_penugasan_tambahan)
+      id_pengguna integer NOT NULL REFERENCES pengguna(id_pengguna) ON DELETE CASCADE,
+      created_at timestamp with time zone DEFAULT current_timestamp,
+      updated_at timestamp with time zone DEFAULT current_timestamp,
+      CONSTRAINT penugasan_tambahan_pengguna_unique UNIQUE (id_penugasan_tambahan, id_pengguna)
     );
+
+    ALTER TABLE penugasan_tambahan_pengguna
+      ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT current_timestamp,
+      ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT current_timestamp;
+
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'pengguna_penugasan_tambahan_pkey'
+      ) AND NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'penugasan_tambahan_pengguna_pkey'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          RENAME CONSTRAINT pengguna_penugasan_tambahan_pkey TO penugasan_tambahan_pengguna_pkey;
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'pengguna_penugasan_tambahan_unique'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          DROP CONSTRAINT pengguna_penugasan_tambahan_unique;
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'pengguna_penugasan_tambahan_id_pengguna_fkey'
+      ) AND NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'penugasan_tambahan_pengguna_id_pengguna_fkey'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          RENAME CONSTRAINT pengguna_penugasan_tambahan_id_pengguna_fkey TO penugasan_tambahan_pengguna_id_pengguna_fkey;
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'pengguna_penugasan_tambahan_id_penugasan_tambahan_fkey'
+      ) AND NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'penugasan_tambahan_pengguna_id_penugasan_tambahan_fkey'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          RENAME CONSTRAINT pengguna_penugasan_tambahan_id_penugasan_tambahan_fkey TO penugasan_tambahan_pengguna_id_penugasan_tambahan_fkey;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'penugasan_tambahan_pengguna_unique'
+      ) THEN
+        ALTER TABLE penugasan_tambahan_pengguna
+          ADD CONSTRAINT penugasan_tambahan_pengguna_unique UNIQUE (id_penugasan_tambahan, id_pengguna);
+      END IF;
+    END $$;
   `);
 };
 
@@ -186,6 +275,7 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
   pgm.sql(`
+    DROP TABLE IF EXISTS penugasan_tambahan_pengguna;
     DROP TABLE IF EXISTS pengguna_penugasan_tambahan;
 
     DROP TABLE IF EXISTS penugasan_tambahan;

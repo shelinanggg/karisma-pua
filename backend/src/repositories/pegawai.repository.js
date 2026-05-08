@@ -13,6 +13,7 @@ const mapPegawaiRow = (row) => ({
   tmt_golongan: row.tmt_golongan ?? "",
   pendidikan: row.pendidikan ?? "",
   kualifikasi: row.kualifikasi ?? "",
+  target_ketercapaian: row.target_ketercapaian ?? "",
   tmt_kgb: row.tmt_kgb ?? "",
   tmt_jabatan: row.tmt_jabatan ?? "",
   tmt_pensiun: row.tmt_pensiun ?? "",
@@ -35,6 +36,7 @@ const pegawaiSelect = `
     ${formatDateColumn("tmt_golongan")} AS tmt_golongan,
     pendidikan,
     kualifikasi,
+    target_ketercapaian,
     ${formatDateColumn("tmt_kgb")} AS tmt_kgb,
     ${formatDateColumn("tmt_jabatan")} AS tmt_jabatan,
     ${formatDateColumn("tmt_pensiun")} AS tmt_pensiun,
@@ -99,6 +101,7 @@ export const createPegawai = async (payload) => {
         tmt_golongan,
         pendidikan,
         kualifikasi,
+        target_ketercapaian,
         tmt_kgb,
         tmt_jabatan,
         tmt_pensiun,
@@ -110,7 +113,7 @@ export const createPegawai = async (payload) => {
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13, $14, $15, $16, $17, $18
+        $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
       )
       RETURNING id_pengguna
     `,
@@ -125,6 +128,7 @@ export const createPegawai = async (payload) => {
       payload.tmt_golongan,
       payload.pendidikan,
       payload.kualifikasi,
+      payload.target_ketercapaian,
       payload.tmt_kgb,
       payload.tmt_jabatan,
       payload.tmt_pensiun,
@@ -153,14 +157,15 @@ export const updatePegawai = async (id, payload) => {
         tmt_golongan = $8,
         pendidikan = $9,
         kualifikasi = $10,
-        tmt_kgb = $11,
-        tmt_jabatan = $12,
-        tmt_pensiun = $13,
-        id_jabatan = $14,
-        id_pangkat = $15,
-        id_golongan = $16,
-        id_penempatan = $17,
-        id_sertifikasi = $18
+        target_ketercapaian = $11,
+        tmt_kgb = $12,
+        tmt_jabatan = $13,
+        tmt_pensiun = $14,
+        id_jabatan = $15,
+        id_pangkat = $16,
+        id_golongan = $17,
+        id_penempatan = $18,
+        id_sertifikasi = $19
       WHERE id_pengguna = $1
       RETURNING id_pengguna
     `,
@@ -175,6 +180,7 @@ export const updatePegawai = async (id, payload) => {
       payload.tmt_golongan,
       payload.pendidikan,
       payload.kualifikasi,
+      payload.target_ketercapaian,
       payload.tmt_kgb,
       payload.tmt_jabatan,
       payload.tmt_pensiun,
@@ -236,8 +242,52 @@ const mapEarlyWarningRow = (row, dateField) => ({
   daysLeft: Number(row.days_left ?? 0),
 });
 
+const mapPromotionWarningRow = (row) => ({
+  id: String(row.id_pengguna),
+  name: row.nama ?? "",
+  nip: row.nip ?? "",
+  currentScore: Number(row.current_score ?? 0),
+  requiredScore: Number(row.required_score ?? 0),
+  remainingScore: Number(row.remaining_score ?? 0),
+});
+
 export const findPegawaiEarlyWarnings = async () => {
-  const [kgbResult, pensionResult] = await Promise.all([
+  const [promotionResult, kgbResult, pensionResult] = await Promise.all([
+    pool.query(`
+      WITH realisasi_pengguna AS (
+        SELECT
+          pengguna_kegiatan.id_pengguna,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                  THEN realisasi_kegiatan.realisasi_target::numeric
+                ELSE 0
+              END
+            ),
+            0
+          ) AS current_score
+        FROM pengguna_kegiatan
+        LEFT JOIN realisasi_kegiatan
+          ON realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+        GROUP BY pengguna_kegiatan.id_pengguna
+      )
+      SELECT
+        pengguna.id_pengguna,
+        pengguna.nama,
+        pengguna.nip,
+        COALESCE(realisasi_pengguna.current_score, 0) AS current_score,
+        pengguna.target_ketercapaian AS required_score,
+        pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) AS remaining_score
+      FROM pengguna
+      LEFT JOIN realisasi_pengguna
+        ON realisasi_pengguna.id_pengguna = pengguna.id_pengguna
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND pengguna.target_ketercapaian IS NOT NULL
+        AND pengguna.target_ketercapaian > 0
+        AND pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) BETWEEN 0 AND 100
+      ORDER BY remaining_score ASC, pengguna.nama ASC, pengguna.id_pengguna ASC
+    `),
     pool.query(`
       SELECT
         id_pengguna,
@@ -267,6 +317,7 @@ export const findPegawaiEarlyWarnings = async () => {
   ]);
 
   return {
+    jabatan: promotionResult.rows.map(mapPromotionWarningRow),
     kgb: kgbResult.rows.map((row) => mapEarlyWarningRow(row, "tmtKgb")),
     pensiun: pensionResult.rows.map((row) => mapEarlyWarningRow(row, "tmtPension")),
   };

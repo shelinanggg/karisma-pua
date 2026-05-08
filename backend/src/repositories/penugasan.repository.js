@@ -1,6 +1,36 @@
 import pool from "../config/db.js";
 
 const formatDateColumn = (column) => `to_char(${column}, 'YYYY-MM-DD')`;
+const additionalAssignmentRelationTables = [
+  "penugasan_tambahan_pengguna",
+  "pengguna_penugasan_tambahan",
+];
+let additionalAssignmentRelationTable = null;
+
+const getAdditionalAssignmentRelationTable = async (queryable = pool) => {
+  if (additionalAssignmentRelationTable) return additionalAssignmentRelationTable;
+
+  const result = await queryable.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1::text[])
+    `,
+    [additionalAssignmentRelationTables],
+  );
+
+  const existingTables = new Set(result.rows.map((row) => row.table_name));
+  additionalAssignmentRelationTable = additionalAssignmentRelationTables.find((tableName) =>
+    existingTables.has(tableName),
+  );
+
+  if (!additionalAssignmentRelationTable) {
+    throw new Error("Tabel relasi penugasan tambahan tidak ditemukan.");
+  }
+
+  return additionalAssignmentRelationTable;
+};
 
 const mapEmployeeRow = (row) => ({
   id: String(row.id_pengguna),
@@ -25,6 +55,24 @@ const mapButirAssignmentRow = (row) => ({
   status: row.status,
 });
 
+const mapMyButirAssignmentRow = (row) => ({
+  ...mapButirAssignmentRow(row),
+  tahun: Number(row.tahun),
+  tanggalMulai: row.tanggal_mulai ?? "",
+  tanggalSelesai: row.tanggal_selesai ?? "",
+  realisasiTotal: Number(row.realisasi_total ?? 0),
+  realisasiCount: Number(row.realisasi_count ?? 0),
+});
+
+const mapRealisasiRow = (row) => ({
+  id: String(row.id_realisasi_kegiatan),
+  idPenggunaKegiatan: String(row.id_pengguna_kegiatan),
+  namaKegiatan: row.nama_kegiatan ?? "",
+  tanggalRealisasi: row.tanggal_realisasi ?? "",
+  realisasiTarget: row.realisasi_target ?? "",
+  keterangan: row.keterangan ?? "",
+});
+
 const mapTambahanRow = (row) => {
   const assignedEmployees = Array.isArray(row.assigned_employees)
     ? row.assigned_employees.filter((employee) => employee?.id)
@@ -44,6 +92,17 @@ const mapTambahanRow = (row) => {
       nip: employee.nip ?? "",
     })),
   };
+};
+
+const mapDashboardProfileRow = (row) => ({
+  tmtKgb: row.tmt_kgb ?? "",
+  tmtPensiun: row.tmt_pensiun ?? "",
+  targetKetercapaian: row.target_ketercapaian ?? "",
+});
+
+const toNumeric = (value) => {
+  const parsed = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 export const findAssignableEmployees = async ({ idPeriodeSkp = null } = {}) => {
@@ -147,6 +206,106 @@ export const findButirAssignmentsByEmployee = async (idPengguna) => {
   return result.rows.map(mapButirAssignmentRow);
 };
 
+export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filters = {}) => {
+  const { idPeriodeSkp = null, tahun = null } = typeof filters === "object" && filters !== null ? filters : { tahun: filters };
+
+  const result = await pool.query(
+    `
+      SELECT
+        pengguna_kegiatan.id_pengguna_kegiatan,
+        pengguna_kegiatan.id_pengguna,
+        pengguna_kegiatan.id_butir_kegiatan,
+        pengguna_kegiatan.id_periode_skp,
+        butir_kegiatan.nama_kegiatan,
+        pengguna_kegiatan.uraian,
+        pengguna_kegiatan.deskripsi,
+        pengguna_kegiatan.target_ketercapaian,
+        pengguna_kegiatan.status,
+        periode_skp.tahun,
+        ${formatDateColumn("periode_skp.tanggal_mulai")} AS tanggal_mulai,
+        ${formatDateColumn("periode_skp.tanggal_selesai")} AS tanggal_selesai,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                THEN realisasi_kegiatan.realisasi_target::numeric
+              ELSE 0
+            END
+          ),
+          0
+        ) AS realisasi_total,
+        COUNT(realisasi_kegiatan.id_realisasi_kegiatan) AS realisasi_count
+      FROM pengguna_kegiatan
+      INNER JOIN butir_kegiatan
+        ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      LEFT JOIN realisasi_kegiatan
+        ON realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+      WHERE pengguna_kegiatan.id_pengguna = $1
+        AND (
+          ($2::integer IS NOT NULL AND pengguna_kegiatan.id_periode_skp = $2::integer)
+          OR ($2::integer IS NULL AND periode_skp.tahun = COALESCE($3::integer, EXTRACT(YEAR FROM CURRENT_DATE)::integer))
+        )
+      GROUP BY
+        pengguna_kegiatan.id_pengguna_kegiatan,
+        butir_kegiatan.nama_kegiatan,
+        periode_skp.tahun,
+        periode_skp.tanggal_mulai,
+        periode_skp.tanggal_selesai
+      ORDER BY pengguna_kegiatan.created_at DESC, pengguna_kegiatan.id_pengguna_kegiatan DESC
+    `,
+    [idPengguna, idPeriodeSkp, tahun],
+  );
+
+  return result.rows.map(mapMyButirAssignmentRow);
+};
+
+const findDashboardProfileByEmployee = async (idPengguna) => {
+  const result = await pool.query(
+    `
+      SELECT
+        ${formatDateColumn("tmt_kgb")} AS tmt_kgb,
+        ${formatDateColumn("tmt_pensiun")} AS tmt_pensiun,
+        target_ketercapaian
+      FROM pengguna
+      WHERE id_pengguna = $1
+      LIMIT 1
+    `,
+    [idPengguna],
+  );
+
+  return result.rows[0] ? mapDashboardProfileRow(result.rows[0]) : null;
+};
+
+export const findMyDashboardSummary = async (idPengguna, filters = {}) => {
+  const [kinerja, penugasanTambahan, profile] = await Promise.all([
+    findCurrentYearButirAssignmentsByEmployee(idPengguna, filters),
+    findAdditionalAssignmentsByEmployee(idPengguna),
+    findDashboardProfileByEmployee(idPengguna),
+  ]);
+
+  const realisasiTotal = kinerja.reduce((total, item) => total + toNumeric(item.realisasiTotal), 0);
+  const targetKetercapaian = toNumeric(profile?.targetKetercapaian);
+  const achievementPercentage =
+    targetKetercapaian > 0 ? Math.round((realisasiTotal / targetKetercapaian) * 1000) / 10 : null;
+
+  return {
+    summary: {
+      achievementPercentage,
+      realisasiTotal,
+      targetKetercapaian,
+      totalKegiatan: kinerja.length,
+    },
+    timeline: {
+      tmtKgb: profile?.tmtKgb ?? "",
+      tmtPensiun: profile?.tmtPensiun ?? "",
+    },
+    kinerja: kinerja.slice(0, 4),
+    penugasanTambahan: penugasanTambahan.slice(0, 4),
+  };
+};
+
 export const findButirAssignmentById = async (id) => {
   const result = await pool.query(
     `
@@ -160,22 +319,51 @@ export const findButirAssignmentById = async (id) => {
   return result.rows[0] ? mapButirAssignmentRow(result.rows[0]) : null;
 };
 
-export const updateButirAssignment = async ({ id, uraian, deskripsi }) => {
+export const updateButirAssignment = async ({ id, uraian, deskripsi, targetKetercapaian }) => {
   const result = await pool.query(
     `
       UPDATE pengguna_kegiatan
       SET
         uraian = $2,
         deskripsi = $3,
+        target_ketercapaian = COALESCE($4, target_ketercapaian),
         updated_at = current_timestamp
       WHERE id_pengguna_kegiatan = $1
       RETURNING id_pengguna_kegiatan
     `,
-    [id, uraian, deskripsi],
+    [id, uraian, deskripsi, targetKetercapaian],
   );
 
   if (!result.rows[0]) return null;
   return findButirAssignmentById(id);
+};
+
+export const updateOwnButirTarget = async ({
+  id,
+  idPengguna,
+  targetKetercapaian,
+  uraian,
+  deskripsi,
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE pengguna_kegiatan
+      SET
+        target_ketercapaian = $3,
+        uraian = $4,
+        deskripsi = $5,
+        updated_at = current_timestamp
+      WHERE id_pengguna_kegiatan = $1
+        AND id_pengguna = $2
+      RETURNING id_pengguna_kegiatan
+    `,
+    [id, idPengguna, targetKetercapaian, uraian, deskripsi],
+  );
+
+  if (!result.rows[0]) return null;
+
+  const assignments = await findCurrentYearButirAssignmentsByEmployee(idPengguna);
+  return assignments.find((assignment) => assignment.id === String(id)) ?? null;
 };
 
 export const deleteButirAssignment = async (id) => {
@@ -191,7 +379,70 @@ export const deleteButirAssignment = async (id) => {
   return Boolean(result.rows[0]);
 };
 
+export const findMyRealisasiKegiatan = async (idPengguna) => {
+  const result = await pool.query(
+    `
+      SELECT
+        realisasi_kegiatan.id_realisasi_kegiatan,
+        realisasi_kegiatan.id_pengguna_kegiatan,
+        butir_kegiatan.nama_kegiatan,
+        ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
+        realisasi_kegiatan.realisasi_target,
+        realisasi_kegiatan.keterangan
+      FROM realisasi_kegiatan
+      INNER JOIN pengguna_kegiatan
+        ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+      INNER JOIN butir_kegiatan
+        ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      WHERE pengguna_kegiatan.id_pengguna = $1
+        AND periode_skp.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::integer
+      ORDER BY realisasi_kegiatan.tanggal_realisasi DESC, realisasi_kegiatan.id_realisasi_kegiatan DESC
+    `,
+    [idPengguna],
+  );
+
+  return result.rows.map(mapRealisasiRow);
+};
+
+export const createMyRealisasiKegiatan = async ({
+  idPengguna,
+  idPenggunaKegiatan,
+  tanggalRealisasi,
+  realisasiTarget,
+  keterangan,
+}) => {
+  const result = await pool.query(
+    `
+      INSERT INTO realisasi_kegiatan (
+        id_pengguna_kegiatan,
+        tanggal_realisasi,
+        realisasi_target,
+        keterangan
+      )
+      SELECT $2, $3, $4, $5
+      FROM pengguna_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      WHERE pengguna_kegiatan.id_pengguna_kegiatan = $2
+        AND pengguna_kegiatan.id_pengguna = $1
+        AND periode_skp.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::integer
+        AND pengguna_kegiatan.target_ketercapaian IS NOT NULL
+        AND btrim(pengguna_kegiatan.target_ketercapaian) <> ''
+      RETURNING id_realisasi_kegiatan
+    `,
+    [idPengguna, idPenggunaKegiatan, tanggalRealisasi, realisasiTarget, keterangan],
+  );
+
+  if (!result.rows[0]) return null;
+
+  const items = await findMyRealisasiKegiatan(idPengguna);
+  return items.find((item) => item.id === String(result.rows[0].id_realisasi_kegiatan)) ?? null;
+};
+
 export const findAdditionalAssignments = async () => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
   const result = await pool.query(`
     SELECT
       penugasan_tambahan.id_penugasan_tambahan,
@@ -213,10 +464,10 @@ export const findAdditionalAssignments = async () => {
         '[]'::json
       ) AS assigned_employees
     FROM penugasan_tambahan
-    LEFT JOIN penugasan_tambahan_pengguna
-      ON penugasan_tambahan_pengguna.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+    LEFT JOIN ${relationTable}
+      ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
     LEFT JOIN pengguna
-      ON pengguna.id_pengguna = penugasan_tambahan_pengguna.id_pengguna
+      ON pengguna.id_pengguna = ${relationTable}.id_pengguna
     GROUP BY penugasan_tambahan.id_penugasan_tambahan
     ORDER BY penugasan_tambahan.created_at DESC, penugasan_tambahan.id_penugasan_tambahan DESC
   `);
@@ -224,7 +475,8 @@ export const findAdditionalAssignments = async () => {
   return result.rows.map(mapTambahanRow);
 };
 
-export const findAdditionalAssignmentById = async (id) => {
+export const findAdditionalAssignmentsByEmployee = async (idPengguna) => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
   const result = await pool.query(
     `
       SELECT
@@ -247,10 +499,54 @@ export const findAdditionalAssignmentById = async (id) => {
           '[]'::json
         ) AS assigned_employees
       FROM penugasan_tambahan
-      LEFT JOIN penugasan_tambahan_pengguna
-        ON penugasan_tambahan_pengguna.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+      LEFT JOIN ${relationTable}
+        ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
       LEFT JOIN pengguna
-        ON pengguna.id_pengguna = penugasan_tambahan_pengguna.id_pengguna
+        ON pengguna.id_pengguna = ${relationTable}.id_pengguna
+      WHERE penugasan_tambahan.id_pengguna = $1
+        OR EXISTS (
+          SELECT 1
+          FROM ${relationTable} ppt
+          WHERE ppt.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+            AND ppt.id_pengguna = $1
+        )
+      GROUP BY penugasan_tambahan.id_penugasan_tambahan
+      ORDER BY penugasan_tambahan.created_at DESC, penugasan_tambahan.id_penugasan_tambahan DESC
+    `,
+    [idPengguna],
+  );
+
+  return result.rows.map(mapTambahanRow);
+};
+
+export const findAdditionalAssignmentById = async (id) => {
+  const relationTable = await getAdditionalAssignmentRelationTable();
+  const result = await pool.query(
+    `
+      SELECT
+        penugasan_tambahan.id_penugasan_tambahan,
+        penugasan_tambahan.nama_kegiatan,
+        penugasan_tambahan.deskripsi,
+        penugasan_tambahan.status,
+        ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
+        ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
+        penugasan_tambahan.surat_tugas,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', pengguna.id_pengguna,
+              'nama', pengguna.nama,
+              'nip', pengguna.nip
+            )
+            ORDER BY pengguna.nama ASC
+          ) FILTER (WHERE pengguna.id_pengguna IS NOT NULL),
+          '[]'::json
+        ) AS assigned_employees
+      FROM penugasan_tambahan
+      LEFT JOIN ${relationTable}
+        ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
+      LEFT JOIN pengguna
+        ON pengguna.id_pengguna = ${relationTable}.id_pengguna
       WHERE penugasan_tambahan.id_penugasan_tambahan = $1
       GROUP BY penugasan_tambahan.id_penugasan_tambahan
       LIMIT 1
@@ -272,6 +568,7 @@ export const createAdditionalAssignment = async ({
 
   try {
     await client.query("BEGIN");
+    const relationTable = await getAdditionalAssignmentRelationTable(client);
 
     const result = await client.query(
       `
@@ -295,7 +592,7 @@ export const createAdditionalAssignment = async ({
     for (const idPengguna of assignedEmployeeIds) {
       await client.query(
         `
-          INSERT INTO penugasan_tambahan_pengguna (id_penugasan_tambahan, id_pengguna)
+          INSERT INTO ${relationTable} (id_penugasan_tambahan, id_pengguna)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
         `,
@@ -326,6 +623,7 @@ export const updateAdditionalAssignment = async ({
 
   try {
     await client.query("BEGIN");
+    const relationTable = await getAdditionalAssignmentRelationTable(client);
 
     const result = await client.query(
       `
@@ -350,7 +648,7 @@ export const updateAdditionalAssignment = async ({
 
     await client.query(
       `
-        DELETE FROM penugasan_tambahan_pengguna
+        DELETE FROM ${relationTable}
         WHERE id_penugasan_tambahan = $1
       `,
       [id],
@@ -359,7 +657,7 @@ export const updateAdditionalAssignment = async ({
     for (const idPengguna of assignedEmployeeIds) {
       await client.query(
         `
-          INSERT INTO penugasan_tambahan_pengguna (id_penugasan_tambahan, id_pengguna)
+          INSERT INTO ${relationTable} (id_penugasan_tambahan, id_pengguna)
           VALUES ($1, $2)
         `,
         [id, idPengguna],

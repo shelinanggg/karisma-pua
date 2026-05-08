@@ -32,9 +32,34 @@ export type PenugasanButir = {
   status: string;
 };
 
+export type MyPenugasanButir = PenugasanButir & {
+  tahun: number;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  realisasiTotal: number;
+  realisasiCount: number;
+};
+
 export type PenugasanButirUpdatePayload = {
   deskripsi?: string;
   uraian?: string;
+  targetKetercapaian?: string;
+};
+
+export type MyRealisasiKegiatan = {
+  id: string;
+  idPenggunaKegiatan: string;
+  namaKegiatan: string;
+  tanggalRealisasi: string;
+  realisasiTarget: string;
+  keterangan: string;
+};
+
+export type MyRealisasiKegiatanPayload = {
+  idPenggunaKegiatan: string;
+  tanggalRealisasi: string;
+  realisasiTarget: string;
+  keterangan: string;
 };
 
 export type PenugasanTambahanEmployee = {
@@ -62,6 +87,21 @@ export type PenugasanTambahanPayload = {
   tanggalSelesai: string;
 };
 
+export type MyDashboardSummary = {
+  summary: {
+    achievementPercentage: number | null;
+    realisasiTotal: number;
+    targetKetercapaian: number;
+    totalKegiatan: number;
+  };
+  timeline: {
+    tmtKgb: string;
+    tmtPensiun: string;
+  };
+  kinerja: MyPenugasanButir[];
+  penugasanTambahan: PenugasanTambahan[];
+};
+
 export async function getPenugasanEmployees(params?: { idPeriodeSkp?: string }) {
   const response = await axiosInstance.get<{ data: PenugasanEmployee[] }>("/penugasan/pegawai", { params });
   return response.data.data;
@@ -77,8 +117,23 @@ export async function getPenugasanButirByPegawai(pegawaiId: string) {
   return response.data.data;
 }
 
+export async function getMyPenugasanButir() {
+  const response = await axiosInstance.get<{ data: MyPenugasanButir[] }>("/penugasan/butir/saya");
+  return response.data.data;
+}
+
+export async function getMyDashboardSummary(params?: { idPeriodeSkp?: string; tahun?: number }) {
+  const response = await axiosInstance.get<{ data: MyDashboardSummary }>("/penugasan/dashboard/saya", { params });
+  return response.data.data;
+}
+
 export async function updatePenugasanButir(id: string, payload: PenugasanButirUpdatePayload) {
   const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/butir/${id}`, payload);
+  return response.data.data;
+}
+
+export async function updateMyPenugasanButirTarget(id: string, payload: PenugasanButirUpdatePayload) {
+  const response = await axiosInstance.patch<{ data: MyPenugasanButir }>(`/penugasan/butir/saya/${id}/target`, payload);
   return response.data.data;
 }
 
@@ -87,8 +142,23 @@ export async function deletePenugasanButir(id: string) {
   return response.data;
 }
 
+export async function getMyRealisasiKegiatan() {
+  const response = await axiosInstance.get<{ data: MyRealisasiKegiatan[] }>("/penugasan/realisasi/saya");
+  return response.data.data;
+}
+
+export async function createMyRealisasiKegiatan(payload: MyRealisasiKegiatanPayload) {
+  const response = await axiosInstance.post<{ data: MyRealisasiKegiatan }>("/penugasan/realisasi/saya", payload);
+  return response.data.data;
+}
+
 export async function getPenugasanTambahanList() {
   const response = await axiosInstance.get<{ data: PenugasanTambahan[] }>("/penugasan/tambahan");
+  return response.data.data;
+}
+
+export async function getMyPenugasanTambahanList() {
+  const response = await axiosInstance.get<{ data: PenugasanTambahan[] }>("/penugasan/tambahan/saya");
   return response.data.data;
 }
 

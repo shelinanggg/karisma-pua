@@ -1,344 +1,471 @@
-import { useState } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  CalendarCheck, 
-  BarChart3, 
-  ChevronDown, 
-  ClipboardList, 
+import { useEffect, useMemo, useState, type ElementType } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  BarChart3,
+  Calendar,
+  CalendarCheck,
+  CalendarClock,
+  ChevronDown,
+  ClipboardList,
+  Clock,
+  Download,
   FileText,
   Hourglass,
-  CalendarClock,
-  Calendar,
-  Clock,
-  Download // <-- Ditambahkan icon Download
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Progress } from '../ui/progress';
-import { Badge } from '../ui/badge';
-import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
-import { Workspace } from '../../types';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+import {
+  getMyDashboardSummary,
+  type MyDashboardSummary,
+  type MyPenugasanButir,
+  type PenugasanTambahan,
+} from '../../api/penugasanApi';
+import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Progress } from '../ui/progress';
+import { cn } from '../ui/utils';
 
 type KPIData = {
   label: string;
   value: string;
-  change?: string;
-  trend?: 'up' | 'down' | 'neutral';
-  changeIcon?: React.ElementType; 
-  icon: React.ElementType;
+  detail?: string;
+  icon: ElementType;
+  detailIcon?: ElementType;
   color: 'blue' | 'green' | 'amber' | 'purple';
+  disabled?: boolean;
 };
 
-// ── Mock KPI data ─────────────────────────────────────────────────────────────
-
-const mockSKPKPIs: KPIData[] = [
-  {
-    label: 'Ketercapaian',
-    value: '74.2%',
-    change: '-2.3% dari bulan lalu',
-    trend: 'down',
-    icon: BarChart3,
-    color: 'amber',
-  },
-  {
-    label: 'Jumlah Kegiatan',
-    value: '18',
-    change: '+3 dari bulan lalu',
-    trend: 'up',
-    icon: CalendarCheck,
-    color: 'purple',
-  },
-  {
-    label: 'KGB Berikutnya',
-    value: '8 Bln 12 Hari',
-    change: 'Estimasi: 1 Jan 2027',
-    trend: 'neutral',
-    changeIcon: Calendar, 
-    icon: CalendarClock,
-    color: 'green',
-  },
-  {
-    label: 'Perkiraan Pensiun',
-    value: '5 Thn 4 Bln',
-    change: 'TMT: 1 Okt 2031',
-    trend: 'neutral',
-    changeIcon: Clock, 
-    icon: Hourglass,
-    color: 'blue',
-  },
-];
-
-// ── Mock: Progress Kegiatan ───────────────────────────────────────────────────
-
-const mockKegiatan = [
-  {
-    id: 1,
-    namaKegiatan: 'Pengembangan Sistem Informasi Kepegawaian',
-    unitKerja: 'Bidang TI',
-    tujuanSKP: 8,
-    skpSelesai: 5,
-    status: 'disetujui' as const,
-  },
-  {
-    id: 2,
-    namaKegiatan: 'Penyusunan Laporan Evaluasi Kinerja Q1',
-    unitKerja: 'Bidang Evaluasi',
-    tujuanSKP: 5,
-    skpSelesai: 2,
-    status: 'menunggu' as const,
-  },
-  {
-    id: 3,
-    namaKegiatan: 'Pelatihan Kompetensi Digital ASN',
-    unitKerja: 'Bidang Diklat',
-    tujuanSKP: 10,
-    skpSelesai: 8,
-    status: 'disetujui' as const,
-  },
-  {
-    id: 4,
-    namaKegiatan: 'Pembaruan Regulasi Administrasi Umum',
-    unitKerja: 'Bidang Hukum',
-    tujuanSKP: 6,
-    skpSelesai: 6,
-    status: 'menunggu' as const,
-  },
-];
-
-// ── Mock: Penugasan Tambahan (Diperbarui) ─────────────────────────────────────
-
-const mockPenugasan = [
-  {
-    id: 1,
-    namaKegiatan: 'Rapat Koordinasi Nasional Kepegawaian',
-    namaDokumen: 'Surat_Tugas_Rakornas.pdf',
-    keterangan: 'Diterbitkan 2 jam lalu',
-  },
-  {
-    id: 2,
-    namaKegiatan: 'Pendampingan Audit Internal BPK',
-    namaDokumen: 'ST_Audit_Internal.pdf',
-    keterangan: 'Diterbitkan 1 hari lalu',
-  },
-  {
-    id: 3,
-    namaKegiatan: 'Pelatihan Kepemimpinan Tingkat II',
-    namaDokumen: 'Undangan_Diklat_Pim.pdf',
-    keterangan: 'Diterbitkan 3 April 2026',
-  },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const YEARS = [2025, 2024, 2023, 2022];
-
-const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> = {
-  blue:   { bg: 'bg-blue-50',   icon: 'text-blue-600',   border: 'border-blue-100' },
-  green:  { bg: 'bg-green-50',  icon: 'text-green-600',  border: 'border-green-100' },
-  amber:  { bg: 'bg-amber-50',  icon: 'text-amber-600',  border: 'border-amber-100' },
+const kpiColorMap: Record<KPIData['color'], { bg: string; icon: string; border: string }> = {
+  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-100' },
+  green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-100' },
+  amber: { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'border-amber-100' },
   purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
+function toNumber(value: string | number | null | undefined): number {
+  const parsed = Number(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function normalizeDate(iso: string): string {
+  return iso ? iso.slice(0, 10) : '';
+}
+
+function formatTanggal(iso: string): string {
+  const normalized = normalizeDate(iso);
+  if (!normalized) return '-';
+
+  const [year, month, day] = normalized.split('-');
+  const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${day} ${monthNames[Number(month)] ?? month} ${year}`;
+}
+
+function formatPeriodeLabel(periode: PeriodeSkp): string {
+  return String(periode.tahun);
+}
+
+function parseLocalDate(iso: string): Date | null {
+  const normalized = normalizeDate(iso);
+  if (!normalized) return null;
+
+  const [year, month, day] = normalized.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatRemainingDate(iso: string): { value: string; detail: string } {
+  const date = parseLocalDate(iso);
+  if (!date) return { value: '-', detail: 'Tanggal belum tersedia' };
+
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (date < start) {
+    return { value: 'Sudah lewat', detail: `TMT: ${formatTanggal(iso)}` };
+  }
+
+  let years = date.getFullYear() - start.getFullYear();
+  let months = date.getMonth() - start.getMonth();
+  let days = date.getDate() - start.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    days += new Date(date.getFullYear(), date.getMonth(), 0).getDate();
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const parts = [
+    years > 0 ? `${years} Thn` : '',
+    months > 0 ? `${months} Bln` : '',
+    days > 0 || (years === 0 && months === 0) ? `${days} Hari` : '',
+  ].filter(Boolean);
+
+  return { value: parts.join(' '), detail: `TMT: ${formatTanggal(iso)}` };
+}
+
+function getTarget(item: MyPenugasanButir): number {
+  return toNumber(item.targetKetercapaian);
+}
+
+function getProgressPercent(item: MyPenugasanButir): number {
+  const target = getTarget(item);
+  if (target <= 0) return 0;
+  return Math.min(100, Math.round((item.realisasiTotal / target) * 100));
+}
+
+function getKinerjaStatus(item: MyPenugasanButir): string {
+  const target = getTarget(item);
+  if (target <= 0) return 'Belum Ditetapkan';
+  if (item.realisasiTotal >= target) return 'Selesai';
+  if (item.realisasiTotal > 0) return 'Sedang Berjalan';
+  return 'Belum Ada Realisasi';
+}
+
+function getStatusBadgeClass(status: string): string {
+  const normalized = status.toLowerCase();
+  if (normalized === 'selesai' || normalized === 'disetujui') return 'bg-green-50 text-green-700 hover:bg-green-50';
+  if (normalized === 'sedang berjalan' || normalized === 'aktif') return 'bg-blue-50 text-blue-700 hover:bg-blue-50';
+  if (normalized === 'belum ditetapkan' || normalized === 'belum ada realisasi') return 'bg-gray-100 text-gray-700 hover:bg-gray-100';
+  return 'bg-amber-50 text-amber-700 hover:bg-amber-50';
+}
+
+function formatPeriodeTambahan(item: PenugasanTambahan): string {
+  const start = normalizeDate(item.tanggalMulai);
+  const end = normalizeDate(item.tanggalSelesai);
+  if (!start && !end) return '-';
+  if (start && (!end || start === end)) return formatTanggal(start);
+  return `${formatTanggal(start)} - ${formatTanggal(end)}`;
+}
+
+function KpiCard({ kpi }: { kpi: KPIData }) {
+  const colors = kpiColorMap[kpi.color];
+  const Icon = kpi.icon;
+  const DetailIcon = kpi.detailIcon;
+
+  return (
+    <Card
+      aria-disabled={kpi.disabled}
+      className={cn(
+        'border',
+        colors.border,
+        kpi.disabled && 'border-gray-200 bg-gray-50 text-gray-500 opacity-80',
+      )}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardDescription>{kpi.label}</CardDescription>
+          <div className={cn('flex size-8 items-center justify-center rounded-lg', kpi.disabled ? 'bg-gray-100' : colors.bg)}>
+            <Icon className={cn('size-4', kpi.disabled ? 'text-gray-400' : colors.icon)} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{kpi.value}</div>
+        {kpi.detail && (
+          <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            {DetailIcon && (
+              <DetailIcon
+                className="shrink-0 text-gray-400"
+                size={11}
+                strokeWidth={2.25}
+                style={{ width: 11, height: 11 }}
+              />
+            )}
+            <span>{kpi.detail}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function PegawaiOverview() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const navigate = useNavigate();
+  const [dashboard, setDashboard] = useState<MyDashboardSummary | null>(null);
+  const [periodeItems, setPeriodeItems] = useState<PeriodeSkp[]>([]);
+  const [selectedPeriodeId, setSelectedPeriodeId] = useState('');
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const selectedPeriode = periodeItems.find((periode) => String(periode.id) === selectedPeriodeId) ?? null;
 
-  if (selectedWorkspace) {
-    return <WorkspaceDashboard workspace={selectedWorkspace} onBack={() => setSelectedWorkspace(null)} />;
-  }
+  useEffect(() => {
+    let ignore = false;
+
+    const loadPeriode = async () => {
+      try {
+        const data = await getPeriodeSkpList();
+        if (ignore) return;
+
+        const currentYear = new Date().getFullYear();
+        const defaultPeriod = data.find((periode) => periode.tahun === currentYear) ?? data[0] ?? null;
+        setPeriodeItems(data);
+        setSelectedPeriodeId(defaultPeriod ? String(defaultPeriod.id) : '');
+      } catch {
+        if (!ignore) setError('Gagal memuat data periode SKP.');
+      }
+    };
+
+    loadPeriode();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadDashboard = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const data = await getMyDashboardSummary({ idPeriodeSkp: selectedPeriodeId });
+        if (!ignore) setDashboard(data);
+      } catch {
+        if (!ignore) setError('Gagal memuat data dashboard pegawai.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    if (selectedPeriodeId) {
+      loadDashboard();
+    } else {
+      setIsLoading(false);
+      setDashboard(null);
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPeriodeId]);
+
+  const kpis = useMemo<KPIData[]>(() => {
+    const kgb = formatRemainingDate(dashboard?.timeline.tmtKgb ?? '');
+    const pensiun = formatRemainingDate(dashboard?.timeline.tmtPensiun ?? '');
+
+    return [
+      {
+        label: 'Ketercapaian',
+        value: isLoading
+          ? '...'
+          : dashboard?.summary.achievementPercentage === null
+            ? '-'
+            : `${formatNumber(dashboard?.summary.achievementPercentage ?? 0)}%`,
+        detail:
+          isLoading
+            ? 'Memuat data'
+            : dashboard?.summary.targetKetercapaian
+            ? `${formatNumber(dashboard.summary.realisasiTotal)}/${formatNumber(dashboard.summary.targetKetercapaian)}`
+            : 'Target belum diisi',
+        icon: BarChart3,
+        color: 'amber',
+      },
+      {
+        label: 'Jumlah Kegiatan',
+        value: isLoading ? '...' : String(dashboard?.summary.totalKegiatan ?? 0),
+        detail: selectedPeriode ? `Butir SKP periode ${formatPeriodeLabel(selectedPeriode)}` : 'Periode belum tersedia',
+        icon: CalendarCheck,
+        color: 'purple',
+      },
+      {
+        label: 'KGB Berikutnya',
+        value: isLoading ? '...' : kgb.value,
+        detail: isLoading ? 'Memuat tanggal' : kgb.detail,
+        detailIcon: Calendar,
+        icon: CalendarClock,
+        color: 'green',
+      },
+      {
+        label: 'Perkiraan Pensiun',
+        value: isLoading ? '...' : pensiun.value,
+        detail: isLoading ? 'Memuat tanggal' : pensiun.detail,
+        detailIcon: Clock,
+        icon: Hourglass,
+        color: 'blue',
+      },
+    ];
+  }, [dashboard, isLoading, selectedPeriode]);
 
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1>Dashboard Capaian SKP</h1>
-          <p className="text-gray-600 mt-1">Pantau target dan realisasi kinerja pegawai periode berjalan.</p>
+          <p className="mt-1 text-gray-600">Pantau target dan realisasi kinerja pegawai periode berjalan.</p>
         </div>
         <div className="relative">
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => setShowYearDropdown((v) => !v)}
+            onClick={() => setShowYearDropdown((value) => !value)}
           >
-            {selectedYear}
+            {selectedPeriode ? formatPeriodeLabel(selectedPeriode) : 'Periode'}
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </Button>
           {showYearDropdown && (
             <div className="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-              {YEARS.map((year) => (
+              {periodeItems.length > 0 ? periodeItems.map((periode) => (
                 <button
-                  key={year}
+                  key={periode.id}
                   className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                    year === selectedYear ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-700'
+                    String(periode.id) === selectedPeriodeId ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-700'
                   }`}
-                  onClick={() => { setSelectedYear(year); setShowYearDropdown(false); }}
+                  onClick={() => {
+                    setSelectedPeriodeId(String(periode.id));
+                    setShowYearDropdown(false);
+                  }}
+                  type="button"
                 >
-                  {year}
+                  {formatPeriodeLabel(periode)}
                 </button>
-              ))}
+              )) : (
+                <div className="px-4 py-2 text-sm text-gray-500">Tidak ada periode</div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockSKPKPIs.map((kpi, index) => {
-          const colors = kpiColorMap[kpi.color];
-          const Icon = kpi.icon;
-          return (
-            <Card key={index} className={`border ${colors.border}`}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardDescription>{kpi.label}</CardDescription>
-                  <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
-                    <Icon className={`w-4 h-4 ${colors.icon}`} />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{kpi.value}</div>
-                {kpi.change && kpi.trend && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {kpi.trend === 'up' && <TrendingUp className="w-4 h-4 text-green-600" />}
-                    {kpi.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-600" />}
-                    
-                    {/* Menggunakan custom icon jika trend-nya neutral dan ukurannya w-3 h-3 (lebih kecil) */}
-                    {kpi.trend === 'neutral' && kpi.changeIcon && (
-                      <kpi.changeIcon className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
-                    )}
-                    
-                    <span 
-                      className={`text-xs ${
-                        kpi.trend === 'up' ? 'text-green-600' : 
-                        kpi.trend === 'down' ? 'text-red-600' : 
-                        'text-gray-500 font-medium'
-                      }`}
-                    >
-                      {kpi.change}
-                    </span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+      {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <KpiCard key={kpi.label} kpi={kpi} />
+        ))}
       </div>
 
-      {/* ── Bottom Section: Progress Kinerja + Penugasan Tambahan ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Progress Kinerja */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-gray-700" />
+                <ClipboardList className="size-5 text-gray-700" />
                 <CardTitle className="text-base">Realisasi Kinerja</CardTitle>
               </div>
-              <Button variant="link" className="text-xs p-0 h-auto">Lihat Semua →</Button>
+              <Button variant="link" className="h-auto p-0 text-xs" onClick={() => navigate('/pegawai/projects')}>
+                Lihat Semua
+              </Button>
             </div>
             <CardDescription>Capaian SKP periode berjalan</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockKegiatan.map((kegiatan) => {
-              const pct = Math.round((kegiatan.skpSelesai / kegiatan.tujuanSKP) * 100);
-              const isDisetujui = kegiatan.status === 'disetujui';
-              return (
-                <div key={kegiatan.id} className="rounded-lg border border-gray-100 bg-gray-50/50 p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">{kegiatan.namaKegiatan}</p>
+            {isLoading ? (
+              <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-4 text-sm text-gray-500">
+                Memuat realisasi kinerja...
+              </div>
+            ) : dashboard?.kinerja.length ? (
+              dashboard.kinerja.map((item) => {
+                const pct = getProgressPercent(item);
+                const status = getKinerjaStatus(item);
+                const target = getTarget(item);
+
+                return (
+                  <div key={item.id} className="space-y-3 rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold leading-tight text-gray-900">{item.namaKegiatan}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</p>
+                      </div>
+                      <Badge className={cn('shrink-0 rounded-full px-2 py-0.5 text-xs font-medium', getStatusBadgeClass(status))}>
+                        {status}
+                      </Badge>
                     </div>
-                    <Badge
-                      className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-                        isDisetujui
-                          ? 'bg-gray-900 text-white hover:bg-gray-800'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {isDisetujui ? 'Disetujui' : 'Menunggu Persetujuan'}
-                    </Badge>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-gray-500">SKP Diselesaikan</span>
-                      <span className="font-semibold text-gray-700">
-                        {kegiatan.skpSelesai}
-                        <span className="font-normal text-gray-400">/{kegiatan.tujuanSKP}</span>
-                      </span>
+                    <div>
+                      <div className="mb-1.5 flex justify-between text-xs">
+                        <span className="text-gray-500">Realisasi</span>
+                        <span className="font-semibold text-gray-700">
+                          {formatNumber(item.realisasiTotal)}
+                          <span className="font-normal text-gray-400">/{target > 0 ? formatNumber(target) : '-'}</span>
+                        </span>
+                      </div>
+                      <Progress value={pct} className="h-2" />
+                      <p className={cn('mt-1 text-xs font-medium', pct >= 100 ? 'text-green-600' : pct >= 60 ? 'text-blue-600' : 'text-amber-500')}>
+                        {pct}% tercapai
+                      </p>
                     </div>
-                    <Progress value={pct} className="h-2" />
-                    <p className={`text-xs mt-1 font-medium ${
-                      pct === 100 ? 'text-green-600' : pct >= 60 ? 'text-blue-600' : 'text-amber-500'
-                    }`}>
-                      {pct}% tercapai
-                    </p>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-4 text-sm text-gray-500">
+                Belum ada butir kegiatan pada periode tahun berjalan.
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Penugasan Tambahan (Diperbarui) */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-gray-700" />
+                <FileText className="size-5 text-gray-700" />
                 <CardTitle className="text-base">Penugasan Tambahan</CardTitle>
               </div>
-              <Button variant="link" className="text-xs p-0 h-auto">Lihat Semua →</Button>
+              <Button variant="link" className="h-auto p-0 text-xs" onClick={() => navigate('/pegawai/organization')}>
+                Lihat Semua
+              </Button>
             </div>
             <CardDescription>Daftar kegiatan penugasan tambahan</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockPenugasan.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 p-4 hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  {/* Icon Dokumen */}
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                  </div>
-                  
-                  {/* Info Kegiatan */}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 leading-tight truncate">
-                      {item.namaKegiatan}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                      <span className="truncate max-w-[120px] lg:max-w-[150px]">{item.namaDokumen}</span>
-                      <span>•</span>
-                      <span>{item.keterangan}</span>
+            {isLoading ? (
+              <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-4 text-sm text-gray-500">
+                Memuat penugasan tambahan...
+              </div>
+            ) : dashboard?.penugasanTambahan.length ? (
+              dashboard.penugasanTambahan.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 p-4 transition-colors hover:bg-gray-100"
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                      <FileText className="size-5 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold leading-tight text-gray-900">{item.namaKegiatan}</p>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        <span className="truncate">{item.suratTugas || 'Belum ada surat tugas'}</span>
+                        <span>-</span>
+                        <span className="shrink-0">{formatPeriodeTambahan(item)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Tombol Unduh */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="flex-shrink-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 ml-2"
-                  title="Unduh Dokumen"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
+                  {item.suratTugas ? (
+                    <a
+                      href={`/surat-tugas/${item.suratTugas}`}
+                      download={item.suratTugas}
+                      title={`Unduh ${item.suratTugas}`}
+                      className="ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-blue-50 hover:text-blue-600"
+                    >
+                      <Download className="size-4" />
+                    </a>
+                  ) : (
+                    <Button variant="ghost" size="icon" className="ml-2 size-8 shrink-0 text-gray-300" disabled title="Surat tugas belum tersedia">
+                      <Download className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg border border-gray-100 bg-gray-50/70 p-4 text-sm text-gray-500">
+                Belum ada penugasan tambahan.
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
-
       </div>
     </div>
   );
