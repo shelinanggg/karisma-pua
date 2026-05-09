@@ -20,6 +20,7 @@ import { cn } from '../ui/utils';
 
 type Option = { id: string; label: string };
 type AssignmentStatus = 'Belum Ditetapkan' | 'Belum Ada Realisasi' | 'Sedang Berjalan' | 'Selesai' | 'Terlambat';
+type RealisasiStatus = MyRealisasiKegiatan['status'];
 
 const pageSizeOptions = [5, 10, 20];
 
@@ -251,6 +252,24 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
   return (
     <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
       {status}
+    </span>
+  );
+}
+
+function RealisasiStatusBadge({ status }: { status: RealisasiStatus }) {
+  const styleMap: Record<RealisasiStatus, string> = {
+    diajukan: 'bg-amber-50 text-amber-700',
+    disetujui: 'bg-green-50 text-green-700',
+  };
+
+  const labelMap: Record<RealisasiStatus, string> = {
+    diajukan: 'Diajukan',
+    disetujui: 'Disetujui',
+  };
+
+  return (
+    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
+      {labelMap[status]}
     </span>
   );
 }
@@ -698,7 +717,7 @@ function RealisasiTab({
     const query = search.trim().toLowerCase();
     if (!query) return history;
     return history.filter((item) =>
-      [item.namaKegiatan, item.keterangan, item.realisasiTarget, item.tanggalRealisasi]
+      [item.namaKegiatan, item.keterangan, item.realisasiTarget, item.tanggalRealisasi, item.status]
         .join(' ')
         .toLowerCase()
         .includes(query),
@@ -810,7 +829,7 @@ function RealisasiTab({
                   setSearch(event.target.value);
                   setPage(1);
                 }}
-                placeholder="Cari kegiatan, tanggal..."
+                placeholder="Cari kegiatan, tanggal, status..."
                 className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
               />
             </div>
@@ -819,13 +838,14 @@ function RealisasiTab({
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] border-collapse text-sm">
+              <table className="w-full min-w-[940px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="w-[14%] px-6 py-3">Tanggal</th>
-                    <th className="w-[34%] px-6 py-3">Kegiatan</th>
-                    <th className="w-[14%] px-6 py-3">Realisasi</th>
-                    <th className="w-[38%] px-6 py-3">Keterangan</th>
+                    <th className="w-[13%] px-6 py-3">Tanggal</th>
+                    <th className="w-[30%] px-6 py-3">Kegiatan</th>
+                    <th className="w-[13%] px-6 py-3">Realisasi</th>
+                    <th className="w-[14%] px-6 py-3">Status</th>
+                    <th className="w-[30%] px-6 py-3">Keterangan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -839,12 +859,15 @@ function RealisasiTab({
                         <td className="whitespace-nowrap px-6 py-4 pr-6 font-medium text-gray-700">
                           {item.realisasiTarget}
                         </td>
+                        <td className="px-6 py-4 pr-6">
+                          <RealisasiStatusBadge status={item.status} />
+                        </td>
                         <td className="px-6 py-4 text-gray-700">{item.keterangan || '-'}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
                         Belum ada riwayat realisasi.
                       </td>
                     </tr>

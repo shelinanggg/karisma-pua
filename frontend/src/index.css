@@ -3054,3 +3054,48 @@ html {
   cursor: not-allowed;
   opacity: 1;
 }
+
+.dashboard-kpi-icon {
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  border-radius: 0.5rem;
+}
+
+.dashboard-kpi-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.dashboard-kpi-icon-blue {
+  background-color: #eff6ff;
+  border-color: #dbeafe;
+  color: #2563eb;
+}
+
+.dashboard-kpi-icon-green {
+  background-color: #f0fdf4;
+  border-color: #dcfce7;
+  color: #16a34a;
+}
+
+.dashboard-kpi-icon-amber {
+  background-color: #fffbeb;
+  border-color: #fef3c7;
+  color: #d97706;
+}
+
+.dashboard-kpi-icon-purple {
+  background-color: #faf5ff;
+  border-color: #f3e8ff;
+  color: #9333ea;
+}
+
+.dashboard-kpi-icon-disabled {
+  background-color: #f3f4f6;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}

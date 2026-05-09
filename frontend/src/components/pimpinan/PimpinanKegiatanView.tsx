@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Search } from 'lucide-react';
-import { mockDeliverables, mockProjects, mockTasks } from '../../data/mockData';
+import {
+  getPimpinanKegiatanDashboard,
+  type PimpinanKegiatanItem,
+} from '../../api/penugasanApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Progress } from '../ui/progress';
@@ -35,37 +38,85 @@ function getAdaptivePages(currentPage: number, totalPages: number): number[] {
   ).sort((a, b) => a - b);
 }
 
+function formatDateId(date: string) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('id-ID');
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value || 0);
+}
+
 export function PimpinanKegiatanView() {
+  const [projects, setProjects] = useState<PimpinanKegiatanItem[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [monthFilter, setMonthFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
-  const [selectedProjectId, setSelectedProjectId] = useState(mockProjects[0]?.id ?? '');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [isDetailExpanded, setIsDetailExpanded] = useState(true);
 
-  const availableYears = useMemo(() => {
-    return Array.from(new Set(mockProjects.map((project) => new Date(project.deadline).getFullYear().toString())))
-      .sort((a, b) => Number(b) - Number(a));
-  }, []);
+  useEffect(() => {
+    let ignore = false;
+
+    const loadKegiatan = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      const currentYear = new Date().getFullYear();
+      const params: { tahun?: number; bulan?: number } = {};
+
+      if (yearFilter !== 'all') {
+        params.tahun = Number(yearFilter);
+      } else if (monthFilter !== 'all') {
+        params.tahun = currentYear;
+      }
+
+      if (monthFilter !== 'all') {
+        params.bulan = Number(monthFilter) + 1;
+      }
+
+      try {
+        const data = await getPimpinanKegiatanDashboard(params);
+        if (!ignore) {
+          setProjects(data.items);
+          setAvailableYears(data.years);
+          setSelectedProjectId((current) => {
+            if (data.items.some((item) => item.id === current)) return current;
+            return data.items[0]?.id ?? '';
+          });
+        }
+      } catch (error: any) {
+        if (!ignore) {
+          setProjects([]);
+          setSelectedProjectId('');
+          setErrorMessage(error.response?.data?.message || 'Gagal mengambil data kegiatan.');
+        }
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadKegiatan();
+
+    return () => {
+      ignore = true;
+    };
+  }, [yearFilter, monthFilter]);
 
   const filteredProjects = useMemo(() => {
-    return mockProjects.filter((project) => {
-      const projectDate = new Date(project.deadline);
-      const projectYear = projectDate.getFullYear().toString();
-      const projectMonth = projectDate.getMonth().toString();
+    const q = search.trim().toLowerCase();
+    if (!q) return projects;
 
-      const matchesYear = yearFilter === 'all' || projectYear === yearFilter;
-      const matchesMonth = monthFilter === 'all' || projectMonth === monthFilter;
-      const q = search.trim().toLowerCase();
-      const matchesSearch =
-        q.length === 0 ||
-        project.name.toLowerCase().includes(q) ||
-        project.client.toLowerCase().includes(q) ||
-        project.workspace.toLowerCase().includes(q);
-      return matchesYear && matchesMonth && matchesSearch;
+    return projects.filter((project) => {
+      const employeeNames = project.assignedTeam.map((employee) => employee.nama).join(' ');
+      return [project.name, project.objectives, employeeNames].join(' ').toLowerCase().includes(q);
     });
-  }, [search, yearFilter, monthFilter]);
+  }, [projects, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -83,26 +134,16 @@ export function PimpinanKegiatanView() {
       rows.find((project) => project.id === selectedProjectId) ||
       filteredProjects.find((project) => project.id === selectedProjectId) ||
       rows[0] ||
-      filteredProjects[0] ||
-      mockProjects[0],
+      filteredProjects[0],
     [rows, filteredProjects, selectedProjectId],
   );
 
-  const selectedProjectDeliverables = useMemo(
-    () => mockDeliverables.filter((item) => item.projectId === selectedProject.id),
-    [selectedProject.id],
-  );
-
-  const selectedProjectTasks = useMemo(
-    () => mockTasks.filter((task) => task.projectId === selectedProject.id),
-    [selectedProject.id],
-  );
-
-  const selectedPercent = selectedProject.progress;
-  const selectedDeadline = new Date(selectedProject.deadline).toLocaleDateString('id-ID');
-  const selectedDaysRemaining = Math.ceil(
-    (new Date(selectedProject.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const selectedProjectDeliverables = selectedProject?.documents ?? [];
+  const selectedPercent = selectedProject?.progress ?? 0;
+  const selectedDeadline = formatDateId(selectedProject?.deadline ?? '');
+  const selectedDaysRemaining = selectedProject?.deadline
+    ? Math.ceil((new Date(selectedProject.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   return (
     <Card className="h-[calc(100vh-9.5rem)] flex flex-col">
@@ -135,7 +176,7 @@ export function PimpinanKegiatanView() {
               <SelectContent>
                 <SelectItem value="all">Semua Tahun</SelectItem>
                 {availableYears.map((year) => (
-                  <SelectItem key={year} value={year}>
+                  <SelectItem key={year} value={String(year)}>
                     {year}
                   </SelectItem>
                 ))}
@@ -178,10 +219,22 @@ export function PimpinanKegiatanView() {
                 </TableRow>
               </TableHeader>
             <TableBody>
-              {rows.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="py-8 text-center text-gray-500">
+                    Memuat data kegiatan...
+                  </TableCell>
+                </TableRow>
+              ) : errorMessage ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="py-8 text-center text-red-600">
+                    {errorMessage}
+                  </TableCell>
+                </TableRow>
+              ) : rows.length > 0 ? (
                 rows.map((project) => {
                   const progressPercent = project.progress;
-                  const isSelected = selectedProject.id === project.id;
+                  const isSelected = selectedProject?.id === project.id;
 
                   return (
                     <TableRow
@@ -213,42 +266,53 @@ export function PimpinanKegiatanView() {
           </Table>
         </div>
 
-        <div className="mt-3 flex flex-col gap-3 text-sm text-gray-600 lg:flex-row lg:items-center lg:justify-between">
-          <p>
+        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+          <p className="text-xs text-muted-foreground">
             Menampilkan {startItem}-{endItem} dari {filteredProjects.length} kegiatan
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>
-                  {size} / halaman
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
+              <span className="text-xs text-muted-foreground">Tampilkan</span>
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(1);
+                }}
+                className="text-xs font-medium outline-none"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="button"
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition disabled:opacity-40"
             >
               Sebelumnya
             </button>
             {visiblePages.map((pageNumber, idx) => (
               <div key={pageNumber} className="flex items-center gap-2">
-                {idx > 0 && pageNumber - visiblePages[idx - 1] > 1 && <span className="px-1 text-gray-400">...</span>}
+                {idx > 0 && pageNumber - visiblePages[idx - 1] > 1 && (
+                  <span className="px-1 text-xs text-muted-foreground">...</span>
+                )}
                 <button
                   type="button"
                   onClick={() => setPage(pageNumber)}
-                  className={`h-9 min-w-9 rounded border px-3 ${
-                    pageNumber === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'
-                  }`}
+                  className="rounded-lg border py-1 text-xs font-medium transition"
+                  style={{
+                    minWidth: '2rem',
+                    paddingLeft: '0.1rem',
+                    paddingRight: '0.1rem',
+                    ...(pageNumber === currentPage
+                      ? { background: 'var(--primary)', color: 'var(--primary-foreground)', borderColor: 'var(--primary)' }
+                      : { background: 'var(--card)', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }),
+                  }}
                 >
                   {pageNumber}
                 </button>
@@ -257,8 +321,8 @@ export function PimpinanKegiatanView() {
             <button
               type="button"
               onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition disabled:opacity-40"
             >
               Berikutnya
             </button>
@@ -318,7 +382,7 @@ export function PimpinanKegiatanView() {
                         <CardTitle>Butir Kegiatan</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-gray-700">{selectedProject.objectives || '—'}</p>
+                        <p className="text-gray-700">{selectedProject.objectives || '-'}</p>
                       </CardContent>
                     </Card>
 
@@ -334,7 +398,11 @@ export function PimpinanKegiatanView() {
                         <div className="rounded-lg border p-3">
                           <p className="text-xs text-gray-500">Sisa Waktu</p>
                           <p className="text-lg font-semibold">
-                            {selectedDaysRemaining >= 0 ? `${selectedDaysRemaining} hari` : `Lewat ${Math.abs(selectedDaysRemaining)} hari`}
+                            {selectedDaysRemaining === null
+                              ? '-'
+                              : selectedDaysRemaining >= 0
+                                ? `${selectedDaysRemaining} hari`
+                                : `Lewat ${Math.abs(selectedDaysRemaining)} hari`}
                           </p>
                         </div>
                       </CardContent>
@@ -369,14 +437,14 @@ export function PimpinanKegiatanView() {
                                 </TableCell>
                                 <TableCell>{item.type}</TableCell>
                                 <TableCell>{item.uploadedBy}</TableCell>
-                                <TableCell>{new Date(item.uploadedDate).toLocaleDateString('id-ID')}</TableCell>
+                                <TableCell>{formatDateId(item.uploadedDate)}</TableCell>
                                 <TableCell>{item.size}</TableCell>
                               </TableRow>
                             ))
                           ) : (
                             <TableRow>
                               <TableCell colSpan={5} className="py-8 text-center text-gray-500">
-                                Belum ada dokumen untuk kegiatan ini
+                                Tidak ada dokumen
                               </TableCell>
                             </TableRow>
                           )}
@@ -396,17 +464,13 @@ export function PimpinanKegiatanView() {
                       <div className="space-y-3">
                         {selectedProject.assignedTeam.length > 0 ? (
                           selectedProject.assignedTeam.map((member) => {
-                            const memberTasks = selectedProjectTasks.filter((task) => task.assignedTo === member);
-                            const completedCount = memberTasks.filter((task) => task.status === 'Completed').length;
-                            const totalCount = memberTasks.length;
-                            const progressPercent =
-                              totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+                            const progressPercent = member.progress;
 
                             return (
-                              <div key={member} className="rounded-lg border p-3 space-y-2">
+                              <div key={member.id} className="rounded-lg border p-3 space-y-2">
                                 <div className="flex items-center justify-between gap-3">
                                   <div>
-                                    <p className="font-medium">{member}</p>
+                                    <p className="font-medium">{member.nama}</p>
                                     <p className="text-sm text-gray-500">Pegawai</p>
                                   </div>
                                   <span className="text-sm font-semibold text-gray-700">{progressPercent}%</span>
@@ -415,7 +479,7 @@ export function PimpinanKegiatanView() {
                                 <div className="space-y-1">
                                   <Progress value={progressPercent} className="h-2" />
                                   <p className="text-xs text-gray-500">
-                                    {completedCount} dari {totalCount} tugas selesai
+                                    {formatNumber(member.approvedTotal)} dari {formatNumber(member.targetTotal)} target dipenuhi
                                   </p>
                                 </div>
                               </div>

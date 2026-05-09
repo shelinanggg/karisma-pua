@@ -1,387 +1,381 @@
-import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
+
+import {
+  approveRealisasiKegiatan,
+  getApprovalRealisasiByEmployee,
+  getApprovalRealisasiEmployees,
+  type ApprovalRealisasiEmployee,
+  type ApprovalRealisasiItem,
+} from '../../api/penugasanApi';
 import { Button } from '../ui/button';
 
-// ─── TYPES ─────────────────────
+type ApprovalStatus = ApprovalRealisasiItem['status'];
 
-type StatusKegiatan = 'pending' | 'in-progress' | 'completed' | 'rejected';
+const statusLabelMap: Record<ApprovalStatus, string> = {
+  diajukan: 'Belum Disetujui',
+  disetujui: 'Disetujui',
+};
 
-interface Kegiatan {
-  id: number;
-  butir: string;
-  uraian: string;
-  status: StatusKegiatan;
-  progress: number;
-  bukti?: string;
+const statusClassMap: Record<ApprovalStatus, string> = {
+  diajukan: 'bg-amber-50 text-amber-700',
+  disetujui: 'bg-green-50 text-green-700',
+};
+
+function formatTanggal(iso: string) {
+  if (!iso) return '-';
+  const [year, month, day] = iso.slice(0, 10).split('-');
+  const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${day} ${monthNames[Number(month)] ?? month} ${year}`;
 }
 
-interface Pegawai {
-  id: number;
-  nama: string;
-  nip: string;
-  kegiatan: Kegiatan[];
+function formatNumber(value: number | string) {
+  const parsed = Number(String(value ?? '').replace(',', '.'));
+  if (!Number.isFinite(parsed)) return String(value || '-');
+  return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2).replace(/\.?0+$/, '');
 }
 
-// ─── DATA KEGIATAN SKP ─────────────────
-
-const DATA: Pegawai[] = [
-  {
-    id: 1,
-    nama: 'Dr. Siti Rahayu',
-    nip: '19850101',
-    kegiatan: [
-      {
-        id: 1,
-        butir: 'Perencanaan Program Kerja Triwulan',
-        uraian: 'Menyusun rencana kerja triwulan unit kepegawaian beserta indikator output, timeline pelaksanaan, dan penanggung jawab kegiatan.',
-        status: 'completed',
-        progress: 100,
-        bukti: 'Dokumen RKT Triwulan I-2026',
-      },
-      {
-        id: 2,
-        butir: 'Penyusunan Laporan Capaian Kinerja Bulanan',
-        uraian: 'Mengompilasi realisasi target bulanan, analisis deviasi capaian, serta rekomendasi tindak lanjut per unit kerja.',
-        status: 'pending',
-        progress: 85,
-        bukti: 'Draft Laporan Capaian April 2026',
-      },
-      {
-        id: 3,
-        butir: 'Monitoring Disiplin Kehadiran Pegawai',
-        uraian: 'Melakukan verifikasi rekap absensi, keterlambatan, dan kepatuhan jam kerja untuk bahan evaluasi pimpinan.',
-        status: 'in-progress',
-        progress: 70,
-        bukti: 'Rekap Kehadiran Semester I',
-      },
-      {
-        id: 4,
-        butir: 'Validasi Data Usulan Kenaikan Pangkat',
-        uraian: 'Memeriksa kelengkapan administrasi usulan kenaikan pangkat pegawai sesuai ketentuan periode berjalan.',
-        status: 'pending',
-        progress: 90,
-        bukti: 'Checklist Berkas Kenaikan Pangkat',
-      },
-      {
-        id: 5,
-        butir: 'Pendampingan Penyusunan SKP Pegawai Baru',
-        uraian: 'Memberikan bimbingan teknis penyusunan sasaran kinerja pegawai baru agar selaras dengan target unit.',
-        status: 'completed',
-        progress: 100,
-        bukti: 'Berita Acara Bimtek SKP',
-      },
-      {
-        id: 6,
-        butir: 'Evaluasi Kebutuhan Pelatihan Kompetensi',
-        uraian: 'Mengidentifikasi gap kompetensi jabatan dan menyusun prioritas pelatihan berbasis hasil evaluasi kinerja.',
-        status: 'pending',
-        progress: 75,
-        bukti: 'Matriks Gap Kompetensi',
-      },
-      {
-        id: 7,
-        butir: 'Pemutakhiran Data Kepegawaian SIMPEG',
-        uraian: 'Memperbarui data riwayat jabatan, pendidikan, dan penugasan tambahan pada sistem informasi kepegawaian.',
-        status: 'in-progress',
-        progress: 65,
-        bukti: 'Log Pembaruan Data SIMPEG',
-      },
-      {
-        id: 8,
-        butir: 'Penyusunan Notulensi Rapat Evaluasi SDM',
-        uraian: 'Menyusun notulensi rapat evaluasi SDM, termasuk daftar keputusan, risiko, dan rencana aksi tindak lanjut.',
-        status: 'completed',
-        progress: 100,
-        bukti: 'Notulensi Rapat SDM 22 April 2026',
-      },
-      {
-        id: 9,
-        butir: 'Verifikasi Bukti Dukung Capaian SKP',
-        uraian: 'Menelaah validitas dokumen bukti dukung capaian SKP agar memenuhi standar audit internal.',
-        status: 'pending',
-        progress: 80,
-        bukti: 'Daftar Verifikasi Bukti SKP',
-      },
-      {
-        id: 10,
-        butir: 'Penyusunan Rekomendasi Pembinaan Kinerja',
-        uraian: 'Menyusun rekomendasi pembinaan untuk pegawai dengan capaian di bawah target berdasarkan hasil monitoring triwulan.',
-        status: 'pending',
-        progress: 78,
-        bukti: 'Draft Rekomendasi Pembinaan',
-      },
-    ],
-  },
-  {
-    id: 2,
-    nama: 'Dewi Permatasari',
-    nip: '19880808',
-    kegiatan: [
-      {
-        id: 11,
-        butir: 'Koordinasi Penetapan Target Kinerja Unit',
-        uraian: 'Memfasilitasi penyelarasan target kinerja antar subbagian agar selaras dengan target kinerja organisasi.',
-        status: 'pending',
-        progress: 88,
-        bukti: 'Notulen Koordinasi Target Kinerja',
-      },
-      {
-        id: 12,
-        butir: 'Review Laporan Realisasi Kinerja Pegawai',
-        uraian: 'Melakukan review atas laporan realisasi kinerja bulanan dan menyampaikan catatan perbaikan ke masing-masing unit.',
-        status: 'in-progress',
-        progress: 72,
-        bukti: 'Lembar Review Realisasi Kinerja',
-      },
-      {
-        id: 13,
-        butir: 'Penguatan Kepatuhan Administrasi Kepegawaian',
-        uraian: 'Menyusun panduan singkat dan sosialisasi untuk meningkatkan kepatuhan administrasi kepegawaian periodik.',
-        status: 'completed',
-        progress: 100,
-        bukti: 'Materi Sosialisasi Administrasi',
-      },
-    ],
-  },
-];
-
-// ─── COMPONENT ─────────────────
+function StatusBadge({ status }: { status: ApprovalStatus }) {
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusClassMap[status]}`}>
+      {statusLabelMap[status]}
+    </span>
+  );
+}
 
 export function PimpinanApprovalSKPView() {
-  const [selectedPegawai, setSelectedPegawai] = useState<Pegawai | null>(null);
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
-  const [acceptFilter, setAcceptFilter] = useState<'all' | 'accepted' | 'not-accepted'>('all');
+  const [approvalEmployees, setApprovalEmployees] = useState<ApprovalRealisasiEmployee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRealisasiEmployee | null>(null);
+  const [approvalItems, setApprovalItems] = useState<ApprovalRealisasiItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [employeeError, setEmployeeError] = useState('');
+  const [detailError, setDetailError] = useState('');
 
-  const statusLabelMap: Record<StatusKegiatan, string> = {
-    pending: 'Menunggu',
-    'in-progress': 'Dalam Proses',
-    completed: 'Selesai',
-    rejected: 'Ditolak',
+  const loadEmployees = async () => {
+    setIsLoadingEmployees(true);
+    setEmployeeError('');
+
+    try {
+      const data = await getApprovalRealisasiEmployees();
+      setApprovalEmployees(data);
+    } catch {
+      setEmployeeError('Gagal mengambil data pegawai yang mengajukan realisasi SKP.');
+    } finally {
+      setIsLoadingEmployees(false);
+    }
   };
 
-  const statusClassMap: Record<StatusKegiatan, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    'in-progress': 'bg-blue-100 text-blue-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-red-100 text-red-700',
+  const loadEmployeeRealisasi = async (employeeId: string) => {
+    setIsLoadingItems(true);
+    setDetailError('');
+
+    try {
+      const data = await getApprovalRealisasiByEmployee(employeeId);
+      setApprovalItems(data);
+    } catch {
+      setDetailError('Gagal mengambil detail realisasi pegawai.');
+    } finally {
+      setIsLoadingItems(false);
+    }
   };
 
-  // ── LIST VIEW ─────────────────
-  if (!selectedPegawai) {
+  useEffect(() => {
+    let ignore = false;
+
+    const load = async () => {
+      setIsLoadingEmployees(true);
+      setEmployeeError('');
+
+      try {
+        const data = await getApprovalRealisasiEmployees();
+        if (!ignore) setApprovalEmployees(data);
+      } catch {
+        if (!ignore) setEmployeeError('Gagal mengambil data pegawai yang mengajukan realisasi SKP.');
+      } finally {
+        if (!ignore) setIsLoadingEmployees(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedEmployee) return;
+
+    let ignore = false;
+
+    const load = async () => {
+      setIsLoadingItems(true);
+      setDetailError('');
+
+      try {
+        const data = await getApprovalRealisasiByEmployee(selectedEmployee.id);
+        if (!ignore) setApprovalItems(data);
+      } catch {
+        if (!ignore) setDetailError('Gagal mengambil detail realisasi pegawai.');
+      } finally {
+        if (!ignore) setIsLoadingItems(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedEmployee]);
+
+  const filteredItems = useMemo(() => {
+    if (statusFilter === 'all') return approvalItems;
+    return approvalItems.filter((item) => item.status === statusFilter);
+  }, [approvalItems, statusFilter]);
+
+  const unapprovedFilteredItems = filteredItems.filter((item) => item.status === 'diajukan');
+
+  const openDetail = (employee: ApprovalRealisasiEmployee) => {
+    setSelectedEmployee(employee);
+    setApprovalItems([]);
+    setSelectedIds(new Set());
+    setStatusFilter('all');
+  };
+
+  const backToList = () => {
+    setSelectedEmployee(null);
+    setApprovalItems([]);
+    setSelectedIds(new Set());
+    setStatusFilter('all');
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllPending = () => {
+    setSelectedIds(new Set(unapprovedFilteredItems.map((item) => item.id)));
+  };
+
+  const clearSelected = () => setSelectedIds(new Set());
+
+  const approveSelected = async () => {
+    if (!selectedEmployee || selectedIds.size === 0) return;
+
+    setIsApproving(true);
+    setDetailError('');
+
+    try {
+      await approveRealisasiKegiatan(Array.from(selectedIds));
+      clearSelected();
+      await Promise.all([loadEmployeeRealisasi(selectedEmployee.id), loadEmployees()]);
+    } catch {
+      setDetailError('Gagal menyetujui realisasi kegiatan.');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  if (!selectedEmployee) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-semibold">Monitoring SKP</h1>
+        <div>
+          <h1 className="text-xl font-semibold">Persetujuan SKP</h1>
+          <p className="mt-1 text-sm text-gray-500">Daftar pegawai yang sedang mengajukan realisasi kegiatan.</p>
+        </div>
 
-        <div className="bg-white rounded-xl border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="p-3">Pegawai</th>
-                <th className="p-3">SKP Menunggu</th>
-                <th className="p-3">Aksi</th>
-              </tr>
-            </thead>
+        {employeeError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{employeeError}</p>}
 
-            <tbody>
-              {DATA.map((p) => {
-                const pending = p.kegiatan.filter(k => k.status === 'pending').length;
+        <div className="overflow-hidden rounded-xl border bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead>
+                <tr className="border-b bg-gray-100 text-left text-gray-600">
+                  <th className="p-3">Pegawai</th>
+                  <th className="p-3">Pangkat/Golongan</th>
+                  <th className="p-3 text-center">Belum Disetujui</th>
+                  <th className="p-3 text-center">Total Realisasi</th>
+                  <th className="p-3 text-center">Terakhir Diajukan</th>
+                  <th className="p-3">Aksi</th>
+                </tr>
+              </thead>
 
-                return (
-                  <tr key={p.id} className="border-b">
-                    <td className="p-3">
-                      <div className="font-medium">{p.nama}</div>
-                      <div className="text-xs text-gray-500">{p.nip}</div>
-                    </td>
-
-                    <td className="p-3 text-amber-600 font-medium">
-                      {pending} menunggu
-                    </td>
-
-                    <td className="p-3">
-                      <Button size="sm" onClick={() => {
-                        setSelectedPegawai(p);
-                        setSelectedItems(new Set());
-                      }}>
-                        Detail
-                      </Button>
+              <tbody>
+                {isLoadingEmployees ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                      Memuat pengajuan realisasi SKP...
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ) : approvalEmployees.length > 0 ? (
+                  approvalEmployees.map((employee) => (
+                    <tr key={employee.id} className="border-b last:border-b-0">
+                      <td className="p-3">
+                        <div className="font-medium text-gray-900">{employee.nama}</div>
+                        <div className="text-xs text-gray-500">NIP {employee.nip || '-'}</div>
+                        <div className="mt-0.5 text-xs text-gray-500">{employee.fungsional}</div>
+                      </td>
+
+                      <td className="p-3 text-gray-700">
+                        <div>{employee.pangkat}</div>
+                        <div className="text-xs text-gray-500">{employee.golongan}</div>
+                      </td>
+
+                      <td className="p-3 text-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {employee.pendingCount} belum disetujui
+                        </span>
+                      </td>
+
+                      <td className="p-3 text-center font-medium text-gray-800">
+                        {formatNumber(employee.pendingRealisasiTotal)}
+                      </td>
+
+                      <td className="p-3 text-center text-gray-700">{formatTanggal(employee.lastTanggalRealisasi)}</td>
+
+                      <td className="p-3">
+                        <Button size="sm" onClick={() => openDetail(employee)}>
+                          Detail
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                      Belum ada pegawai yang mengajukan realisasi SKP.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── DETAIL VIEW ─────────────────
-
-  const pendingList = selectedPegawai.kegiatan.filter(k => k.status === 'pending');
-  const filteredKegiatan = selectedPegawai.kegiatan.filter((k) => {
-    if (acceptFilter === 'accepted') return k.status === 'completed';
-    if (acceptFilter === 'not-accepted') return k.status !== 'completed';
-    return true;
-  });
-
-  const toggle = (id: number) => {
-    const newSet = new Set(selectedItems);
-    newSet.has(id) ? newSet.delete(id) : newSet.add(id);
-    setSelectedItems(newSet);
-  };
-
-  const selectAll = () => {
-    setSelectedItems(new Set(pendingList.map(k => k.id)));
-  };
-
-  const clear = () => setSelectedItems(new Set());
-
-  const approve = () => {
-    if (selectedItems.size === 0) {
-      alert('Pilih minimal satu kegiatan untuk disetujui.');
-      return;
-    }
-
-    // Update local state: mark selected pending items as completed
-    setSelectedPegawai((prev) => {
-      if (!prev) return prev;
-      const updated: Pegawai = {
-        ...prev,
-        kegiatan: prev.kegiatan.map((k) => {
-          if (selectedItems.has(k.id) && k.status === 'pending') {
-            return { ...k, status: 'completed', progress: 100 };
-          }
-          return k;
-        }),
-      };
-
-      return updated;
-    });
-
-    alert(`Berhasil menyetujui ${selectedItems.size} kegiatan.`);
-    clear();
-  };
-
-  const reject = () => {
-    if (selectedItems.size === 0) {
-      alert('Pilih minimal satu kegiatan untuk ditolak.');
-      return;
-    }
-
-    // Update local state: mark selected pending items as rejected
-    setSelectedPegawai((prev) => {
-      if (!prev) return prev;
-      const updated: Pegawai = {
-        ...prev,
-        kegiatan: prev.kegiatan.map((k) => {
-          if (selectedItems.has(k.id) && k.status === 'pending') {
-            return { ...k, status: 'rejected' };
-          }
-          return k;
-        }),
-      };
-
-      return updated;
-    });
-
-    alert(`Berhasil menolak ${selectedItems.size} kegiatan.`);
-    clear();
-  };
-
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => setSelectedPegawai(null)}
-        className="text-sm text-blue-600"
-      >
-        ← Kembali
+      <button type="button" onClick={backToList} className="text-sm text-blue-600">
+        &lt; Kembali
       </button>
 
-      <h2 className="text-xl font-semibold">{selectedPegawai.nama}</h2>
+      <div>
+        <h2 className="text-xl font-semibold">{selectedEmployee.nama}</h2>
+        <p className="mt-1 text-sm text-gray-500">NIP {selectedEmployee.nip || '-'}</p>
+      </div>
 
-      {/* PATCH APPROVAL */}
-      <div className="flex gap-2 bg-white p-3 rounded-xl border">
-        <button onClick={selectAll} className="text-sm text-blue-600">
+      {detailError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{detailError}</p>}
+
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3">
+        <Button type="button" variant="outline" size="sm" onClick={selectAllPending}>
           Pilih semua
-        </button>
-        <button onClick={clear} className="text-sm text-gray-500">
+        </Button>
+        <button
+          type="button"
+          onClick={clearSelected}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            selectedIds.size > 0
+              ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
+              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+          }`}
+        >
           Reset
         </button>
         <select
-          value={acceptFilter}
-          onChange={(event) => setAcceptFilter(event.target.value as 'all' | 'accepted' | 'not-accepted')}
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value as 'all' | ApprovalStatus);
+            clearSelected();
+          }}
           className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
         >
-          <option value="all">Semua Status Accept</option>
-          <option value="accepted">Sudah di-accept</option>
-          <option value="not-accepted">Belum di-accept</option>
+          <option value="all">Semua Status</option>
+          <option value="diajukan">Belum Disetujui</option>
+          <option value="disetujui">Disetujui</option>
         </select>
-        <span className="ml-auto text-sm text-gray-600">
-          {selectedItems.size} item dipilih
-        </span>
+        <span className="ml-auto text-sm text-gray-600">{selectedIds.size} item dipilih</span>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-xl border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b">
-              <th className="p-3"></th>
-              <th className="p-3">Butir</th>
-              <th className="p-3">Uraian</th>
-              <th className="p-3 text-center">Status</th>
-              <th className="p-3 text-center">Progress</th>
-              <th className="p-3">Bukti</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredKegiatan.map((k) => (
-              <tr key={k.id} className="border-b">
-                <td className="p-3">
-                  {k.status === 'pending' && (
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.has(k.id)}
-                      onChange={() => toggle(k.id)}
-                    />
-                  )}
-                </td>
-
-                <td className="p-3">{k.butir}</td>
-                <td className="p-3">{k.uraian}</td>
-                <td className="p-3 text-center">
-                  <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClassMap[k.status]}`}>
-                    {statusLabelMap[k.status]}
-                  </span>
-                </td>
-                <td className="p-3 text-center">{k.progress}%</td>
-                <td className="p-3">{k.bukti || '-'}</td>
+      <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[940px] text-sm">
+            <thead>
+              <tr className="border-b bg-gray-100 text-left text-gray-600">
+                <th className="w-12 p-3"></th>
+                <th className="p-3">Butir Kegiatan</th>
+                <th className="p-3 text-center">Tanggal</th>
+                <th className="p-3 text-center">Realisasi</th>
+                <th className="p-3 text-center">Status</th>
+                <th className="p-3">Keterangan</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {isLoadingItems ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                    Memuat detail realisasi...
+                  </td>
+                </tr>
+              ) : filteredItems.length > 0 ? (
+                filteredItems.map((item) => (
+                  <tr key={item.id} className="border-b align-top last:border-b-0">
+                    <td className="p-3">
+                      {item.status === 'diajukan' && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          onChange={() => toggleSelected(item.id)}
+                        />
+                      )}
+                    </td>
+
+                    <td className="p-3">
+                      <div className="font-medium text-gray-900">{item.namaKegiatan}</div>
+                      <div className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</div>
+                    </td>
+
+                    <td className="p-3 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
+
+                    <td className="p-3 text-center font-medium text-gray-800">
+                      {formatNumber(item.realisasiTarget)}
+                    </td>
+
+                    <td className="p-3 text-center">
+                      <StatusBadge status={item.status} />
+                    </td>
+
+                    <td className="p-3 text-gray-700">{item.keterangan || '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                    Tidak ada realisasi untuk status ini.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={reject}
-          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
-          style={{ backgroundColor: '#dc2626' }}
-        >
-          <X className="h-4 w-4 text-white" />
-          Tolak ({selectedItems.size})
-        </button>
-        <button
-          type="button"
-          onClick={approve}
-          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
-          style={{ backgroundColor: '#059669' }}
-        >
-          <Check className="h-4 w-4 text-white" />
-          Setujui ({selectedItems.size})
-        </button>
+      <div className="flex justify-end">
+        <Button disabled={selectedIds.size === 0 || isApproving} onClick={approveSelected} className="gap-2">
+          <Check className="h-4 w-4" />
+          {isApproving ? 'Menyetujui...' : `Setujui (${selectedIds.size})`}
+        </Button>
       </div>
     </div>
   );

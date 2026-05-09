@@ -71,6 +71,32 @@ const mapRealisasiRow = (row) => ({
   tanggalRealisasi: row.tanggal_realisasi ?? "",
   realisasiTarget: row.realisasi_target ?? "",
   keterangan: row.keterangan ?? "",
+  status: row.status ?? "diajukan",
+});
+
+const mapApprovalEmployeeRow = (row) => ({
+  id: String(row.id_pengguna),
+  nip: row.nip ?? "",
+  nama: row.nama ?? "",
+  fungsional: row.fungsional ?? "-",
+  pangkat: row.pangkat ?? "-",
+  golongan: row.golongan ?? "-",
+  pendingCount: Number(row.pending_count ?? 0),
+  pendingRealisasiTotal: Number(row.pending_realisasi_total ?? 0),
+  lastTanggalRealisasi: row.last_tanggal_realisasi ?? "",
+});
+
+const mapApprovalRealisasiRow = (row) => ({
+  id: String(row.id_realisasi_kegiatan),
+  idPenggunaKegiatan: String(row.id_pengguna_kegiatan),
+  namaKegiatan: row.nama_kegiatan ?? "",
+  uraian: row.uraian ?? "",
+  deskripsi: row.deskripsi ?? "",
+  tanggalRealisasi: row.tanggal_realisasi ?? "",
+  realisasiTarget: row.realisasi_target ?? "",
+  keterangan: row.keterangan ?? "",
+  targetKetercapaian: row.target_ketercapaian ?? "",
+  status: row.status ?? "diajukan",
 });
 
 const mapTambahanRow = (row) => {
@@ -90,6 +116,78 @@ const mapTambahanRow = (row) => {
       id: String(employee.id),
       nama: employee.nama ?? "",
       nip: employee.nip ?? "",
+    })),
+  };
+};
+
+const mapPimpinanKegiatanRow = (row) => {
+  const targetTotal = Number(row.target_total ?? 0);
+  const approvedTotal = Number(row.approved_total ?? 0);
+  const assignedEmployees = Array.isArray(row.assigned_employees)
+    ? row.assigned_employees.filter((employee) => employee?.id)
+    : [];
+
+  return {
+    id: String(row.id_butir_kegiatan),
+    name: row.nama_kegiatan ?? "",
+    objectives: row.objectives ?? "",
+    tanggalMulai: row.tanggal_mulai ?? "",
+    deadline: row.tanggal_selesai ?? "",
+    progress: targetTotal > 0 ? Math.min(100, Math.round((approvedTotal / targetTotal) * 100)) : 0,
+    approvedTotal,
+    targetTotal,
+    assignedTeam: assignedEmployees.map((employee) => {
+      const employeeTarget = Number(employee.targetTotal ?? 0);
+      const employeeApproved = Number(employee.approvedTotal ?? 0);
+
+      return {
+        id: String(employee.id),
+        nama: employee.nama ?? "",
+        nip: employee.nip ?? "",
+        targetTotal: employeeTarget,
+        approvedTotal: employeeApproved,
+        progress: employeeTarget > 0 ? Math.min(100, Math.round((employeeApproved / employeeTarget) * 100)) : 0,
+      };
+    }),
+    documents: [],
+  };
+};
+
+const formatDashboardDelta = (current, previous) => {
+  const delta = Number(current ?? 0) - Number(previous ?? 0);
+  return {
+    change: `${delta >= 0 ? "+" : ""}${delta} dari bulan lalu`,
+    trend: delta >= 0 ? "up" : "down",
+  };
+};
+
+const getInitials = (name) => {
+  const parts = String(name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "-";
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
+};
+
+const mapDashboardKegiatanRow = (row) => {
+  const tujuanSKP = Math.round(Number(row.target_total ?? 0) * 100) / 100;
+  const skpSelesai = Math.round(Number(row.approved_total ?? 0) * 100) / 100;
+  const pegawai = Array.isArray(row.pegawai) ? row.pegawai.filter((item) => item?.nama) : [];
+
+  return {
+    id: Number(row.id_butir_kegiatan),
+    namaKegiatan: row.nama_kegiatan ?? "",
+    unitKerja: row.unit_kerja ?? "-",
+    tujuanSKP,
+    skpSelesai,
+    jumlahPegawai: Number(row.jumlah_pegawai ?? 0),
+    pegawai: pegawai.map((item) => ({
+      nama: item.nama ?? "",
+      inisial: getInitials(item.nama),
+      skpSelesai: Math.round(Number(item.skpSelesai ?? 0) * 100) / 100,
+      skpTarget: Math.round(Number(item.skpTarget ?? 0) * 100) / 100,
     })),
   };
 };
@@ -204,6 +302,301 @@ export const findButirAssignmentsByEmployee = async (idPengguna) => {
   );
 
   return result.rows.map(mapButirAssignmentRow);
+};
+
+export const findPimpinanKegiatanDashboard = async ({ tahun = null, bulan = null } = {}) => {
+  const [yearsResult, kegiatanResult] = await Promise.all([
+    pool.query(`
+      SELECT DISTINCT periode_skp.tahun
+      FROM pengguna_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      WHERE pengguna_kegiatan.status <> 'batal'
+      ORDER BY periode_skp.tahun DESC
+    `),
+    pool.query(
+      `
+        WITH assignment_metrics AS (
+          SELECT
+            pengguna_kegiatan.id_pengguna_kegiatan,
+            butir_kegiatan.id_butir_kegiatan,
+            butir_kegiatan.nama_kegiatan,
+            pengguna.id_pengguna,
+            pengguna.nama,
+            pengguna.nip,
+            pengguna_kegiatan.uraian,
+            pengguna_kegiatan.deskripsi,
+            ${formatDateColumn("MIN(periode_skp.tanggal_mulai)")} AS tanggal_mulai,
+            ${formatDateColumn("MAX(periode_skp.tanggal_selesai)")} AS tanggal_selesai,
+            CASE
+              WHEN pengguna_kegiatan.target_ketercapaian ~ '^[0-9]+([.][0-9]+)?$'
+                THEN pengguna_kegiatan.target_ketercapaian::numeric
+              ELSE 0
+            END AS target_total,
+            COALESCE(realisasi.approved_total, 0) AS approved_total
+          FROM pengguna_kegiatan
+          INNER JOIN butir_kegiatan
+            ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+          INNER JOIN pengguna
+            ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna
+          INNER JOIN periode_skp
+            ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(
+                CASE
+                  WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                    THEN realisasi_kegiatan.realisasi_target::numeric
+                  ELSE 0
+                END
+              ) AS approved_total
+            FROM realisasi_kegiatan
+            WHERE realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+              AND realisasi_kegiatan.status = 'disetujui'
+              AND ($2::integer IS NULL OR EXTRACT(YEAR FROM realisasi_kegiatan.tanggal_realisasi)::integer = $2::integer)
+              AND ($3::integer IS NULL OR EXTRACT(MONTH FROM realisasi_kegiatan.tanggal_realisasi)::integer = $3::integer)
+          ) realisasi ON TRUE
+          WHERE pengguna_kegiatan.status <> 'batal'
+            AND pengguna.status_aktif IS DISTINCT FROM FALSE
+            AND ($1::integer IS NULL OR periode_skp.tahun = $1::integer)
+          GROUP BY
+            pengguna_kegiatan.id_pengguna_kegiatan,
+            butir_kegiatan.id_butir_kegiatan,
+            pengguna.id_pengguna,
+            realisasi.approved_total
+        ),
+        employee_metrics AS (
+          SELECT
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama,
+            nip,
+            MIN(tanggal_mulai) AS tanggal_mulai,
+            MAX(tanggal_selesai) AS tanggal_selesai,
+            SUM(target_total) AS target_total,
+            SUM(approved_total) AS approved_total,
+            string_agg(DISTINCT NULLIF(uraian, ''), ' | ') AS uraian,
+            string_agg(DISTINCT NULLIF(deskripsi, ''), ' | ') AS deskripsi
+          FROM assignment_metrics
+          GROUP BY
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama,
+            nip
+        )
+        SELECT
+          id_butir_kegiatan,
+          nama_kegiatan,
+          MIN(tanggal_mulai) AS tanggal_mulai,
+          MAX(tanggal_selesai) AS tanggal_selesai,
+          SUM(target_total) AS target_total,
+          SUM(approved_total) AS approved_total,
+          COALESCE(
+            string_agg(DISTINCT NULLIF(uraian, ''), ' | '),
+            string_agg(DISTINCT NULLIF(deskripsi, ''), ' | '),
+            ''
+          ) AS objectives,
+          json_agg(
+            json_build_object(
+              'id', id_pengguna,
+              'nama', nama,
+              'nip', nip,
+              'targetTotal', target_total,
+              'approvedTotal', approved_total
+            )
+            ORDER BY nama ASC, id_pengguna ASC
+          ) AS assigned_employees
+        FROM employee_metrics
+        GROUP BY
+          id_butir_kegiatan,
+          nama_kegiatan
+        ORDER BY nama_kegiatan ASC, id_butir_kegiatan ASC
+      `,
+      [tahun, tahun, bulan],
+    ),
+  ]);
+
+  return {
+    years: yearsResult.rows.map((row) => Number(row.tahun)).filter((year) => Number.isInteger(year)),
+    items: kegiatanResult.rows.map(mapPimpinanKegiatanRow),
+  };
+};
+
+export const findMainDashboardSummary = async ({ idPeriodeSkp = null } = {}) => {
+  const [
+    totalPegawaiResult,
+    pensionResult,
+    kgbResult,
+    kegiatanCountResult,
+    kegiatanResult,
+  ] = await Promise.all([
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status_aktif IS DISTINCT FROM FALSE) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND created_at < date_trunc('month', current_date)
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_pensiun IS NOT NULL
+            AND tmt_pensiun::date BETWEEN current_date AND current_date + INTERVAL '5 years'
+        ) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_pensiun IS NOT NULL
+            AND tmt_pensiun::date BETWEEN current_date - INTERVAL '1 month'
+              AND current_date - INTERVAL '1 month' + INTERVAL '5 years'
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_kgb IS NOT NULL
+            AND tmt_kgb::date BETWEEN current_date AND current_date + INTERVAL '90 days'
+        ) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_kgb IS NOT NULL
+            AND tmt_kgb::date BETWEEN current_date - INTERVAL '1 month'
+              AND current_date - INTERVAL '1 month' + INTERVAL '90 days'
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(
+      `
+        SELECT
+          COUNT(DISTINCT pengguna_kegiatan.id_butir_kegiatan) AS current_value,
+          COUNT(DISTINCT pengguna_kegiatan.id_butir_kegiatan) FILTER (
+            WHERE pengguna_kegiatan.created_at < date_trunc('month', current_date)
+          ) AS previous_value
+        FROM pengguna_kegiatan
+        WHERE pengguna_kegiatan.status <> 'batal'
+          AND ($1::integer IS NULL OR pengguna_kegiatan.id_periode_skp = $1::integer)
+      `,
+      [idPeriodeSkp],
+    ),
+    pool.query(
+      `
+        WITH assignment_metrics AS (
+          SELECT
+            pengguna_kegiatan.id_pengguna_kegiatan,
+            butir_kegiatan.id_butir_kegiatan,
+            butir_kegiatan.nama_kegiatan,
+            pengguna.id_pengguna,
+            pengguna.nama,
+            COALESCE(penempatan.nama_penempatan, '-') AS unit_kerja,
+            CASE
+              WHEN pengguna_kegiatan.target_ketercapaian ~ '^[0-9]+([.][0-9]+)?$'
+                THEN pengguna_kegiatan.target_ketercapaian::numeric
+              ELSE 0
+            END AS target_total,
+            COALESCE(realisasi.approved_total, 0) AS approved_total
+          FROM pengguna_kegiatan
+          INNER JOIN butir_kegiatan
+            ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+          INNER JOIN pengguna
+            ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna
+          LEFT JOIN penempatan
+            ON penempatan.id_penempatan = pengguna.id_penempatan
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(
+                CASE
+                  WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                    THEN realisasi_kegiatan.realisasi_target::numeric
+                  ELSE 0
+                END
+              ) AS approved_total
+            FROM realisasi_kegiatan
+            WHERE realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+              AND realisasi_kegiatan.status = 'disetujui'
+          ) realisasi ON TRUE
+          WHERE pengguna_kegiatan.status <> 'batal'
+            AND pengguna.status_aktif IS DISTINCT FROM FALSE
+            AND ($1::integer IS NULL OR pengguna_kegiatan.id_periode_skp = $1::integer)
+        ),
+        employee_metrics AS (
+          SELECT
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama,
+            MIN(unit_kerja) AS unit_kerja,
+            SUM(target_total) AS target_total,
+            SUM(approved_total) AS approved_total
+          FROM assignment_metrics
+          GROUP BY
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama
+        ),
+        kegiatan_metrics AS (
+          SELECT
+            id_butir_kegiatan,
+            nama_kegiatan,
+            MIN(unit_kerja) AS unit_kerja,
+            SUM(target_total) AS target_total,
+            SUM(approved_total) AS approved_total,
+            COUNT(*) AS jumlah_pegawai,
+            json_agg(
+              json_build_object(
+                'nama', nama,
+                'skpSelesai', approved_total,
+                'skpTarget', target_total
+              )
+              ORDER BY nama ASC, id_pengguna ASC
+            ) AS pegawai
+          FROM employee_metrics
+          GROUP BY
+            id_butir_kegiatan,
+            nama_kegiatan
+        )
+        SELECT *
+        FROM kegiatan_metrics
+        ORDER BY
+          CASE WHEN target_total > 0 THEN approved_total / target_total ELSE 0 END ASC,
+          nama_kegiatan ASC
+        LIMIT 4
+      `,
+      [idPeriodeSkp],
+    ),
+  ]);
+
+  const buildKpi = (label, value, previousValue, color) => {
+    const delta = formatDashboardDelta(value, previousValue);
+    return {
+      label,
+      value: String(Number(value ?? 0)),
+      change: delta.change,
+      trend: delta.trend,
+      color,
+    };
+  };
+
+  const totalPegawai = totalPegawaiResult.rows[0] ?? {};
+  const pension = pensionResult.rows[0] ?? {};
+  const kgb = kgbResult.rows[0] ?? {};
+  const kegiatanCount = kegiatanCountResult.rows[0] ?? {};
+
+  return {
+    kpis: [
+      buildKpi("Total Pegawai Aktif", totalPegawai.current_value, totalPegawai.previous_value, "blue"),
+      buildKpi("Mendekati Pensiun", pension.current_value, pension.previous_value, "amber"),
+      buildKpi("Mendekati KGB", kgb.current_value, kgb.previous_value, "purple"),
+      buildKpi("Jumlah Kegiatan", kegiatanCount.current_value, kegiatanCount.previous_value, "purple"),
+    ],
+    kegiatan: kegiatanResult.rows.map(mapDashboardKegiatanRow),
+  };
 };
 
 export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filters = {}) => {
@@ -388,7 +781,8 @@ export const findMyRealisasiKegiatan = async (idPengguna) => {
         butir_kegiatan.nama_kegiatan,
         ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
         realisasi_kegiatan.realisasi_target,
-        realisasi_kegiatan.keterangan
+        realisasi_kegiatan.keterangan,
+        realisasi_kegiatan.status
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
         ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
@@ -419,9 +813,10 @@ export const createMyRealisasiKegiatan = async ({
         id_pengguna_kegiatan,
         tanggal_realisasi,
         realisasi_target,
-        keterangan
+        keterangan,
+        status
       )
-      SELECT $2, $3, $4, $5
+      SELECT $2, $3, $4, $5, 'diajukan'
       FROM pengguna_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
@@ -439,6 +834,115 @@ export const createMyRealisasiKegiatan = async ({
 
   const items = await findMyRealisasiKegiatan(idPengguna);
   return items.find((item) => item.id === String(result.rows[0].id_realisasi_kegiatan)) ?? null;
+};
+
+export const findApprovalRealisasiEmployees = async ({ idPeriodeSkp = null, tahun = null } = {}) => {
+  const result = await pool.query(
+    `
+      SELECT
+        pengguna.id_pengguna,
+        pengguna.nip,
+        pengguna.nama,
+        pengguna.fungsional,
+        pangkat.nama_pangkat AS pangkat,
+        golongan.nama_golongan AS golongan,
+        COUNT(realisasi_kegiatan.id_realisasi_kegiatan) AS pending_count,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                THEN realisasi_kegiatan.realisasi_target::numeric
+              ELSE 0
+            END
+          ),
+          0
+        ) AS pending_realisasi_total,
+        ${formatDateColumn("MAX(realisasi_kegiatan.tanggal_realisasi)")} AS last_tanggal_realisasi
+      FROM realisasi_kegiatan
+      INNER JOIN pengguna_kegiatan
+        ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+      INNER JOIN pengguna
+        ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      LEFT JOIN pangkat
+        ON pangkat.id_pangkat = pengguna.id_pangkat
+      LEFT JOIN golongan
+        ON golongan.id_golongan = pengguna.id_golongan
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      WHERE realisasi_kegiatan.status = 'diajukan'
+        AND pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+        AND (
+          ($1::integer IS NOT NULL AND pengguna_kegiatan.id_periode_skp = $1::integer)
+          OR ($1::integer IS NULL AND periode_skp.tahun = COALESCE($2::integer, EXTRACT(YEAR FROM CURRENT_DATE)::integer))
+        )
+      GROUP BY
+        pengguna.id_pengguna,
+        pangkat.nama_pangkat,
+        golongan.nama_golongan
+      ORDER BY MAX(realisasi_kegiatan.tanggal_realisasi) DESC, pengguna.nama ASC
+    `,
+    [idPeriodeSkp, tahun],
+  );
+
+  return result.rows.map(mapApprovalEmployeeRow);
+};
+
+export const findApprovalRealisasiByEmployee = async (idPengguna, { idPeriodeSkp = null, tahun = null } = {}) => {
+  const result = await pool.query(
+    `
+      SELECT
+        realisasi_kegiatan.id_realisasi_kegiatan,
+        realisasi_kegiatan.id_pengguna_kegiatan,
+        butir_kegiatan.nama_kegiatan,
+        pengguna_kegiatan.uraian,
+        pengguna_kegiatan.deskripsi,
+        ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
+        realisasi_kegiatan.realisasi_target,
+        realisasi_kegiatan.keterangan,
+        pengguna_kegiatan.target_ketercapaian,
+        realisasi_kegiatan.status
+      FROM realisasi_kegiatan
+      INNER JOIN pengguna_kegiatan
+        ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+      INNER JOIN butir_kegiatan
+        ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      WHERE pengguna_kegiatan.id_pengguna = $1
+        AND realisasi_kegiatan.status IN ('diajukan', 'disetujui')
+        AND (
+          ($2::integer IS NOT NULL AND pengguna_kegiatan.id_periode_skp = $2::integer)
+          OR ($2::integer IS NULL AND periode_skp.tahun = COALESCE($3::integer, EXTRACT(YEAR FROM CURRENT_DATE)::integer))
+        )
+      ORDER BY realisasi_kegiatan.tanggal_realisasi DESC, realisasi_kegiatan.id_realisasi_kegiatan DESC
+    `,
+    [idPengguna, idPeriodeSkp, tahun],
+  );
+
+  return result.rows.map(mapApprovalRealisasiRow);
+};
+
+export const approveRealisasiKegiatan = async (ids) => {
+  const result = await pool.query(
+    `
+      UPDATE realisasi_kegiatan
+      SET
+        status = 'disetujui',
+        updated_at = current_timestamp
+      WHERE id_realisasi_kegiatan = ANY($1::integer[])
+        AND status = 'diajukan'
+      RETURNING id_realisasi_kegiatan
+    `,
+    [ids],
+  );
+
+  return {
+    approvedCount: result.rowCount,
+    approvedIds: result.rows.map((row) => String(row.id_realisasi_kegiatan)),
+  };
 };
 
 export const findAdditionalAssignments = async () => {

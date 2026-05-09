@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Hourglass,
+  TrendingUp,
 } from 'lucide-react';
 
 import {
@@ -36,11 +37,11 @@ type KPIData = {
   disabled?: boolean;
 };
 
-const kpiColorMap: Record<KPIData['color'], { bg: string; icon: string; border: string }> = {
-  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-100' },
-  green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-100' },
-  amber: { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'border-amber-100' },
-  purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
+const kpiColorMap: Record<KPIData['color'], { border: string }> = {
+  blue: { border: 'border-blue-100' },
+  green: { border: 'border-green-100' },
+  amber: { border: 'border-amber-100' },
+  purple: { border: 'border-purple-100' },
 };
 
 function toNumber(value: string | number | null | undefined): number {
@@ -162,18 +163,18 @@ function KpiCard({ kpi }: { kpi: KPIData }) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardDescription>{kpi.label}</CardDescription>
-          <div className={cn('flex size-8 items-center justify-center rounded-lg', kpi.disabled ? 'bg-gray-100' : colors.bg)}>
-            <Icon className={cn('size-4', kpi.disabled ? 'text-gray-400' : colors.icon)} />
+          <div className={cn('dashboard-kpi-icon', kpi.disabled ? 'dashboard-kpi-icon-disabled' : `dashboard-kpi-icon-${kpi.color}`)}>
+            <Icon />
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{kpi.value}</div>
         {kpi.detail && (
-          <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+          <div className={cn('mt-1 flex items-center gap-1.5 text-xs font-normal', kpi.disabled ? 'text-gray-500' : 'text-green-600')}>
             {DetailIcon && (
               <DetailIcon
-                className="shrink-0 text-gray-400"
+                className={cn('shrink-0', kpi.disabled ? 'text-gray-400' : 'text-green-600')}
                 size={11}
                 strokeWidth={2.25}
                 style={{ width: 11, height: 11 }}
@@ -268,6 +269,7 @@ export function PegawaiOverview() {
             : dashboard?.summary.targetKetercapaian
             ? `${formatNumber(dashboard.summary.realisasiTotal)}/${formatNumber(dashboard.summary.targetKetercapaian)}`
             : 'Target belum diisi',
+        detailIcon: TrendingUp,
         icon: BarChart3,
         color: 'amber',
       },
@@ -275,6 +277,7 @@ export function PegawaiOverview() {
         label: 'Jumlah Kegiatan',
         value: isLoading ? '...' : String(dashboard?.summary.totalKegiatan ?? 0),
         detail: selectedPeriode ? `Butir SKP periode ${formatPeriodeLabel(selectedPeriode)}` : 'Periode belum tersedia',
+        detailIcon: ClipboardList,
         icon: CalendarCheck,
         color: 'purple',
       },

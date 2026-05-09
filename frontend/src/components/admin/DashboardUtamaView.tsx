@@ -1,127 +1,34 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, CheckCircle2, Target, CalendarCheck, Users, Eye, ChevronDown, ChevronUp, Award, ClipboardList, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, CalendarCheck, Users, Eye, ChevronDown, ChevronUp, Award, ClipboardList, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
 import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
-
-// ── Mock KPI data for SKP Dashboard ──────────────────────────────────────────
-
-const mockSKPKPIs = [
-  {
-    label: 'Total Pegawai Aktif',
-    value: '145',
-    change: '+3 dari bulan lalu',
-    trend: 'up' as const,
-    icon: Users,
-    color: 'blue',
-  },
-  {
-    label: 'Mendekati Pensiun',
-    value: '8',
-    change: '+1 dari bulan lalu',
-    trend: 'up' as const,
-    icon: Award,
-    color: 'amber',
-  },
-  {
-    label: 'Mendekati KGB',
-    value: '12',
-    change: '+2 dari bulan lalu',
-    trend: 'up' as const,
-    icon: Target,
-    color: 'purple',
-  },
-  {
-    label: 'Jumlah Kegiatan',
-    value: '18',
-    change: '+3 dari bulan lalu',
-    trend: 'up' as const,
-    icon: CalendarCheck,
-    color: 'purple',
-  },
-];
-
-// ── Mock: Progress Kegiatan (SKP) ─────────────────────────────────────────────
-
-const mockKegiatan = [
-  {
-    id: 1,
-    namaKegiatan: 'Pengembangan Sistem Informasi Kepegawaian',
-    unitKerja: 'Bidang TI',
-    tujuanSKP: 8,
-    skpSelesai: 5,
-    jumlahPegawai: 6,
-    pegawai: [
-      { nama: 'Andi Kurniawan', inisial: 'AK', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Siti Rahayu', inisial: 'SR', skpSelesai: 1, skpTarget: 2 },
-      { nama: 'Budi Santoso', inisial: 'BS', skpSelesai: 1, skpTarget: 2 },
-      { nama: 'Dewi Lestari', inisial: 'DL', skpSelesai: 1, skpTarget: 1 },
-      { nama: 'Eko Prasetyo', inisial: 'EP', skpSelesai: 0, skpTarget: 1 },
-      { nama: 'Fitri Handayani', inisial: 'FH', skpSelesai: 0, skpTarget: 0 },
-    ],
-  },
-  {
-    id: 2,
-    namaKegiatan: 'Penyusunan Laporan Evaluasi Kinerja Q1',
-    unitKerja: 'Bidang Evaluasi',
-    tujuanSKP: 5,
-    skpSelesai: 2,
-    jumlahPegawai: 4,
-    pegawai: [
-      { nama: 'Gunawan Hidayat', inisial: 'GH', skpSelesai: 1, skpTarget: 2 },
-      { nama: 'Hana Pertiwi', inisial: 'HP', skpSelesai: 1, skpTarget: 1 },
-      { nama: 'Irwan Saputra', inisial: 'IS', skpSelesai: 0, skpTarget: 1 },
-      { nama: 'Joko Widodo', inisial: 'JW', skpSelesai: 0, skpTarget: 1 },
-    ],
-  },
-  {
-    id: 3,
-    namaKegiatan: 'Pelatihan Kompetensi Digital ASN',
-    unitKerja: 'Bidang Diklat',
-    tujuanSKP: 10,
-    skpSelesai: 8,
-    jumlahPegawai: 8,
-    pegawai: [
-      { nama: 'Kartini Wulandari', inisial: 'KW', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Lukman Hakim', inisial: 'LH', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Maya Sari', inisial: 'MS', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Nanda Putra', inisial: 'NP', skpSelesai: 1, skpTarget: 2 },
-      { nama: 'Oki Firmansyah', inisial: 'OF', skpSelesai: 1, skpTarget: 1 },
-      { nama: 'Putri Amelia', inisial: 'PA', skpSelesai: 0, skpTarget: 1 },
-    ],
-  },
-  {
-    id: 4,
-    namaKegiatan: 'Pembaruan Regulasi Administrasi Umum',
-    unitKerja: 'Bidang Hukum',
-    tujuanSKP: 6,
-    skpSelesai: 6,
-    jumlahPegawai: 3,
-    pegawai: [
-      { nama: 'Rini Susanti', inisial: 'RS', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Surya Dinata', inisial: 'SD', skpSelesai: 2, skpTarget: 2 },
-      { nama: 'Tina Marlina', inisial: 'TM', skpSelesai: 2, skpTarget: 2 },
-    ],
-  },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+import { getDashboardUtamaData, type DashboardKegiatan, type DashboardKpi } from '../../api/dashboardApi';
 
 const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> = {
-  blue:   { bg: 'bg-blue-50',   icon: 'text-blue-600',   border: 'border-blue-100' },
-  green:  { bg: 'bg-green-50',  icon: 'text-green-600',  border: 'border-green-100' },
-  amber:  { bg: 'bg-amber-50',  icon: 'text-amber-600',  border: 'border-amber-100' },
+  blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-100' },
+  green: { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-100' },
+  amber: { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'border-amber-100' },
   purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
+};
+
+const kpiIconMap: Record<string, typeof Users> = {
+  'Total Pegawai Aktif': Users,
+  'Mendekati Pensiun': Award,
+  'Mendekati KGB': Target,
+  'Jumlah Kegiatan': CalendarCheck,
 };
 
 function formatPeriodeLabel(periode: PeriodeSkp) {
   return String(periode.tahun);
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value || 0);
+}
 
 export function DashboardUtamaView() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
@@ -129,6 +36,8 @@ export function DashboardUtamaView() {
   const [periodeItems, setPeriodeItems] = useState<PeriodeSkp[]>([]);
   const [selectedPeriodeId, setSelectedPeriodeId] = useState('');
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [dashboardKpis, setDashboardKpis] = useState<DashboardKpi[]>([]);
+  const [dashboardKegiatan, setDashboardKegiatan] = useState<DashboardKegiatan[]>([]);
   const selectedPeriode = periodeItems.find((periode) => String(periode.id) === selectedPeriodeId) ?? null;
 
   useEffect(() => {
@@ -158,19 +67,42 @@ export function DashboardUtamaView() {
     };
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+
+    const loadDashboard = async () => {
+      try {
+        const data = await getDashboardUtamaData(selectedPeriodeId ? { idPeriodeSkp: selectedPeriodeId } : undefined);
+        if (!ignore) {
+          setDashboardKpis(data.kpis);
+          setDashboardKegiatan(data.kegiatan);
+        }
+      } catch {
+        if (!ignore) {
+          setDashboardKpis([]);
+          setDashboardKegiatan([]);
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPeriodeId]);
+
   if (selectedWorkspace) {
     return <WorkspaceDashboard workspace={selectedWorkspace} onBack={() => setSelectedWorkspace(null)} />;
   }
 
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1>Dashboard Capaian SKP</h1>
           <p className="text-gray-600 mt-1">Pantau target dan realisasi kinerja pegawai periode berjalan.</p>
         </div>
-        {/* Year filter */}
         <div className="relative">
           <Button
             variant="outline"
@@ -200,11 +132,10 @@ export function DashboardUtamaView() {
         </div>
       </div>
 
-      {/* ── SKP KPI Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockSKPKPIs.map((kpi, index) => {
-          const colors = kpiColorMap[kpi.color];
-          const Icon = kpi.icon;
+        {dashboardKpis.map((kpi, index) => {
+          const colors = kpiColorMap[kpi.color] ?? kpiColorMap.blue;
+          const Icon = kpiIconMap[kpi.label] ?? BarChart3;
           return (
             <Card key={index} className={`border ${colors.border}`}>
               <CardHeader className="pb-2">
@@ -235,7 +166,6 @@ export function DashboardUtamaView() {
         })}
       </div>
 
-      {/* ── Progress Kegiatan ── */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -245,8 +175,8 @@ export function DashboardUtamaView() {
           <Button variant="link">Lihat Semua →</Button>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {mockKegiatan.map((kegiatan) => {
-            const pct = Math.round((kegiatan.skpSelesai / kegiatan.tujuanSKP) * 100);
+          {dashboardKegiatan.map((kegiatan) => {
+            const pct = kegiatan.tujuanSKP > 0 ? Math.round((kegiatan.skpSelesai / kegiatan.tujuanSKP) * 100) : 0;
             const isExpanded = expandedKegiatan === kegiatan.id;
             return (
               <Card key={kegiatan.id} className="hover:shadow-md transition-shadow">
@@ -256,13 +186,12 @@ export function DashboardUtamaView() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* SKP Progress */}
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-600">SKP Diselesaikan</span>
                       <span className="font-semibold text-gray-800">
-                        {kegiatan.skpSelesai}
-                        <span className="font-normal text-gray-400">/{kegiatan.tujuanSKP} tujuan SKP</span>
+                        {formatNumber(kegiatan.skpSelesai)}
+                        <span className="font-normal text-gray-400">/{formatNumber(kegiatan.tujuanSKP)} tujuan SKP</span>
                       </span>
                     </div>
                     <Progress value={pct} className="h-2" />
@@ -270,11 +199,10 @@ export function DashboardUtamaView() {
                       <span className={pct === 100 ? 'text-green-600 font-medium' : pct >= 60 ? 'text-blue-600' : 'text-amber-500'}>
                         {pct}% tercapai
                       </span>
-                      <span>{kegiatan.tujuanSKP - kegiatan.skpSelesai} SKP tersisa</span>
+                      <span>{formatNumber(Math.max(0, kegiatan.tujuanSKP - kegiatan.skpSelesai))} SKP tersisa</span>
                     </div>
                   </div>
 
-                  {/* Pegawai row + expand button */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-gray-400" />
@@ -294,7 +222,6 @@ export function DashboardUtamaView() {
                     </div>
                   </div>
 
-                  {/* Expanded pegawai detail */}
                   {isExpanded && (
                     <div className="border-t pt-3 space-y-2">
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Detail Pegawai & SKP</div>
@@ -306,7 +233,7 @@ export function DashboardUtamaView() {
                               <div className="flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-700 truncate">{p.nama}</span>
                                 <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
-                                  {p.skpSelesai}/{p.skpTarget} SKP
+                                  {formatNumber(p.skpSelesai)}/{formatNumber(p.skpTarget)} SKP
                                 </span>
                               </div>
                               <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">

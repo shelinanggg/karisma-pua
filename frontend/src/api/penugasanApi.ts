@@ -53,6 +53,7 @@ export type MyRealisasiKegiatan = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+  status: 'diajukan' | 'disetujui';
 };
 
 export type MyRealisasiKegiatanPayload = {
@@ -60,6 +61,31 @@ export type MyRealisasiKegiatanPayload = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+};
+
+export type ApprovalRealisasiEmployee = {
+  id: string;
+  nip: string;
+  nama: string;
+  fungsional: string;
+  pangkat: string;
+  golongan: string;
+  pendingCount: number;
+  pendingRealisasiTotal: number;
+  lastTanggalRealisasi: string;
+};
+
+export type ApprovalRealisasiItem = {
+  id: string;
+  idPenggunaKegiatan: string;
+  namaKegiatan: string;
+  uraian: string;
+  deskripsi: string;
+  tanggalRealisasi: string;
+  realisasiTarget: string;
+  keterangan: string;
+  targetKetercapaian: string;
+  status: 'diajukan' | 'disetujui';
 };
 
 export type PenugasanTambahanEmployee = {
@@ -102,8 +128,49 @@ export type MyDashboardSummary = {
   penugasanTambahan: PenugasanTambahan[];
 };
 
+export type PimpinanKegiatanEmployee = {
+  id: string;
+  nama: string;
+  nip: string;
+  targetTotal: number;
+  approvedTotal: number;
+  progress: number;
+};
+
+export type PimpinanKegiatanDocument = {
+  id: string;
+  name: string;
+  type: string;
+  uploadedBy: string;
+  uploadedDate: string;
+  size: string;
+};
+
+export type PimpinanKegiatanItem = {
+  id: string;
+  name: string;
+  objectives: string;
+  tanggalMulai: string;
+  deadline: string;
+  progress: number;
+  approvedTotal: number;
+  targetTotal: number;
+  assignedTeam: PimpinanKegiatanEmployee[];
+  documents: PimpinanKegiatanDocument[];
+};
+
+export type PimpinanKegiatanDashboard = {
+  years: number[];
+  items: PimpinanKegiatanItem[];
+};
+
 export async function getPenugasanEmployees(params?: { idPeriodeSkp?: string }) {
   const response = await axiosInstance.get<{ data: PenugasanEmployee[] }>("/penugasan/pegawai", { params });
+  return response.data.data;
+}
+
+export async function getPimpinanKegiatanDashboard(params?: { tahun?: number; bulan?: number }) {
+  const response = await axiosInstance.get<{ data: PimpinanKegiatanDashboard }>("/penugasan/pimpinan/kegiatan", { params });
   return response.data.data;
 }
 
@@ -149,6 +216,23 @@ export async function getMyRealisasiKegiatan() {
 
 export async function createMyRealisasiKegiatan(payload: MyRealisasiKegiatanPayload) {
   const response = await axiosInstance.post<{ data: MyRealisasiKegiatan }>("/penugasan/realisasi/saya", payload);
+  return response.data.data;
+}
+
+export async function getApprovalRealisasiEmployees(params?: { idPeriodeSkp?: string; tahun?: number }) {
+  const response = await axiosInstance.get<{ data: ApprovalRealisasiEmployee[] }>("/penugasan/approval-skp/pegawai", { params });
+  return response.data.data;
+}
+
+export async function getApprovalRealisasiByEmployee(pegawaiId: string, params?: { idPeriodeSkp?: string; tahun?: number }) {
+  const response = await axiosInstance.get<{ data: ApprovalRealisasiItem[] }>(`/penugasan/approval-skp/pegawai/${pegawaiId}/realisasi`, { params });
+  return response.data.data;
+}
+
+export async function approveRealisasiKegiatan(realisasiIds: string[]) {
+  const response = await axiosInstance.patch<{ data: { approvedCount: number; approvedIds: string[] } }>("/penugasan/approval-skp/realisasi/approve", {
+    realisasiIds,
+  });
   return response.data.data;
 }
 

@@ -202,7 +202,6 @@ export default function App() {
         <Route path="penugasan/master-butir/terapkan-ke/:pegawaiId" element={<PenugasanButirFormView />} />
         <Route path="data-kepegawaian" element={<DataKepegawaianView />} />
         <Route path="early-warning-system" element={<EarlyWarningSystemView />} />
-        <Route path="notifikasi" element={<Navigate to="/admin/early-warning-system" replace />} />
         <Route path="sistem" element={<SistemView />} />
         <Route path="profil" element={<ProfilView />} />
         <Route path="pengaturan" element={<PengaturanView />} />
