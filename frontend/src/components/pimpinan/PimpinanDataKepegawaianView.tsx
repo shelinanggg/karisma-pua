@@ -1,232 +1,59 @@
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Eye, ListChecks, Search } from 'lucide-react';
 import {
-  Calendar,
-  Check,
-  ChevronsUpDown,
-  Eye,
-  Search,
-} from 'lucide-react';
+  getPegawaiList,
+  getPegawaiReferences,
+  type Pegawai as Employee,
+  type PegawaiReferences,
+  type RelationOption,
+} from '../../api/pegawaiApi';
+import {
+  getPenugasanButirByPegawai,
+  type PenugasanButir,
+} from '../../api/penugasanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { cn } from '../ui/utils';
-
-type RelationOption = {
-  id: string;
-  label: string;
-};
-
-type Employee = {
-  id: string;
-  nip: string;
-  nama: string;
-  tempat_lahir: string;
-  tanggal_lahir: string;
-  role_id: string;
-  fungsional: string;
-  tmt_golongan: string;
-  pendidikan: string;
-  kualifikasi: string;
-  tmt_kgb: string;
-  tmt_jabatan: string;
-  tmt_pensiun: string;
-  jabatan_id: string;
-  pangkat_id: string;
-  golongan_id: string;
-  penempatan_id: string;
-  sertifikasi_id: string;
-};
 
 type DataKepegawaianViewProps = {
   detailPlacement?: 'row' | 'bottom';
 };
 
-function openDatePicker(event: { currentTarget: HTMLInputElement }) {
-  const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+type RelationMaps = {
+  role_id: RelationOption[];
+  jabatan_id: RelationOption[];
+  pangkat_id: RelationOption[];
+  golongan_id: RelationOption[];
+  penempatan_id: RelationOption[];
+  sertifikasi_id: RelationOption[];
+};
 
-  try {
-    input.showPicker?.();
-  } catch {
-    // Browser fallback: native focus/click behavior remains available.
-  }
-}
+const fallbackReferences: PegawaiReferences = {
+  roles: [],
+  jabatan: [],
+  pangkat: [],
+  golongan: [],
+  penempatan: [],
+  sertifikasi: [],
+};
 
-const jabatanOptions: RelationOption[] = [
-  { id: 'jab-1', label: 'Pustakawan Ahli Pertama' },
-  { id: 'jab-2', label: 'Pustakawan Ahli Muda' },
-  { id: 'jab-3', label: 'Pustakawan Ahli Madya' },
-  { id: 'jab-4', label: 'Pranata Komputer Ahli Pertama' },
-  { id: 'jab-5', label: 'Analis SDM Aparatur' },
-];
-
-const pangkatOptions: RelationOption[] = [
-  { id: 'pkt-1', label: 'Penata Muda' },
-  { id: 'pkt-2', label: 'Penata Muda Tk. I' },
-  { id: 'pkt-3', label: 'Penata' },
-  { id: 'pkt-4', label: 'Penata Tk. I' },
-  { id: 'pkt-5', label: 'Pembina' },
-];
-
-const golonganOptions: RelationOption[] = [
-  { id: 'gol-1', label: 'III/a' },
-  { id: 'gol-2', label: 'III/b' },
-  { id: 'gol-3', label: 'III/c' },
-  { id: 'gol-4', label: 'III/d' },
-  { id: 'gol-5', label: 'IV/a' },
-];
-
-const penempatanOptions: RelationOption[] = [
-  { id: 'pen-1', label: 'Perpustakaan Kampus A' },
-  { id: 'pen-2', label: 'Perpustakaan Kampus B' },
-  { id: 'pen-3', label: 'Perpustakaan Kampus C' },
-  { id: 'pen-4', label: 'Bidang Pengolahan Koleksi' },
-  { id: 'pen-5', label: 'Bidang Layanan Pemustaka' },
-];
-
-const sertifikasiOptions: RelationOption[] = [
-  { id: 'ser-1', label: 'Tersertifikasi Pustakawan' },
-  { id: 'ser-2', label: 'Belum Tersertifikasi' },
-  { id: 'ser-3', label: 'Sertifikasi Dalam Proses' },
-];
-
-const roleOptions: RelationOption[] = [
-  { id: 'role-admin', label: 'Admin' },
-  { id: 'role-pimpinan', label: 'Pimpinan' },
-  { id: 'role-pegawai', label: 'Pegawai' },
-];
-
-const employeeSeeds: Employee[] = [
-  {
-    id: 'emp-1',
-    nip: '198801052010012001',
-    nama: 'Sarah Johnson',
-    tempat_lahir: 'Jakarta',
-    tanggal_lahir: '1988-01-05',
-    role_id: 'role-admin',
-    fungsional: 'Pustakawan Ahli Muda',
-    tmt_golongan: '2022-04-01',
-    pendidikan: 'S2 Ilmu Perpustakaan',
-    kualifikasi: 'Manajemen perpustakaan digital',
-    tmt_kgb: '2025-04-01',
-    tmt_jabatan: '2021-08-01',
-    tmt_pensiun: '2048-01-05',
-    jabatan_id: 'jab-2',
-    pangkat_id: 'pkt-3',
-    golongan_id: 'gol-3',
-    penempatan_id: 'pen-1',
-    sertifikasi_id: 'ser-1',
-  },
-  {
-    id: 'emp-2',
-    nip: '198709122011011002',
-    nama: 'Michael Chen',
-    tempat_lahir: 'Surabaya',
-    tanggal_lahir: '1987-09-12',
-    role_id: 'role-pimpinan',
-    fungsional: 'Pustakawan Ahli Madya',
-    tmt_golongan: '2023-10-01',
-    pendidikan: 'S2 Administrasi Publik',
-    kualifikasi: 'Pengembangan layanan informasi',
-    tmt_kgb: '2026-10-01',
-    tmt_jabatan: '2022-01-01',
-    tmt_pensiun: '2047-09-12',
-    jabatan_id: 'jab-3',
-    pangkat_id: 'pkt-4',
-    golongan_id: 'gol-4',
-    penempatan_id: 'pen-5',
-    sertifikasi_id: 'ser-1',
-  },
-  {
-    id: 'emp-3',
-    nip: '199001182012012003',
-    nama: 'Emily Davis',
-    tempat_lahir: 'Bandung',
-    tanggal_lahir: '1990-01-18',
-    role_id: 'role-pegawai',
-    fungsional: 'Analis SDM Aparatur',
-    tmt_golongan: '2021-04-01',
-    pendidikan: 'S1 Psikologi',
-    kualifikasi: 'Analisis jabatan dan kinerja',
-    tmt_kgb: '2025-04-01',
-    tmt_jabatan: '2020-07-01',
-    tmt_pensiun: '2050-01-18',
-    jabatan_id: 'jab-5',
-    pangkat_id: 'pkt-2',
-    golongan_id: 'gol-2',
-    penempatan_id: 'pen-4',
-    sertifikasi_id: 'ser-3',
-  },
-  {
-    id: 'emp-4',
-    nip: '199103072013012004',
-    nama: 'James Wilson',
-    tempat_lahir: 'Yogyakarta',
-    tanggal_lahir: '1991-03-07',
-    role_id: 'role-pegawai',
-    fungsional: 'Pustakawan Ahli Pertama',
-    tmt_golongan: '2020-10-01',
-    pendidikan: 'S1 Ilmu Informasi',
-    kualifikasi: 'Pengolahan koleksi dan metadata',
-    tmt_kgb: '2024-10-01',
-    tmt_jabatan: '2019-05-01',
-    tmt_pensiun: '2051-03-07',
-    jabatan_id: 'jab-1',
-    pangkat_id: 'pkt-1',
-    golongan_id: 'gol-1',
-    penempatan_id: 'pen-2',
-    sertifikasi_id: 'ser-2',
-  },
-  {
-    id: 'emp-5',
-    nip: '199204222014012005',
-    nama: 'Lisa Anderson',
-    tempat_lahir: 'Malang',
-    tanggal_lahir: '1992-04-22',
-    role_id: 'role-pegawai',
-    fungsional: 'Pranata Komputer Ahli Pertama',
-    tmt_golongan: '2022-10-01',
-    pendidikan: 'S1 Sistem Informasi',
-    kualifikasi: 'Sistem informasi perpustakaan',
-    tmt_kgb: '2026-10-01',
-    tmt_jabatan: '2021-02-01',
-    tmt_pensiun: '2052-04-22',
-    jabatan_id: 'jab-4',
-    pangkat_id: 'pkt-2',
-    golongan_id: 'gol-2',
-    penempatan_id: 'pen-3',
-    sertifikasi_id: 'ser-3',
-  },
-];
-
-const initialEmployees: Employee[] = Array.from({ length: 18 }, (_, index) => {
-  const seed = employeeSeeds[index % employeeSeeds.length];
-  const sequence = index + 1;
-
+function createRelationMaps(references: PegawaiReferences): RelationMaps {
   return {
-    ...seed,
-    id: `emp-${sequence}`,
-    nip: `${seed.nip.slice(0, 14)}${sequence.toString().padStart(4, '0')}`,
-    nama: index < employeeSeeds.length ? seed.nama : `${seed.nama} ${Math.floor(index / employeeSeeds.length) + 1}`,
+    role_id: references.roles,
+    jabatan_id: references.jabatan,
+    pangkat_id: references.pangkat,
+    golongan_id: references.golongan,
+    penempatan_id: references.penempatan,
+    sertifikasi_id: references.sertifikasi,
   };
-});
-
-const relationMaps = {
-  role_id: roleOptions,
-  jabatan_id: jabatanOptions,
-  pangkat_id: pangkatOptions,
-  golongan_id: golonganOptions,
-  penempatan_id: penempatanOptions,
-  sertifikasi_id: sertifikasiOptions,
-} as const;
+}
 
 const pageSizeOptions = [5, 10, 20];
 
@@ -252,6 +79,7 @@ const detailSections = [
       ['golongan_id', 'Golongan'],
       ['penempatan_id', 'Penempatan'],
       ['sertifikasi_id', 'Sertifikasi'],
+      ['target_ketercapaian', 'Target Ketercapaian'],
     ],
   },
   {
@@ -265,15 +93,16 @@ const detailSections = [
   },
 ] as const;
 
-function getRelationLabel(key: keyof typeof relationMaps, value: string) {
-  return relationMaps[key].find((item) => item.id === value)?.label ?? '-';
+function getRelationLabel(maps: RelationMaps, key: keyof RelationMaps, value: string) {
+  return maps[key].find((item) => item.id === value)?.label ?? '-';
 }
 
-function getEmployeeFieldValue(employee: Employee, key: keyof Employee) {
-  if (key in relationMaps) {
-    return getRelationLabel(key as keyof typeof relationMaps, employee[key]);
+function getEmployeeFieldValue(employee: Employee, maps: RelationMaps, key: keyof Employee) {
+  if (key in maps) {
+    return getRelationLabel(maps, key as keyof RelationMaps, employee[key] as string);
   }
-  return employee[key] || '-';
+
+  return employee[key] ? String(employee[key]) : '-';
 }
 
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
@@ -379,91 +208,14 @@ function EmployeePagination({
   );
 }
 
-function SearchableSelect({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: RelationOption[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const selected = options.find((option) => option.id === value);
-  const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
-
-  return (
-    <div>
-      <Button
-        type="button"
-        variant="outline"
-        role="combobox"
-        aria-expanded={open}
-        className="h-10 w-full justify-between bg-white px-3 text-left font-normal"
-        style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
-        onClick={() => {
-          setOpen((current) => !current);
-          setQuery('');
-        }}
-      >
-        <span className={cn('truncate', !selected && 'text-muted-foreground')}>
-          {selected?.label ?? `Pilih ${label}`}
-        </span>
-        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-      </Button>
-
-      {open && (
-        <div
-          className="mt-1 rounded-md border bg-white shadow-md"
-          style={{ borderColor: '#d1d5db', maxHeight: '11rem', overflow: 'hidden' }}
-        >
-          <div className="border-b p-2" style={{ borderColor: '#e5e7eb' }}>
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Cari ${label.toLowerCase()}...`}
-              className="bg-white"
-              style={{ height: '2rem', fontSize: '0.8125rem', borderColor: '#d1d5db' }}
-              autoFocus
-            />
-          </div>
-
-          <div style={{ maxHeight: '7.25rem', overflowY: 'auto' }}>
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.id);
-                    setOpen(false);
-                    setQuery('');
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                >
-                  <Check className={cn('size-4', value === option.id ? 'opacity-100' : 'opacity-0')} />
-                  <span>{option.label}</span>
-                </button>
-              ))
-            ) : (
-              <p className="px-3 py-3 text-center text-sm text-gray-500">Data tidak ditemukan.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function DetailModal({
   employee,
+  relationMaps,
   open,
   onOpenChange,
 }: {
   employee: Employee | null;
+  relationMaps: RelationMaps;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -480,7 +232,7 @@ function DetailModal({
         <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(64vh - 5rem)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div className="rounded-lg border bg-gray-50" style={{ padding: '0.75rem' }}>
             <p className="font-semibold text-gray-900" style={{ fontSize: '0.9375rem' }}>{employee.nama}</p>
-            <p className="font-normal text-gray-500" style={{ fontSize: '0.8125rem' }}>NIP {employee.nip}</p>
+            <p className="font-normal text-gray-500" style={{ fontSize: '0.8125rem' }}>NIP {employee.nip || '-'}</p>
           </div>
 
           {detailSections.map((section) => (
@@ -491,7 +243,7 @@ function DetailModal({
                   <div key={key} className="rounded-md border bg-white" style={{ padding: '0.625rem' }}>
                     <p className="font-medium uppercase tracking-wide text-gray-500" style={{ fontSize: '0.6875rem' }}>{label}</p>
                     <p className="font-medium text-gray-900" style={{ marginTop: '0.125rem', fontSize: '0.8125rem' }}>
-                      {getEmployeeFieldValue(employee, key as keyof Employee)}
+                      {getEmployeeFieldValue(employee, relationMaps, key as keyof Employee)}
                     </p>
                   </div>
                 ))}
@@ -504,14 +256,6 @@ function DetailModal({
   );
 }
 
-type KegiatanDetail = {
-  id: number;
-  nama_kegiatan: string;
-  progress: number;
-  status: 'belum_dimulai' | 'sedang_berjalan' | 'selesai';
-  deadline: string;
-};
-
 function DetailKegiatanModal({
   employee,
   open,
@@ -521,86 +265,91 @@ function DetailKegiatanModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [items, setItems] = useState<PenugasanButir[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadKegiatan = async () => {
+      if (!open || !employee) return;
+
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const data = await getPenugasanButirByPegawai(String(employee.id));
+        if (!ignore) setItems(data);
+      } catch (error: any) {
+        if (!ignore) setErrorMessage(error.response?.data?.message || 'Gagal mengambil detail kegiatan pegawai.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadKegiatan();
+
+    return () => {
+      ignore = true;
+    };
+  }, [employee, open]);
+
   if (!employee) return null;
-
-  const kegiatanList: KegiatanDetail[] = [
-    {
-      id: 1,
-      nama_kegiatan: 'Perencanaan Program Kerja Triwulan',
-      progress: 100,
-      status: 'selesai',
-      deadline: '2026-03-31',
-    },
-    {
-      id: 2,
-      nama_kegiatan: 'Penyusunan Laporan Capaian Kinerja Bulanan',
-      progress: 75,
-      status: 'sedang_berjalan',
-      deadline: '2026-05-15',
-    },
-    {
-      id: 3,
-      nama_kegiatan: 'Monitoring Disiplin Kehadiran Pegawai',
-      progress: 0,
-      status: 'belum_dimulai',
-      deadline: '2026-06-30',
-    },
-  ];
-
-  const statusLabelMap = {
-    'belum_dimulai': 'Belum Dimulai',
-    'sedang_berjalan': 'Sedang Berjalan',
-    'selesai': 'Selesai',
-  };
-
-  const statusClassMap = {
-    'belum_dimulai': 'bg-gray-100 text-gray-700',
-    'sedang_berjalan': 'bg-blue-100 text-blue-700',
-    'selesai': 'bg-green-100 text-green-700',
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent style={{ maxWidth: '720px', maxHeight: '64vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
+      <DialogContent style={{ maxWidth: '760px', maxHeight: '68vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
         <DialogHeader style={{ gap: '0.25rem' }}>
           <DialogTitle style={{ fontSize: '1rem' }}>Detail Kegiatan</DialogTitle>
-          <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip}</DialogDescription>
+          <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip || '-'}</DialogDescription>
         </DialogHeader>
 
-        <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(64vh - 5rem)' }}>
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-gray-100 border-b">
-                <th className="p-3 text-left font-semibold text-gray-700">Nama Kegiatan</th>
-                <th className="p-3 text-left font-semibold text-gray-700">Progress</th>
-                <th className="p-3 text-left font-semibold text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {kegiatanList.map((kegiatan) => (
-                <tr key={kegiatan.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3 text-gray-900">{kegiatan.nama_kegiatan}</td>
-                  <td className="p-3">
-                    <div className="space-y-1" style={{ maxWidth: '220px' }}>
-                      <div className="text-xs text-gray-600">{kegiatan.progress}%</div>
-                      <div className="h-2 w-full bg-gray-200 rounded overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500"
-                          style={{ width: `${kegiatan.progress}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-gray-500">Deadline: {new Date(kegiatan.deadline).toLocaleDateString('id-ID')}</div>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusClassMap[kegiatan.status]}`}>
-                      {statusLabelMap[kegiatan.status]}
-                    </span>
-                  </td>
+        <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(68vh - 5rem)' }}>
+          {errorMessage && (
+            <p className="mb-3 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+              <AlertCircle className="size-4" />
+              {errorMessage}
+            </p>
+          )}
+
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-left text-gray-700">
+                  <th className="p-3 font-semibold">Butir Kegiatan</th>
+                  <th className="p-3 font-semibold">Target</th>
+                  <th className="p-3 font-semibold">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={3} className="p-6 text-center text-gray-500">Memuat detail kegiatan...</td>
+                  </tr>
+                ) : items.length > 0 ? (
+                  items.map((item) => (
+                    <tr key={item.id} className="border-t align-top hover:bg-gray-50">
+                      <td className="p-3">
+                        <p className="font-semibold text-gray-900">{item.namaKegiatan || '-'}</p>
+                        <p className="mt-1 text-xs text-gray-500">{item.uraian || item.deskripsi || 'Belum ada uraian kegiatan.'}</p>
+                      </td>
+                      <td className="p-3 text-gray-700">{item.targetKetercapaian || '-'}</td>
+                      <td className="p-3">
+                        <span className="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">
+                          {item.status || '-'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="p-6 text-center text-gray-500">Belum ada kegiatan yang ditetapkan untuk pegawai ini.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -608,17 +357,48 @@ function DetailKegiatanModal({
 }
 
 export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [references, setReferences] = useState<PegawaiReferences>(fallbackReferences);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
   const [detailKegiatanEmployee, setDetailKegiatanEmployee] = useState<Employee | null>(null);
   const employeeGridStyle = {
     minWidth: '1080px',
-    gridTemplateColumns: 'minmax(240px, 1.35fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 100px',
+    gridTemplateColumns: 'minmax(240px, 1.35fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 220px',
   };
+  const relationMaps = useMemo(() => createRelationMaps(references), [references]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadEmployees = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const [referenceData, employeeData] = await Promise.all([getPegawaiReferences(), getPegawaiList()]);
+        if (!ignore) {
+          setReferences(referenceData);
+          setEmployees(employeeData);
+        }
+      } catch (error: any) {
+        if (!ignore) setErrorMessage(error.response?.data?.message || 'Gagal mengambil data pegawai.');
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadEmployees();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const filteredEmployees = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -629,16 +409,16 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
         [
           employee.nama,
           employee.nip,
-          getRelationLabel('role_id', employee.role_id),
+          getRelationLabel(relationMaps, 'role_id', employee.role_id),
           employee.fungsional,
-          getRelationLabel('pangkat_id', employee.pangkat_id),
-          getRelationLabel('golongan_id', employee.golongan_id),
+          getRelationLabel(relationMaps, 'pangkat_id', employee.pangkat_id),
+          getRelationLabel(relationMaps, 'golongan_id', employee.golongan_id),
         ]
           .join(' ')
           .toLowerCase()
           .includes(query)),
     );
-  }, [employees, search, roleFilter]);
+  }, [employees, relationMaps, search, roleFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -673,7 +453,7 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
             className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none"
           >
             <option value="all">Semua Role</option>
-            {roleOptions.map((role) => (
+            {references.roles.map((role) => (
               <option key={role.id} value={role.id}>
                 {role.label}
               </option>
@@ -688,6 +468,13 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
           <CardDescription>Ringkasan pegawai dengan aksi lihat detail.</CardDescription>
         </CardHeader>
         <CardContent>
+          {errorMessage && (
+            <p className="mb-4 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+              <AlertCircle className="size-4" />
+              {errorMessage}
+            </p>
+          )}
+
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
             <div
               className="grid items-center bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-700"
@@ -708,7 +495,9 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
 
             <div className="overflow-x-auto" style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
               <div className="divide-y divide-gray-200" style={{ minWidth: employeeGridStyle.minWidth }}>
-                {paginatedEmployees.length > 0 ? (
+                {isLoading ? (
+                  <div className="px-5 py-10 text-center text-sm text-gray-500">Memuat data pegawai...</div>
+                ) : paginatedEmployees.length > 0 ? (
                   paginatedEmployees.map((employee) => (
                     <div
                       key={employee.id}
@@ -717,18 +506,20 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-900">{employee.nama}</p>
-                        <p className="truncate text-xs font-normal text-gray-500">NIP {employee.nip}</p>
+                        <p className="truncate text-xs font-normal text-gray-500">NIP {employee.nip || '-'}</p>
                       </div>
-                      <div className="text-sm text-gray-700">{getRelationLabel('role_id', employee.role_id)}</div>
-                      <div className="text-sm text-gray-700">{employee.fungsional}</div>
-                      <div className="text-sm text-gray-700">{getRelationLabel('pangkat_id', employee.pangkat_id)}</div>
-                      <div className="text-sm text-gray-700">{getRelationLabel('golongan_id', employee.golongan_id)}</div>
-                      <div className="flex flex-col justify-center gap-1">
-                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setDetailEmployee(employee)}>
-                          Detail Pegawai
+                      <div className="text-sm text-gray-700">{getRelationLabel(relationMaps, 'role_id', employee.role_id)}</div>
+                      <div className="text-sm text-gray-700">{employee.fungsional || '-'}</div>
+                      <div className="text-sm text-gray-700">{getRelationLabel(relationMaps, 'pangkat_id', employee.pangkat_id)}</div>
+                      <div className="text-sm text-gray-700">{getRelationLabel(relationMaps, 'golongan_id', employee.golongan_id)}</div>
+                      <div className="flex justify-center gap-2">
+                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailEmployee(employee)}>
+                          <Eye className="size-3.5" />
+                          Detail
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setDetailKegiatanEmployee(employee)}>
-                          Detail Kegiatan
+                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailKegiatanEmployee(employee)}>
+                          <ListChecks className="size-3.5" />
+                          Kegiatan
                         </Button>
                       </div>
                     </div>
@@ -751,8 +542,18 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
         </CardContent>
       </Card>
 
-      <DetailKegiatanModal employee={detailKegiatanEmployee} open={Boolean(detailKegiatanEmployee)} onOpenChange={(open) => !open && setDetailKegiatanEmployee(null)} />
-      <DetailModal employee={detailEmployee} open={Boolean(detailEmployee)} onOpenChange={(open) => !open && setDetailEmployee(null)} />
+      <DetailModal
+        employee={detailEmployee}
+        relationMaps={relationMaps}
+        open={Boolean(detailEmployee)}
+        onOpenChange={(open) => !open && setDetailEmployee(null)}
+      />
+
+      <DetailKegiatanModal
+        employee={detailKegiatanEmployee}
+        open={Boolean(detailKegiatanEmployee)}
+        onOpenChange={(open) => !open && setDetailKegiatanEmployee(null)}
+      />
     </div>
   );
 }

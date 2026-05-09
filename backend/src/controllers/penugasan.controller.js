@@ -1,4 +1,5 @@
 import {
+  approveRealisasiKegiatan,
   createAdditionalAssignment,
   createButirAssignment,
   createMyRealisasiKegiatan,
@@ -6,11 +7,14 @@ import {
   findAdditionalAssignmentById,
   findAdditionalAssignmentsByEmployee,
   findAdditionalAssignments,
+  findApprovalRealisasiByEmployee,
+  findApprovalRealisasiEmployees,
   findAssignableEmployees,
   findButirAssignmentsByEmployee,
   findCurrentYearButirAssignmentsByEmployee,
   findMyDashboardSummary,
   findMyRealisasiKegiatan,
+  findPimpinanKegiatanDashboard,
   updateAdditionalAssignment,
   updateButirAssignment,
   updateOwnButirTarget,
@@ -63,6 +67,27 @@ export const getPenugasanEmployees = async (req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data pegawai untuk penugasan." });
+  }
+};
+
+export const getPimpinanKegiatanDashboard = async (req, res) => {
+  try {
+    const tahun = requiredInteger(req.query.tahun);
+    const bulan = requiredInteger(req.query.bulan);
+
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun kegiatan tidak valid." });
+    }
+
+    if (Number.isNaN(bulan) || (bulan !== null && (bulan < 1 || bulan > 12))) {
+      return res.status(400).json({ message: "Bulan kegiatan tidak valid." });
+    }
+
+    const effectiveTahun = bulan && !tahun ? new Date().getFullYear() : tahun;
+    const data = await findPimpinanKegiatanDashboard({ tahun: effectiveTahun, bulan });
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data kegiatan pimpinan." });
   }
 };
 
@@ -132,6 +157,18 @@ export const getMyButirAssignments = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data kinerja pegawai." });
   }
+};
+
+const requiredIntegerList = (value) => {
+  if (!Array.isArray(value)) return [];
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => requiredInteger(item))
+        .filter((item) => Number.isInteger(item)),
+    ),
+  );
 };
 
 export const getMyDashboard = async (req, res) => {
@@ -248,6 +285,66 @@ export const getMyRealisasi = async (req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil riwayat realisasi kegiatan." });
+  }
+};
+
+export const getApprovalRealisasiEmployees = async (req, res) => {
+  try {
+    const idPeriodeSkp = requiredInteger(req.query.idPeriodeSkp);
+    const tahun = requiredInteger(req.query.tahun);
+
+    if (Number.isNaN(idPeriodeSkp)) {
+      return res.status(400).json({ message: "Periode SKP tidak valid." });
+    }
+
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun pengajuan tidak valid." });
+    }
+
+    const data = await findApprovalRealisasiEmployees({ idPeriodeSkp, tahun });
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data pengajuan realisasi SKP." });
+  }
+};
+
+export const getApprovalRealisasiByEmployee = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.params.pegawaiId);
+    const idPeriodeSkp = requiredInteger(req.query.idPeriodeSkp);
+    const tahun = requiredInteger(req.query.tahun);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+
+    if (Number.isNaN(idPeriodeSkp)) {
+      return res.status(400).json({ message: "Periode SKP tidak valid." });
+    }
+
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun pengajuan tidak valid." });
+    }
+
+    const data = await findApprovalRealisasiByEmployee(idPengguna, { idPeriodeSkp, tahun });
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil detail pengajuan realisasi SKP." });
+  }
+};
+
+export const patchApproveRealisasi = async (req, res) => {
+  try {
+    const ids = requiredIntegerList(req.body.realisasiIds);
+
+    if (ids.length === 0) {
+      return res.status(400).json({ message: "Minimal satu realisasi wajib dipilih." });
+    }
+
+    const data = await approveRealisasiKegiatan(ids);
+    res.status(200).json({ message: "Realisasi kegiatan berhasil disetujui.", data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal menyetujui realisasi kegiatan." });
   }
 };
 

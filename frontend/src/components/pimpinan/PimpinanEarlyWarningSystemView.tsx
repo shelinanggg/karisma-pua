@@ -1,45 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Progress } from '../ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
-import { Checkbox } from '../ui/checkbox';
-
-const promotionData = Array.from({ length: 45 }).map((_, i) => ({
-  id: `user-p-${i}`,
-  name: `Pegawai Promotion ${i + 1}`,
-  nip: `198${(i % 10).toString().padStart(1, '0')}01012010${(i + 1).toString().padStart(4, '0')}`,
-  currentScore: Math.floor(Math.random() * (150 - 50) + 50),
-  requiredScore: 150,
-}));
-
-const today = new Date();
-
-type KgbWarning = {
-  id: string;
-  name: string;
-  nip: string;
-  tmtKgb: string;
-  daysLeft: number;
-};
-
-const kgbData: KgbWarning[] = [];
-
-const pensionData = Array.from({ length: 18 }).map((_, i) => {
-  const daysLeft = Math.floor(Math.random() * (365 * 5)) + 1;
-  const tmtDate = new Date(today);
-  tmtDate.setDate(today.getDate() + daysLeft);
-
-  return {
-    id: `user-r-${i}`,
-    name: `Pegawai Pensiun ${i + 1}`,
-    nip: `196${(i % 10).toString().padStart(1, '0')}03032000${(i + 1).toString().padStart(4, '0')}`,
-    tmtPension: tmtDate.toISOString(),
-    daysLeft,
-  };
-});
+import { getEarlyWarningData, type KgbWarning, type PensionWarning, type PromotionWarning } from '../../api/earlyWarningApi';
 
 function formatDateId(date: string) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -67,10 +32,6 @@ function EmptyTableRow({ colSpan, message }: { colSpan: number; message: string 
       </TableCell>
     </TableRow>
   );
-}
-
-function RequiredStar() {
-  return <span className="admin-required-star">*</span>;
 }
 
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
@@ -176,12 +137,45 @@ function CustomPagination({
 }
 
 export function PimpinanEarlyWarningSystemView() {
+  const [promotionData, setPromotionData] = useState<PromotionWarning[]>([]);
+  const [kgbData, setKgbData] = useState<KgbWarning[]>([]);
+  const [pensionData, setPensionData] = useState<PensionWarning[]>([]);
+  const [isLoadingWarnings, setIsLoadingWarnings] = useState(true);
+  const [warningError, setWarningError] = useState('');
   const [promoPage, setPromoPage] = useState(1);
   const [promoPageSize, setPromoPageSize] = useState(10);
   const [kgbPage, setKgbPage] = useState(1);
   const [kgbPageSize, setKgbPageSize] = useState(10);
   const [pensionPage, setPensionPage] = useState(1);
   const [pensionPageSize, setPensionPageSize] = useState(10);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadWarnings = async () => {
+      setIsLoadingWarnings(true);
+      setWarningError('');
+
+      try {
+        const data = await getEarlyWarningData();
+        if (!ignore) {
+          setPromotionData(data.jabatan);
+          setKgbData(data.kgb);
+          setPensionData(data.pensiun);
+        }
+      } catch (error: any) {
+        if (!ignore) setWarningError(error.response?.data?.message || 'Gagal mengambil data early warning pegawai.');
+      } finally {
+        if (!ignore) setIsLoadingWarnings(false);
+      }
+    };
+
+    loadWarnings();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const totalPromoPages = Math.max(1, Math.ceil(promotionData.length / promoPageSize));
   const normalizedPromoPage = Math.min(promoPage, totalPromoPages);
@@ -202,8 +196,10 @@ export function PimpinanEarlyWarningSystemView() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Early Warning System</h1>
-        <p className="text-gray-600 mt-1">Pantau data early warning terkait kenaikan jabatan, KGB, dan pensiun</p>
+        <p className="text-gray-600 mt-1">Pantau data early warning terkait kenaikan jabatan, gaji berkala, dan pensiun</p>
       </div>
+
+      {warningError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{warningError}</p>}
 
       <Tabs defaultValue="jabatan" className="w-full">
         <TabsList className="grid w-full grid-cols-3" style={{ maxWidth: '42rem' }}>
@@ -217,7 +213,7 @@ export function PimpinanEarlyWarningSystemView() {
             <CardHeader>
               <CardTitle>Daftar Kandidat Kenaikan Jabatan</CardTitle>
               <CardDescription>
-                Pegawai dengan progres angka ketercapaian menuju target yang dipersyaratkan.
+                Pegawai yang sisa angka ketercapaiannya kurang dari sama dengan 100 dari target kenaikan jabatan.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
@@ -231,7 +227,9 @@ export function PimpinanEarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPromo.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data kenaikan jabatan..." />
+                    ) : paginatedPromo.length > 0 ? (
                       paginatedPromo.map((user) => {
                         const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
                         return (
@@ -242,6 +240,7 @@ export function PimpinanEarlyWarningSystemView() {
                             </TableCell>
                             <TableCell>
                               <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
+                              <div className="mt-0.5 text-xs text-gray-500">Sisa {user.remainingScore}</div>
                             </TableCell>
                             <TableCell style={{ paddingRight: '1.5rem' }}>
                               <div className="flex items-center gap-3">
@@ -258,14 +257,16 @@ export function PimpinanEarlyWarningSystemView() {
                   </TableBody>
                 </Table>
 
-                <CustomPagination
-                  currentPage={normalizedPromoPage}
-                  totalPages={totalPromoPages}
-                  totalItems={promotionData.length}
-                  pageSize={promoPageSize}
-                  onPageChange={setPromoPage}
-                  onPageSizeChange={setPromoPageSize}
-                />
+                {promotionData.length > 0 && (
+                  <CustomPagination
+                    currentPage={normalizedPromoPage}
+                    totalPages={totalPromoPages}
+                    totalItems={promotionData.length}
+                    pageSize={promoPageSize}
+                    onPageChange={setPromoPage}
+                    onPageSizeChange={setPromoPageSize}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
@@ -290,7 +291,9 @@ export function PimpinanEarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedKgb.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data KGB..." />
+                    ) : paginatedKgb.length > 0 ? (
                       paginatedKgb.map((user) => {
                         return (
                           <TableRow key={user.id}>
@@ -310,7 +313,7 @@ export function PimpinanEarlyWarningSystemView() {
                         );
                       })
                     ) : (
-                      <EmptyTableRow colSpan={3} message="Tidak ada data KGB dalam 31 hari ke depan." />
+                      <EmptyTableRow colSpan={3} message="Tidak ada data KGB dalam 90 hari ke depan." />
                     )}
                   </TableBody>
                 </Table>
@@ -349,7 +352,9 @@ export function PimpinanEarlyWarningSystemView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedPension.length > 0 ? (
+                    {isLoadingWarnings ? (
+                      <EmptyTableRow colSpan={3} message="Memuat data pensiun..." />
+                    ) : paginatedPension.length > 0 ? (
                       paginatedPension.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell style={{ width: '33.33%', paddingLeft: '1.5rem' }}>
