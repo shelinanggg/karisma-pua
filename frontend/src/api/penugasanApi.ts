@@ -53,6 +53,7 @@ export type MyRealisasiKegiatan = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+  status: 'diajukan' | 'disetujui';
 };
 
 export type MyRealisasiKegiatanPayload = {

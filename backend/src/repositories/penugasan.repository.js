@@ -71,6 +71,7 @@ const mapRealisasiRow = (row) => ({
   tanggalRealisasi: row.tanggal_realisasi ?? "",
   realisasiTarget: row.realisasi_target ?? "",
   keterangan: row.keterangan ?? "",
+  status: row.status ?? "diajukan",
 });
 
 const mapTambahanRow = (row) => {
@@ -388,7 +389,8 @@ export const findMyRealisasiKegiatan = async (idPengguna) => {
         butir_kegiatan.nama_kegiatan,
         ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
         realisasi_kegiatan.realisasi_target,
-        realisasi_kegiatan.keterangan
+        realisasi_kegiatan.keterangan,
+        realisasi_kegiatan.status
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
         ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
@@ -419,9 +421,10 @@ export const createMyRealisasiKegiatan = async ({
         id_pengguna_kegiatan,
         tanggal_realisasi,
         realisasi_target,
-        keterangan
+        keterangan,
+        status
       )
-      SELECT $2, $3, $4, $5
+      SELECT $2, $3, $4, $5, 'diajukan'
       FROM pengguna_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp

@@ -110,11 +110,11 @@ const mockKegiatan = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const kpiColorMap: Record<string, { bg: string; icon: string; border: string }> = {
-  blue:   { bg: 'bg-blue-50',   icon: 'text-blue-600',   border: 'border-blue-100' },
-  green:  { bg: 'bg-green-50',  icon: 'text-green-600',  border: 'border-green-100' },
-  amber:  { bg: 'bg-amber-50',  icon: 'text-amber-600',  border: 'border-amber-100' },
-  purple: { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-100' },
+const kpiColorMap: Record<string, { border: string }> = {
+  blue: { border: 'border-blue-100' },
+  green: { border: 'border-green-100' },
+  amber: { border: 'border-amber-100' },
+  purple: { border: 'border-purple-100' },
 };
 
 function formatPeriodeLabel(periode: PeriodeSkp) {
@@ -210,8 +210,8 @@ export function PimpinanOverview() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardDescription>{kpi.label}</CardDescription>
-                  <div className={`w-8 h-8 rounded-lg ${colors.bg} flex items-center justify-center`}>
-                    <Icon className={`w-4 h-4 ${colors.icon}`} />
+                  <div className={`dashboard-kpi-icon dashboard-kpi-icon-${kpi.color}`}>
+                    <Icon />
                   </div>
                 </div>
               </CardHeader>
