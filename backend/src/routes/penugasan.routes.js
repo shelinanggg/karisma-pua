@@ -5,6 +5,7 @@ import {
   getApprovalRealisasiByEmployee,
   getApprovalRealisasiEmployees,
   getButirAssignmentsByEmployee,
+  getMainDashboard,
   getMyDashboard,
   getMyButirAssignments,
   getMyAdditionalAssignments,
@@ -26,6 +27,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
+router.get("/dashboard/utama", authorizeRoles("admin", "pimpinan"), getMainDashboard);
 router.get("/pimpinan/kegiatan", authorizeRoles("pimpinan"), getPimpinanKegiatanDashboard);
 router.get("/pegawai", authorizeRoles("admin"), getPenugasanEmployees);
 router.post("/butir", authorizeRoles("admin"), postButirAssignment);

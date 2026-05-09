@@ -12,6 +12,7 @@ import {
   findAssignableEmployees,
   findButirAssignmentsByEmployee,
   findCurrentYearButirAssignmentsByEmployee,
+  findMainDashboardSummary,
   findMyDashboardSummary,
   findMyRealisasiKegiatan,
   findPimpinanKegiatanDashboard,
@@ -88,6 +89,21 @@ export const getPimpinanKegiatanDashboard = async (req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data kegiatan pimpinan." });
+  }
+};
+
+export const getMainDashboard = async (req, res) => {
+  try {
+    const idPeriodeSkp = requiredInteger(req.query.idPeriodeSkp);
+
+    if (Number.isNaN(idPeriodeSkp)) {
+      return res.status(400).json({ message: "Periode SKP tidak valid." });
+    }
+
+    const data = await findMainDashboardSummary({ idPeriodeSkp });
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil data dashboard utama." });
   }
 };
 

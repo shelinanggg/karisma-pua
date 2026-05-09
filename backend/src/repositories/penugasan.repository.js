@@ -153,6 +153,45 @@ const mapPimpinanKegiatanRow = (row) => {
   };
 };
 
+const formatDashboardDelta = (current, previous) => {
+  const delta = Number(current ?? 0) - Number(previous ?? 0);
+  return {
+    change: `${delta >= 0 ? "+" : ""}${delta} dari bulan lalu`,
+    trend: delta >= 0 ? "up" : "down",
+  };
+};
+
+const getInitials = (name) => {
+  const parts = String(name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "-";
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
+};
+
+const mapDashboardKegiatanRow = (row) => {
+  const tujuanSKP = Math.round(Number(row.target_total ?? 0) * 100) / 100;
+  const skpSelesai = Math.round(Number(row.approved_total ?? 0) * 100) / 100;
+  const pegawai = Array.isArray(row.pegawai) ? row.pegawai.filter((item) => item?.nama) : [];
+
+  return {
+    id: Number(row.id_butir_kegiatan),
+    namaKegiatan: row.nama_kegiatan ?? "",
+    unitKerja: row.unit_kerja ?? "-",
+    tujuanSKP,
+    skpSelesai,
+    jumlahPegawai: Number(row.jumlah_pegawai ?? 0),
+    pegawai: pegawai.map((item) => ({
+      nama: item.nama ?? "",
+      inisial: getInitials(item.nama),
+      skpSelesai: Math.round(Number(item.skpSelesai ?? 0) * 100) / 100,
+      skpTarget: Math.round(Number(item.skpTarget ?? 0) * 100) / 100,
+    })),
+  };
+};
+
 const mapDashboardProfileRow = (row) => ({
   tmtKgb: row.tmt_kgb ?? "",
   tmtPensiun: row.tmt_pensiun ?? "",
@@ -382,6 +421,181 @@ export const findPimpinanKegiatanDashboard = async ({ tahun = null, bulan = null
   return {
     years: yearsResult.rows.map((row) => Number(row.tahun)).filter((year) => Number.isInteger(year)),
     items: kegiatanResult.rows.map(mapPimpinanKegiatanRow),
+  };
+};
+
+export const findMainDashboardSummary = async ({ idPeriodeSkp = null } = {}) => {
+  const [
+    totalPegawaiResult,
+    pensionResult,
+    kgbResult,
+    kegiatanCountResult,
+    kegiatanResult,
+  ] = await Promise.all([
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status_aktif IS DISTINCT FROM FALSE) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND created_at < date_trunc('month', current_date)
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_pensiun IS NOT NULL
+            AND tmt_pensiun::date BETWEEN current_date AND current_date + INTERVAL '5 years'
+        ) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_pensiun IS NOT NULL
+            AND tmt_pensiun::date BETWEEN current_date - INTERVAL '1 month'
+              AND current_date - INTERVAL '1 month' + INTERVAL '5 years'
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_kgb IS NOT NULL
+            AND tmt_kgb::date BETWEEN current_date AND current_date + INTERVAL '90 days'
+        ) AS current_value,
+        COUNT(*) FILTER (
+          WHERE status_aktif IS DISTINCT FROM FALSE
+            AND tmt_kgb IS NOT NULL
+            AND tmt_kgb::date BETWEEN current_date - INTERVAL '1 month'
+              AND current_date - INTERVAL '1 month' + INTERVAL '90 days'
+        ) AS previous_value
+      FROM pengguna
+    `),
+    pool.query(
+      `
+        SELECT
+          COUNT(DISTINCT pengguna_kegiatan.id_butir_kegiatan) AS current_value,
+          COUNT(DISTINCT pengguna_kegiatan.id_butir_kegiatan) FILTER (
+            WHERE pengguna_kegiatan.created_at < date_trunc('month', current_date)
+          ) AS previous_value
+        FROM pengguna_kegiatan
+        WHERE pengguna_kegiatan.status <> 'batal'
+          AND ($1::integer IS NULL OR pengguna_kegiatan.id_periode_skp = $1::integer)
+      `,
+      [idPeriodeSkp],
+    ),
+    pool.query(
+      `
+        WITH assignment_metrics AS (
+          SELECT
+            pengguna_kegiatan.id_pengguna_kegiatan,
+            butir_kegiatan.id_butir_kegiatan,
+            butir_kegiatan.nama_kegiatan,
+            pengguna.id_pengguna,
+            pengguna.nama,
+            COALESCE(penempatan.nama_penempatan, '-') AS unit_kerja,
+            CASE
+              WHEN pengguna_kegiatan.target_ketercapaian ~ '^[0-9]+([.][0-9]+)?$'
+                THEN pengguna_kegiatan.target_ketercapaian::numeric
+              ELSE 0
+            END AS target_total,
+            COALESCE(realisasi.approved_total, 0) AS approved_total
+          FROM pengguna_kegiatan
+          INNER JOIN butir_kegiatan
+            ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+          INNER JOIN pengguna
+            ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna
+          LEFT JOIN penempatan
+            ON penempatan.id_penempatan = pengguna.id_penempatan
+          LEFT JOIN LATERAL (
+            SELECT
+              SUM(
+                CASE
+                  WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
+                    THEN realisasi_kegiatan.realisasi_target::numeric
+                  ELSE 0
+                END
+              ) AS approved_total
+            FROM realisasi_kegiatan
+            WHERE realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
+              AND realisasi_kegiatan.status = 'disetujui'
+          ) realisasi ON TRUE
+          WHERE pengguna_kegiatan.status <> 'batal'
+            AND pengguna.status_aktif IS DISTINCT FROM FALSE
+            AND ($1::integer IS NULL OR pengguna_kegiatan.id_periode_skp = $1::integer)
+        ),
+        employee_metrics AS (
+          SELECT
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama,
+            MIN(unit_kerja) AS unit_kerja,
+            SUM(target_total) AS target_total,
+            SUM(approved_total) AS approved_total
+          FROM assignment_metrics
+          GROUP BY
+            id_butir_kegiatan,
+            nama_kegiatan,
+            id_pengguna,
+            nama
+        ),
+        kegiatan_metrics AS (
+          SELECT
+            id_butir_kegiatan,
+            nama_kegiatan,
+            MIN(unit_kerja) AS unit_kerja,
+            SUM(target_total) AS target_total,
+            SUM(approved_total) AS approved_total,
+            COUNT(*) AS jumlah_pegawai,
+            json_agg(
+              json_build_object(
+                'nama', nama,
+                'skpSelesai', approved_total,
+                'skpTarget', target_total
+              )
+              ORDER BY nama ASC, id_pengguna ASC
+            ) AS pegawai
+          FROM employee_metrics
+          GROUP BY
+            id_butir_kegiatan,
+            nama_kegiatan
+        )
+        SELECT *
+        FROM kegiatan_metrics
+        ORDER BY
+          CASE WHEN target_total > 0 THEN approved_total / target_total ELSE 0 END ASC,
+          nama_kegiatan ASC
+        LIMIT 4
+      `,
+      [idPeriodeSkp],
+    ),
+  ]);
+
+  const buildKpi = (label, value, previousValue, color) => {
+    const delta = formatDashboardDelta(value, previousValue);
+    return {
+      label,
+      value: String(Number(value ?? 0)),
+      change: delta.change,
+      trend: delta.trend,
+      color,
+    };
+  };
+
+  const totalPegawai = totalPegawaiResult.rows[0] ?? {};
+  const pension = pensionResult.rows[0] ?? {};
+  const kgb = kgbResult.rows[0] ?? {};
+  const kegiatanCount = kegiatanCountResult.rows[0] ?? {};
+
+  return {
+    kpis: [
+      buildKpi("Total Pegawai Aktif", totalPegawai.current_value, totalPegawai.previous_value, "blue"),
+      buildKpi("Mendekati Pensiun", pension.current_value, pension.previous_value, "amber"),
+      buildKpi("Mendekati KGB", kgb.current_value, kgb.previous_value, "purple"),
+      buildKpi("Jumlah Kegiatan", kegiatanCount.current_value, kegiatanCount.previous_value, "purple"),
+    ],
+    kegiatan: kegiatanResult.rows.map(mapDashboardKegiatanRow),
   };
 };
 
