@@ -1,14 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Progress } from '../ui/progress';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Send } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import { Checkbox } from '../ui/checkbox';
 import { getEarlyWarningData, type KgbWarning, type PensionWarning, type PromotionWarning } from '../../api/earlyWarningApi';
 
 function formatDateId(date: string) {
@@ -37,10 +32,6 @@ function EmptyTableRow({ colSpan, message }: { colSpan: number; message: string 
       </TableCell>
     </TableRow>
   );
-}
-
-function RequiredStar() {
-  return <span className="admin-required-star">*</span>;
 }
 
 // --- HELPER COMPONENT ---
@@ -159,13 +150,6 @@ export function EarlyWarningSystemView() {
   const [pensionPage, setPensionPage] = useState(1);
   const [pensionPageSize, setPensionPageSize] = useState(10);
 
-  const [selectedPromoUser, setSelectedPromoUser] = useState<string>("");
-  const [selectedKgbUser, setSelectedKgbUser] = useState<string>("");
-  const [selectedPensionUser, setSelectedPensionUser] = useState<string>("");
-  const [sendAllPromo, setSendAllPromo] = useState(false);
-  const [sendAllKgb, setSendAllKgb] = useState(false);
-  const [sendAllPension, setSendAllPension] = useState(false);
-
   useEffect(() => {
     let ignore = false;
 
@@ -212,8 +196,8 @@ export function EarlyWarningSystemView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Notifikasi Kepegawaian</h1>
-        <p className="text-gray-600 mt-1">Kelola dan kirim notifikasi terkait kenaikan jabatan dan gaji berkala</p>
+        <h1 className="text-2xl font-bold tracking-tight">Early Warning System</h1>
+        <p className="text-gray-600 mt-1">Pantau data early warning terkait kenaikan jabatan, gaji berkala, dan pensiun</p>
       </div>
       {warningError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{warningError}</p>}
 
@@ -285,57 +269,6 @@ export function EarlyWarningSystemView() {
                   />
                 )}
               </div>
-
-              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Send className="w-4 h-4 mr-2" />
-                      Kirim Notifikasi
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Kirim Notifikasi Kenaikan Jabatan</DialogTitle>
-                      <DialogDescription>
-                        Pilih pegawai untuk dikirimkan notifikasi pengingat atau ucapan selamat.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <p className="mb-2 text-sm font-medium text-gray-700">
-                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
-                      </p>
-                      <Select value={selectedPromoUser} onValueChange={setSelectedPromoUser}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih Pegawai" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {promotionData.map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name} (Progres: {Math.round((user.currentScore / user.requiredScore) * 100)}%)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-1">
-                        <Checkbox id="send-all-promo" checked={sendAllPromo} onCheckedChange={(checked) => setSendAllPromo(Boolean(checked))} />
-                        <label
-                          htmlFor="send-all-promo"
-                          className="text-sm font-medium leading-none cursor-pointer"
-                        >
-                          Kirim untuk semua
-                        </label>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button variant="outline">Batal</Button>
-                        <Button className="admin-proceed-button" disabled={!selectedPromoUser && !sendAllPromo}>Kirim via Sistem</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -398,57 +331,6 @@ export function EarlyWarningSystemView() {
                   />
                 )}
               </div>
-
-              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button disabled>
-                      <Send className="w-4 h-4 mr-2" />
-                      Kirim Notifikasi
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Kirim Notifikasi KGB</DialogTitle>
-                      <DialogDescription>
-                        Pilih pegawai untuk dikirimkan notifikasi persiapan KGB.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <p className="mb-2 text-sm font-medium text-gray-700">
-                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
-                      </p>
-                      <Select value={selectedKgbUser} onValueChange={setSelectedKgbUser}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih Pegawai" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kgbData.map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name} ({user.daysLeft} Hari Lagi)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-3">
-                        <Checkbox id="send-all-kgb" checked={sendAllKgb} onCheckedChange={(checked) => setSendAllKgb(Boolean(checked))} />
-                        <label
-                          htmlFor="send-all-kgb"
-                          className="text-sm font-medium leading-none cursor-pointer"
-                        >
-                          Kirim untuk semua
-                        </label>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button variant="outline">Batal</Button>
-                        <Button className="admin-proceed-button" disabled>Kirim via Sistem</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -508,57 +390,6 @@ export function EarlyWarningSystemView() {
                     onPageSizeChange={setPensionPageSize}
                   />
                 )}
-              </div>
-
-              <div className="mt-4 pt-4 flex justify-end px-4 sm:px-0">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button disabled>
-                      <Send className="w-4 h-4 mr-2" />
-                      Kirim Notifikasi
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Kirim Notifikasi Pensiun</DialogTitle>
-                      <DialogDescription>
-                        Pilih pegawai untuk dikirimkan notifikasi persiapan pensiun.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <p className="mb-2 text-sm font-medium text-gray-700">
-                        Pilih Pegawai atau Kirim untuk Semua<RequiredStar />
-                      </p>
-                      <Select value={selectedPensionUser} onValueChange={setSelectedPensionUser}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Pilih Pegawai" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {pensionData.map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.name} ({formatPensionRemaining(user.daysLeft)})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <div className="flex items-center gap-3">
-                        <Checkbox id="send-all-pension" checked={sendAllPension} onCheckedChange={(checked) => setSendAllPension(Boolean(checked))} />
-                        <label
-                          htmlFor="send-all-pension"
-                          className="text-sm font-medium leading-none cursor-pointer"
-                        >
-                          Kirim untuk semua
-                        </label>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button variant="outline">Batal</Button>
-                        <Button className="admin-proceed-button" disabled>Kirim via Sistem</Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               </div>
             </CardContent>
           </Card>

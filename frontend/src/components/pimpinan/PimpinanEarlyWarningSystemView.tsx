@@ -201,8 +201,8 @@ export function PimpinanEarlyWarningSystemView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Notifikasi Kepegawaian</h1>
-        <p className="text-gray-600 mt-1">Kelola dan pantau notifikasi terkait kenaikan jabatan, KGB, dan pensiun</p>
+        <h1 className="text-2xl font-bold tracking-tight">Early Warning System</h1>
+        <p className="text-gray-600 mt-1">Pantau data early warning terkait kenaikan jabatan, KGB, dan pensiun</p>
       </div>
 
       <Tabs defaultValue="jabatan" className="w-full">
