@@ -28,7 +28,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get("/dashboard/utama", authorizeRoles("admin", "pimpinan"), getMainDashboard);
-router.get("/pimpinan/kegiatan", authorizeRoles("pimpinan"), getPimpinanKegiatanDashboard);
+router.get("/pimpinan/kegiatan", authorizeRoles("admin", "pimpinan"), getPimpinanKegiatanDashboard);
 router.get("/pegawai", authorizeRoles("admin"), getPenugasanEmployees);
 router.post("/butir", authorizeRoles("admin"), postButirAssignment);
 router.get("/dashboard/saya", authorizeRoles("pegawai"), getMyDashboard);

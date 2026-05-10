@@ -6,7 +6,9 @@ import butirKegiatanRoutes from "./routes/butirKegiatan.routes.js";
 import pegawaiRoutes from "./routes/pegawai.routes.js";
 import penugasanRoutes from "./routes/penugasan.routes.js";
 import periodeSkpRoutes from "./routes/periodeSkp.routes.js";
+import sistemRoutes from "./routes/sistem.routes.js";
 import { env } from "./config/env.js";
+import { auditCrudActivity } from "./middlewares/audit.middleware.js";
 
 const app = express();
 
@@ -43,12 +45,14 @@ app.use(cors({
   credentials: true
 }));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "100mb" }));
+app.use(auditCrudActivity);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/butir-kegiatan", butirKegiatanRoutes);
 app.use("/api/pegawai", pegawaiRoutes);
 app.use("/api/penugasan", penugasanRoutes);
 app.use("/api/periode-skp", periodeSkpRoutes);
+app.use("/api/sistem", sistemRoutes);
 
 export default app;

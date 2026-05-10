@@ -35,13 +35,22 @@ export const loginService = async ({ nip, password, rememberMe }) => {
   const pengguna = await findUserByNip(nip);
 
   if (!pengguna) {
-    throw new Error("Pengguna tidak ditemukan");
+    const error = new Error("Pengguna tidak ditemukan");
+    error.auditUser = { nip };
+    throw error;
   }
 
   const isMatch = await bcrypt.compare(password, pengguna.password_hash);
 
   if (!isMatch) {
-    throw new Error("Password salah");
+    const error = new Error("Password salah");
+    error.auditUser = {
+      id_pengguna: pengguna.id_pengguna,
+      nama: pengguna.nama,
+      role: pengguna.roles_name,
+      nip: pengguna.nip,
+    };
+    throw error;
   }
 
   const { accessToken, refreshToken, expiresInMs } = await generateTokens(pengguna, rememberMe);
@@ -51,7 +60,9 @@ export const loginService = async ({ nip, password, rememberMe }) => {
     accessToken,
     refreshToken,
     expiresInMs,
-    role: pengguna.roles_name
+    role: pengguna.roles_name,
+    idPengguna: pengguna.id_pengguna,
+    nama: pengguna.nama,
   };
 };
 

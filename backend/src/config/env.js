@@ -10,5 +10,7 @@ export const env = {
   DB_PASSWORD: process.env.DB_PASSWORD,
   DB_NAME: process.env.DB_NAME,
   JWT_SECRET: process.env.JWT_SECRET,
-  CORS_ORIGINS: process.env.CORS_ORIGINS
+  CORS_ORIGINS: process.env.CORS_ORIGINS,
+  PG_DUMP_PATH: process.env.PG_DUMP_PATH || "pg_dump",
+  PSQL_PATH: process.env.PSQL_PATH || "psql",
 };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Check, ChevronsUpDown, Plus, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, FileText, Plus, Search, Upload } from 'lucide-react';
 
 import {
   createMyRealisasiKegiatan,
@@ -656,6 +656,7 @@ function RealisasiTab({
     tanggal: '',
     jumlah: '',
     keterangan: '',
+    suratTugas: '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -672,6 +673,11 @@ function RealisasiTab({
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setError('');
+  };
+
+  const handleFile = (file: File | null) => {
+    if (!file) return;
+    updateForm('suratTugas', file.name);
   };
 
   const handleSubmit = async () => {
@@ -705,7 +711,7 @@ function RealisasiTab({
         keterangan: form.keterangan,
       });
       await onSaved();
-      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '' });
+      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' });
     } catch {
       setError('Gagal menyimpan realisasi kegiatan.');
     } finally {
@@ -796,12 +802,36 @@ function RealisasiTab({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Surat Tugas</Label>
+            <input
+              id="surat-tugas-realisasi"
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+            />
+            <div
+              className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center transition hover:bg-gray-100"
+              style={{ borderColor: '#d1d5db' }}
+            >
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
+                {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
+              </div>
+              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret surat tugas ke area ini'}</p>
+              <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
+              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('surat-tugas-realisasi')?.click()}>
+                Cari File Manual
+              </Button>
+            </div>
+          </div>
+
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
 
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '' })}
+              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' })}
               disabled={isSubmitting}
             >
               Reset
@@ -838,14 +868,15 @@ function RealisasiTab({
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[940px] border-collapse text-sm">
+              <table className="w-full min-w-[1080px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="w-[13%] px-6 py-3">Tanggal</th>
-                    <th className="w-[30%] px-6 py-3">Kegiatan</th>
-                    <th className="w-[13%] px-6 py-3">Realisasi</th>
-                    <th className="w-[14%] px-6 py-3">Status</th>
-                    <th className="w-[30%] px-6 py-3">Keterangan</th>
+                    <th className="w-[12%] px-6 py-3">Tanggal</th>
+                    <th className="w-[26%] px-6 py-3">Kegiatan</th>
+                    <th className="w-[12%] px-6 py-3">Realisasi</th>
+                    <th className="w-[12%] px-6 py-3">Status</th>
+                    <th className="w-[20%] px-6 py-3">Keterangan</th>
+                    <th className="w-[18%] px-6 py-3">Surat Tugas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -862,12 +893,13 @@ function RealisasiTab({
                         <td className="px-6 py-4 pr-6">
                           <RealisasiStatusBadge status={item.status} />
                         </td>
-                        <td className="px-6 py-4 text-gray-700">{item.keterangan || '-'}</td>
+                        <td className="px-6 py-4 pr-8 text-gray-700">{item.keterangan || '-'}</td>
+                        <td className="px-6 py-4 text-gray-500">Tidak ada dokumen</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
                         Belum ada riwayat realisasi.
                       </td>
                     </tr>
