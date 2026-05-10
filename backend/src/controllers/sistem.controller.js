@@ -1,6 +1,4 @@
 import { spawn } from "child_process";
-import { existsSync, readdirSync } from "fs";
-import path from "path";
 import { env } from "../config/env.js";
 import { findUserProfileById } from "../repositories/user.repository.js";
 import { createBackupLog, findAuditLogs, findBackupLogs } from "../repositories/sistem.repository.js";
@@ -60,39 +58,6 @@ const runCommand = (command, args, { input = null } = {}) =>
     }
   });
 
-const findWindowsPgTool = (toolName) => {
-  const roots = [process.env.ProgramFiles, process.env["ProgramFiles(x86)"]]
-    .filter(Boolean)
-    .map((root) => path.join(root, "PostgreSQL"));
-
-  for (const root of roots) {
-    if (!existsSync(root)) continue;
-
-    const versions = readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort((a, b) => Number(b) - Number(a));
-
-    for (const version of versions) {
-      const candidates = [
-        path.join(root, version, "bin", `${toolName}.exe`),
-        path.join(root, version, "pgAdmin 4", "runtime", `${toolName}.exe`),
-      ];
-
-      const found = candidates.find((candidate) => existsSync(candidate));
-      if (found) return found;
-    }
-  }
-
-  return "";
-};
-
-const resolvePgTool = (configuredPath, defaultCommand) => {
-  if (configuredPath && configuredPath !== defaultCommand) return configuredPath;
-  if (process.platform === "win32") return findWindowsPgTool(defaultCommand) || defaultCommand;
-  return configuredPath || defaultCommand;
-};
-
 const getPgArgs = () => [
   "--host",
   env.DB_HOST,
@@ -147,7 +112,7 @@ export const createBackup = async (req, res) => {
   const fileName = createSqlFileName();
 
   try {
-    const { stdout } = await runCommand(resolvePgTool(env.PG_DUMP_PATH, "pg_dump"), [
+    const { stdout } = await runCommand(env.PG_DUMP_PATH, [
       ...getPgArgs(),
       "--format",
       "p",
@@ -200,7 +165,7 @@ export const restoreBackup = async (req, res) => {
   }
 
   try {
-    await runCommand(resolvePgTool(env.PSQL_PATH, "psql"), [...getPgArgs(), "--set", "ON_ERROR_STOP=on"], { input: sqlContent });
+    await runCommand(env.PSQL_PATH, [...getPgArgs(), "--set", "ON_ERROR_STOP=on"], { input: sqlContent });
 
     const data = await createBackupLog({
       ...actor,
