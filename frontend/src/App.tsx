@@ -1,41 +1,56 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { SidebarPimpinan } from './components/SidebarPimpinan';
 import { SidebarAdmin } from './components/SidebarAdmin';
 import { SidebarPegawai } from './components/pegawai/SidebarPegawai';
 import { TopBar } from './components/TopBar';
-import { PimpinanOverview } from './components/pimpinan/PimpinanOverview';
-import { PegawaiOverview } from './components/pegawai/PegawaiOverview';
-import { ProjectsView } from './components/projects/ProjectsView';
-import { ProfilPegawaiView } from './components/pegawai/ProfilPegawaiView';
-import { PegawaiSettingsView } from './components/pegawai/PegawaiSettingsView';
-import { PersonalDashboard } from './components/personal/PersonalDashboard';
-import { PersonalProjectsView } from './components/personal/PersonalProjectsView';
-import { PersonalTasksView } from './components/personal/PersonalTasksView';
-import { PersonalDraftsView } from './components/personal/PersonalDraftsView';
-import { PimpinanEarlyWarningSystemView, PimpinanKegiatanView } from './components/pimpinan/PimpinanKegiatanView';
-import { EarlyWarningSystemView } from './components/admin/EarlyWarningSystemView';
-import { PimpinanApprovalSKPView } from './components/pimpinan/PimpinanApprovalSKPView';
-import { PimpinanDataKepegawaianView } from './components/pimpinan/PimpinanDataKepegawaianView';
-import { PimpinanProfilView } from './components/pimpinan/PimpinanProfilView';
-import { PimpinanPengaturanView } from './components/pimpinan/PimpinanPengaturanView';
-import { LoginPage } from './components/login/LoginPage';
-import {PenugasanTambahanView} from './components/pegawai/PenugasanTambahanView';
-import { SistemView } from './components/admin/SistemView';
-import { DashboardUtamaView } from './components/admin/DashboardUtamaView';
-import { DashboardKegiatanView } from './components/admin/DashboardKegiatanView';
-import { DataKepegawaianView } from './components/admin/DataKepegawaianView';
-import { ProfilView } from './components/admin/ProfilView';
-import { PengaturanView } from './components/admin/PengaturanView';
-import { MasterButirView } from './components/admin/MasterButirView';
-import { PeriodeSkpView } from './components/admin/PeriodeSkpView';
-import { EditPenugasanButirView, EditPenugasanTambahanView, PenugasanButirFormView, PenugasanView } from './components/admin/PenugasanView';
-import {TargetKinerjaView} from './components/pegawai/TargetKinerjaView';
-import {RealisasiKinerjaView} from './components/pegawai/RealisasiKinerjaView';
 import { refreshApi } from './api/authApi';
 import { clearAccessToken, getAccessToken, setAccessToken, shouldRememberAuth } from './utils/authToken';
 import { useIsMobile } from './components/ui/use-mobile';
+
+const LoginPage = lazy(() => import('./components/login/LoginPage').then((module) => ({ default: module.LoginPage })));
+const PersonalDashboard = lazy(() => import('./components/personal/PersonalDashboard').then((module) => ({ default: module.PersonalDashboard })));
+const PersonalProjectsView = lazy(() => import('./components/personal/PersonalProjectsView').then((module) => ({ default: module.PersonalProjectsView })));
+const PersonalTasksView = lazy(() => import('./components/personal/PersonalTasksView').then((module) => ({ default: module.PersonalTasksView })));
+const PersonalDraftsView = lazy(() => import('./components/personal/PersonalDraftsView').then((module) => ({ default: module.PersonalDraftsView })));
+
+const PimpinanOverview = lazy(() => import('./components/pimpinan/PimpinanOverview').then((module) => ({ default: module.PimpinanOverview })));
+const PimpinanEarlyWarningSystemView = lazy(() => import('./components/pimpinan/PimpinanEarlyWarningSystemView').then((module) => ({ default: module.PimpinanEarlyWarningSystemView })));
+const PimpinanKegiatanView = lazy(() => import('./components/pimpinan/PimpinanKegiatanView').then((module) => ({ default: module.PimpinanKegiatanView })));
+const PimpinanApprovalSKPView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPView })));
+const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
+const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
+const PimpinanPengaturanView = lazy(() => import('./components/pimpinan/PimpinanPengaturanView').then((module) => ({ default: module.PimpinanPengaturanView })));
+
+const DashboardUtamaView = lazy(() => import('./components/admin/DashboardUtamaView').then((module) => ({ default: module.DashboardUtamaView })));
+const DashboardKegiatanView = lazy(() => import('./components/admin/DashboardKegiatanView').then((module) => ({ default: module.DashboardKegiatanView })));
+const MasterButirView = lazy(() => import('./components/admin/MasterButirView').then((module) => ({ default: module.MasterButirView })));
+const PeriodeSkpView = lazy(() => import('./components/admin/PeriodeSkpView').then((module) => ({ default: module.PeriodeSkpView })));
+const PenugasanView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.PenugasanView })));
+const EditPenugasanTambahanView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.EditPenugasanTambahanView })));
+const EditPenugasanButirView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.EditPenugasanButirView })));
+const PenugasanButirFormView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.PenugasanButirFormView })));
+const DataKepegawaianView = lazy(() => import('./components/admin/DataKepegawaianView').then((module) => ({ default: module.DataKepegawaianView })));
+const EarlyWarningSystemView = lazy(() => import('./components/admin/EarlyWarningSystemView').then((module) => ({ default: module.EarlyWarningSystemView })));
+const SistemView = lazy(() => import('./components/admin/SistemView').then((module) => ({ default: module.SistemView })));
+const ProfilView = lazy(() => import('./components/admin/ProfilView').then((module) => ({ default: module.ProfilView })));
+const PengaturanView = lazy(() => import('./components/admin/PengaturanView').then((module) => ({ default: module.PengaturanView })));
+
+const PegawaiOverview = lazy(() => import('./components/pegawai/PegawaiOverview').then((module) => ({ default: module.PegawaiOverview })));
+const TargetKinerjaView = lazy(() => import('./components/pegawai/TargetKinerjaView').then((module) => ({ default: module.TargetKinerjaView })));
+const RealisasiKinerjaView = lazy(() => import('./components/pegawai/RealisasiKinerjaView').then((module) => ({ default: module.RealisasiKinerjaView })));
+const PenugasanTambahanView = lazy(() => import('./components/pegawai/PenugasanTambahanView').then((module) => ({ default: module.PenugasanTambahanView })));
+const ProfilPegawaiView = lazy(() => import('./components/pegawai/ProfilPegawaiView').then((module) => ({ default: module.ProfilPegawaiView })));
+const PegawaiSettingsView = lazy(() => import('./components/pegawai/PegawaiSettingsView').then((module) => ({ default: module.PegawaiSettingsView })));
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[12rem] items-center justify-center text-sm text-gray-500">
+      Memuat halaman...
+    </div>
+  );
+}
 
 function getUserRole(): string | null {
   const token = getAccessToken();
@@ -95,7 +110,9 @@ function CommonLayout({ SidebarComponent, allowedRole }: { SidebarComponent: Rea
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
@@ -110,7 +127,11 @@ function PublicLayout() {
     return <Navigate to={`/${userRole}/${getDefaultRouteByRole(userRole)}`} replace />;
   }
 
-  return <Outlet />;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Outlet />
+    </Suspense>
+  );
 }
 
 function RootRedirect() {
