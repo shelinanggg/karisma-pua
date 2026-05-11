@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, Check, ChevronsUpDown, Eye, FileText, Pencil, Search, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, ChevronsUpDown, Download, Eye, FileText, Pencil, Search, Trash2, Upload, X } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getButirKegiatanList, type ButirKegiatan } from '../../api/butirKegiatanApi';
 import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
@@ -17,6 +17,7 @@ import {
   type PenugasanEmployee,
   type PenugasanTambahan,
 } from '../../api/penugasanApi';
+import { downloadDokumen, openDokumen, type DokumenRef } from '../../api/documentApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
@@ -239,6 +240,41 @@ function getAdditionalAssignmentDates(item: PenugasanTambahan) {
     deadline: `${formatDateLabel(item.tanggalMulai)} - ${formatDateLabel(item.tanggalSelesai)}`,
     tanggalKegiatan: '-',
   };
+}
+
+function getAdditionalAssignmentDocument(item: PenugasanTambahan): DokumenRef | null {
+  return item.dokumenSuratTugas ?? null;
+}
+
+function DocumentActions({ dokumen }: { dokumen: DokumenRef | null }) {
+  if (!dokumen?.id) {
+    return <span className="text-xs text-gray-400">Belum diunggah</span>;
+  }
+
+  const filename = dokumen.namaFile || dokumen.fileName || 'dokumen';
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={`Lihat ${filename}`}
+        title={`Lihat ${filename}`}
+        className="approval-document-button"
+        onClick={() => openDokumen(dokumen)}
+      >
+        <Eye />
+      </button>
+      <button
+        type="button"
+        aria-label={`Download ${filename}`}
+        title={`Download ${filename}`}
+        className="approval-document-button"
+        onClick={() => downloadDokumen(dokumen)}
+      >
+        <Download />
+      </button>
+    </div>
+  );
 }
 
 function SearchableSelect({ label, options, value, onChange }: {
@@ -623,6 +659,7 @@ function PenugasanTambahanForm() {
     tanggalKegiatan: '',
     suratTugas: '',
   });
+  const [suratTugasFile, setSuratTugasFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [historyMessage, setHistoryMessage] = useState('');
@@ -677,6 +714,7 @@ function PenugasanTambahanForm() {
 
   const handleFile = (file: File | null) => {
     if (!file) return;
+    setSuratTugasFile(file);
     updateForm('suratTugas', file.name);
   };
 
@@ -717,6 +755,7 @@ function PenugasanTambahanForm() {
         deskripsiKegiatan: form.deskripsiKegiatan,
         tanggalMulai,
         tanggalSelesai,
+        suratTugas: suratTugasFile,
       });
       setAssignedEmployeeIds(['']);
       setForm({
@@ -728,6 +767,7 @@ function PenugasanTambahanForm() {
         tanggalKegiatan: '',
         suratTugas: '',
       });
+      setSuratTugasFile(null);
       setHistoryPage(1);
       await loadFormData();
     } catch (error: any) {
@@ -839,6 +879,8 @@ function PenugasanTambahanForm() {
                   <div key={item.id} className="grid items-start px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.35fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(100px, 0.6fr) minmax(150px, 0.9fr) minmax(170px, 0.8fr)' }}>
                     {(() => {
                       const dates = getAdditionalAssignmentDates(item);
+                      const dokumen = getAdditionalAssignmentDocument(item);
+                      const filename = dokumen?.namaFile || dokumen?.fileName;
                       return (
                         <>
                           <div className="min-w-0">
@@ -849,7 +891,12 @@ function PenugasanTambahanForm() {
                           <div className="text-center text-gray-700">{dates.tanggalKegiatan}</div>
                           <div className="text-center text-gray-700">{item.assignedEmployees.length} pegawai</div>
                           <div className="min-w-0">
-                            <p className="truncate text-gray-500">Tidak ada surat</p>
+                            <p className={`truncate ${filename ? 'font-medium text-gray-900' : 'text-gray-500'}`}>
+                              {filename || 'Tidak ada surat'}
+                            </p>
+                            <div className="mt-2">
+                              <DocumentActions dokumen={dokumen} />
+                            </div>
                           </div>
                           <div className="flex justify-center gap-2">
                             <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailItem(item)}>
@@ -893,6 +940,8 @@ function PenugasanTambahanForm() {
           {detailItem &&
             (() => {
               const dates = getAdditionalAssignmentDates(detailItem);
+              const dokumen = getAdditionalAssignmentDocument(detailItem);
+              const filename = dokumen?.namaFile || dokumen?.fileName;
               return (
                 <div className="space-y-4">
                   <div className="rounded-lg border bg-gray-50 p-4">
@@ -914,7 +963,10 @@ function PenugasanTambahanForm() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase text-gray-500">Surat Tugas</p>
-                      <p className="mt-1 text-gray-900">Tidak ada surat</p>
+                      <p className="mt-1 text-gray-900">{filename || 'Tidak ada surat'}</p>
+                      <div className="mt-2">
+                        <DocumentActions dokumen={dokumen} />
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -984,6 +1036,7 @@ export function EditPenugasanTambahanView() {
     tanggalKegiatan: '',
     suratTugas: '',
   });
+  const [suratTugasFile, setSuratTugasFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1017,6 +1070,7 @@ export function EditPenugasanTambahanView() {
         const assignedIds = assignmentData.assignedEmployees.map((employee) => employee.id);
         const nextAssignedIds = assignedIds.length < maxAssignmentEmployees ? [...assignedIds, ''] : assignedIds;
         const useTanggalKegiatan = Boolean(assignmentData.tanggalMulai && assignmentData.tanggalMulai === assignmentData.tanggalSelesai);
+        const existingDocumentName = assignmentData.dokumenSuratTugas?.namaFile || assignmentData.dokumenSuratTugas?.fileName || assignmentData.suratTugas;
 
         setEmployeeItems(employeesData);
         setAssignedEmployeeIds(nextAssignedIds.length > 0 ? nextAssignedIds : ['']);
@@ -1027,7 +1081,7 @@ export function EditPenugasanTambahanView() {
           tanggalMulai: useTanggalKegiatan ? '' : assignmentData.tanggalMulai,
           tanggalSelesai: useTanggalKegiatan ? '' : assignmentData.tanggalSelesai,
           tanggalKegiatan: useTanggalKegiatan ? assignmentData.tanggalMulai : '',
-          suratTugas: assignmentData.suratTugas,
+          suratTugas: existingDocumentName,
         });
       } catch (error: any) {
         if (!ignore) setError(error.response?.data?.message || 'Gagal mengambil data penugasan tambahan.');
@@ -1051,6 +1105,12 @@ export function EditPenugasanTambahanView() {
   const updateAssignedEmployee = (index: number, employeeId: string) => {
     setAssignedEmployeeIds((current) => updateEmployeeSlots(current, index, employeeId));
     setError('');
+  };
+
+  const handleFile = (file: File | null) => {
+    if (!file) return;
+    setSuratTugasFile(file);
+    updateForm('suratTugas', file.name);
   };
 
   const isFormValid =
@@ -1088,6 +1148,7 @@ export function EditPenugasanTambahanView() {
         deskripsiKegiatan: form.deskripsiKegiatan,
         tanggalMulai,
         tanggalSelesai,
+        suratTugas: suratTugasFile,
       });
       navigate('/admin/penugasan', { state: { tab: 'tambahan' } });
     } catch (error: any) {
@@ -1161,12 +1222,16 @@ export function EditPenugasanTambahanView() {
 
           <div className="space-y-2">
             <Label>Surat Tugas</Label>
-            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center opacity-80" style={{ borderColor: '#d1d5db' }}>
+            <input id="edit-surat-tugas" type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(event) => handleFile(event.target.files?.[0] ?? null)} />
+            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center transition hover:bg-gray-100" style={{ borderColor: '#d1d5db' }}>
               <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                <FileText className="size-5 text-gray-500" />
+                {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
               </div>
               <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Tidak ada surat'}</p>
-              <p className="mt-1 text-xs text-gray-500">Upload file belum diaktifkan pada mode edit.</p>
+              <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG. File baru akan menggantikan surat tugas lama.</p>
+              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('edit-surat-tugas')?.click()}>
+                Cari File Manual
+              </Button>
             </div>
           </div>
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}

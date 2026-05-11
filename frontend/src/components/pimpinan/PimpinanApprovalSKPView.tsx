@@ -8,6 +8,7 @@ import {
   type ApprovalRealisasiEmployee,
   type ApprovalRealisasiItem,
 } from '../../api/penugasanApi';
+import { downloadDokumen, openDokumen } from '../../api/documentApi';
 import { Button } from '../ui/button';
 
 type ApprovalStatus = ApprovalRealisasiItem['status'];
@@ -45,10 +46,11 @@ function StatusBadge({ status }: { status: ApprovalStatus }) {
 
 function getDocumentInfo(item: ApprovalRealisasiItem) {
   const namaFile = item.namaFile || item.fileName || item.dokumen?.namaFile || item.dokumen?.fileName || '';
-  const viewUrl = item.dokumenUrl || item.fileUrl || item.dokumen?.viewUrl || item.dokumen?.url || '';
+  const id = item.dokumen?.id || '';
+  const viewUrl = item.dokumenUrl || item.fileUrl || item.dokumen?.viewUrl || '';
   const downloadUrl = item.downloadUrl || item.dokumen?.downloadUrl || viewUrl;
 
-  return { namaFile, viewUrl, downloadUrl };
+  return { id, namaFile, viewUrl, downloadUrl };
 }
 
 export function PimpinanApprovalSKPView() {
@@ -340,7 +342,7 @@ export function PimpinanApprovalSKPView() {
               ) : filteredItems.length > 0 ? (
                 filteredItems.map((item) => {
                   const documentInfo = getDocumentInfo(item);
-                  const hasDocument = Boolean(documentInfo.namaFile && documentInfo.viewUrl);
+                  const hasDocument = Boolean(documentInfo.id && documentInfo.namaFile);
 
                   return (
                     <tr key={item.id} className="border-b align-top last:border-b-0">
@@ -376,16 +378,15 @@ export function PimpinanApprovalSKPView() {
                           </p>
                           <div className="mt-2 flex items-center gap-2">
                             {hasDocument ? (
-                              <a
-                                href={documentInfo.viewUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
                                 aria-label={`Lihat ${documentInfo.namaFile}`}
                                 title={`Lihat ${documentInfo.namaFile}`}
                                 className="approval-document-button"
+                                onClick={() => openDokumen(documentInfo)}
                               >
                                 <Eye />
-                              </a>
+                              </button>
                             ) : (
                               <button
                                 type="button"
@@ -399,15 +400,15 @@ export function PimpinanApprovalSKPView() {
                             )}
 
                             {hasDocument ? (
-                              <a
-                                href={documentInfo.downloadUrl}
-                                download={documentInfo.namaFile}
+                              <button
+                                type="button"
                                 aria-label={`Download ${documentInfo.namaFile}`}
                                 title={`Download ${documentInfo.namaFile}`}
                                 className="approval-document-button"
+                                onClick={() => downloadDokumen(documentInfo)}
                               >
                                 <Download />
-                              </a>
+                              </button>
                             ) : (
                               <button
                                 type="button"

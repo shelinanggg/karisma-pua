@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Check, ChevronsUpDown, FileText, Plus, Search, Upload } from 'lucide-react';
+import { Check, ChevronsUpDown, Download, Eye, FileText, Plus, Search, Upload } from 'lucide-react';
 
 import {
   createMyRealisasiKegiatan,
@@ -10,6 +10,7 @@ import {
   type MyPenugasanButir,
   type MyRealisasiKegiatan,
 } from '../../api/penugasanApi';
+import { downloadDokumen, openDokumen } from '../../api/documentApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -658,6 +659,7 @@ function RealisasiTab({
     keterangan: '',
     dokumenPendukung: '',
   });
+  const [dokumenPendukungFile, setDokumenPendukungFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -677,6 +679,7 @@ function RealisasiTab({
 
   const handleFile = (file: File | null) => {
     if (!file) return;
+    setDokumenPendukungFile(file);
     updateForm('dokumenPendukung', file.name);
   };
 
@@ -709,9 +712,11 @@ function RealisasiTab({
         tanggalRealisasi: form.tanggal,
         realisasiTarget: form.jumlah,
         keterangan: form.keterangan,
+        dokumenPendukung: dokumenPendukungFile,
       });
       await onSaved();
       setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', dokumenPendukung: '' });
+      setDokumenPendukungFile(null);
     } catch {
       setError('Gagal menyimpan realisasi kegiatan.');
     } finally {
@@ -831,7 +836,10 @@ function RealisasiTab({
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', dokumenPendukung: '' })}
+              onClick={() => {
+                setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', dokumenPendukung: '' });
+                setDokumenPendukungFile(null);
+              }}
               disabled={isSubmitting}
             >
               Reset
@@ -894,7 +902,37 @@ function RealisasiTab({
                           <RealisasiStatusBadge status={item.status} />
                         </td>
                         <td className="px-6 py-4 pr-8 text-gray-700">{item.keterangan || '-'}</td>
-                        <td className="px-6 py-4 text-gray-500">Tidak ada dokumen</td>
+                        <td className="px-6 py-4">
+                          {item.dokumen ? (
+                            <div className="max-w-[220px]">
+                              <p className="truncate text-sm font-medium text-gray-900">
+                                {item.dokumen.namaFile || item.dokumen.fileName}
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  aria-label={`Lihat ${item.dokumen.namaFile}`}
+                                  title={`Lihat ${item.dokumen.namaFile}`}
+                                  className="approval-document-button"
+                                  onClick={() => openDokumen(item.dokumen)}
+                                >
+                                  <Eye />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={`Download ${item.dokumen.namaFile}`}
+                                  title={`Download ${item.dokumen.namaFile}`}
+                                  className="approval-document-button"
+                                  onClick={() => downloadDokumen(item.dokumen)}
+                                >
+                                  <Download />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">Tidak ada dokumen</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (

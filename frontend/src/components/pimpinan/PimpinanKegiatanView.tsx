@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Eye, FileText, Search } from 'lucide-react';
 import {
   getPimpinanKegiatanDashboard,
   type PimpinanKegiatanItem,
 } from '../../api/penugasanApi';
+import { downloadDokumen, openDokumen } from '../../api/documentApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Progress } from '../ui/progress';
@@ -425,6 +426,7 @@ export function PimpinanKegiatanView() {
                             <TableHead>Diunggah Oleh</TableHead>
                             <TableHead>Tanggal</TableHead>
                             <TableHead>Ukuran</TableHead>
+                            <TableHead className="text-center">Aksi</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -439,11 +441,33 @@ export function PimpinanKegiatanView() {
                                 <TableCell>{item.uploadedBy}</TableCell>
                                 <TableCell>{formatDateId(item.uploadedDate)}</TableCell>
                                 <TableCell>{item.size}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      type="button"
+                                      aria-label={`Lihat ${item.name}`}
+                                      title={`Lihat ${item.name}`}
+                                      className="approval-document-button"
+                                      onClick={() => openDokumen({ id: item.id, namaFile: item.name, fileName: item.name })}
+                                    >
+                                      <Eye />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Download ${item.name}`}
+                                      title={`Download ${item.name}`}
+                                      className="approval-document-button"
+                                      onClick={() => downloadDokumen({ id: item.id, namaFile: item.name, fileName: item.name })}
+                                    >
+                                      <Download />
+                                    </button>
+                                  </div>
+                                </TableCell>
                               </TableRow>
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={5} className="py-8 text-center text-gray-500">
+                              <TableCell colSpan={6} className="py-8 text-center text-gray-500">
                                 Tidak ada dokumen
                               </TableCell>
                             </TableRow>

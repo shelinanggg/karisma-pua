@@ -46,6 +46,19 @@ export type PenugasanButirUpdatePayload = {
   targetKetercapaian?: string;
 };
 
+export type DokumenMetadata = {
+  id: string;
+  namaFile: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  size: string;
+  uploadedBy: string;
+  uploadedDate: string;
+  viewUrl: string;
+  downloadUrl: string;
+};
+
 export type MyRealisasiKegiatan = {
   id: string;
   idPenggunaKegiatan: string;
@@ -54,6 +67,7 @@ export type MyRealisasiKegiatan = {
   realisasiTarget: string;
   keterangan: string;
   status: 'diajukan' | 'disetujui';
+  dokumen?: DokumenMetadata | null;
 };
 
 export type MyRealisasiKegiatanPayload = {
@@ -61,6 +75,7 @@ export type MyRealisasiKegiatanPayload = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+  dokumenPendukung?: File | null;
 };
 
 export type ApprovalRealisasiEmployee = {
@@ -91,14 +106,7 @@ export type ApprovalRealisasiItem = {
   dokumenUrl?: string;
   fileUrl?: string;
   downloadUrl?: string;
-  dokumen?: {
-    id?: string;
-    namaFile?: string;
-    fileName?: string;
-    url?: string;
-    viewUrl?: string;
-    downloadUrl?: string;
-  } | null;
+  dokumen?: DokumenMetadata | null;
 };
 
 export type PenugasanTambahanEmployee = {
@@ -115,6 +123,7 @@ export type PenugasanTambahan = {
   tanggalMulai: string;
   tanggalSelesai: string;
   suratTugas: string;
+  dokumenSuratTugas?: DokumenMetadata | null;
   assignedEmployees: PenugasanTambahanEmployee[];
 };
 
@@ -124,6 +133,7 @@ export type PenugasanTambahanPayload = {
   deskripsiKegiatan?: string;
   tanggalMulai: string;
   tanggalSelesai: string;
+  suratTugas?: File | null;
 };
 
 export type MyDashboardSummary = {
@@ -157,6 +167,12 @@ export type PimpinanKegiatanDocument = {
   uploadedBy: string;
   uploadedDate: string;
   size: string;
+  namaFile?: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  viewUrl?: string;
+  downloadUrl?: string;
 };
 
 export type PimpinanKegiatanItem = {
@@ -228,6 +244,20 @@ export async function getMyRealisasiKegiatan() {
 }
 
 export async function createMyRealisasiKegiatan(payload: MyRealisasiKegiatanPayload) {
+  if (payload.dokumenPendukung) {
+    const formData = new FormData();
+    formData.append("idPenggunaKegiatan", payload.idPenggunaKegiatan);
+    formData.append("tanggalRealisasi", payload.tanggalRealisasi);
+    formData.append("realisasiTarget", payload.realisasiTarget);
+    formData.append("keterangan", payload.keterangan);
+    formData.append("dokumenPendukung", payload.dokumenPendukung);
+
+    const response = await axiosInstance.post<{ data: MyRealisasiKegiatan }>("/penugasan/realisasi/saya", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data;
+  }
+
   const response = await axiosInstance.post<{ data: MyRealisasiKegiatan }>("/penugasan/realisasi/saya", payload);
   return response.data.data;
 }
@@ -265,11 +295,40 @@ export async function getPenugasanTambahan(id: string) {
 }
 
 export async function createPenugasanTambahan(payload: PenugasanTambahanPayload) {
+  if (payload.suratTugas) {
+    const formData = buildPenugasanTambahanFormData(payload);
+    const response = await axiosInstance.post<{ data: PenugasanTambahan }>("/penugasan/tambahan", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data;
+  }
+
   const response = await axiosInstance.post<{ data: PenugasanTambahan }>("/penugasan/tambahan", payload);
   return response.data.data;
 }
 
 export async function updatePenugasanTambahan(id: string, payload: PenugasanTambahanPayload) {
+  if (payload.suratTugas) {
+    const formData = buildPenugasanTambahanFormData(payload);
+    const response = await axiosInstance.patch<{ data: PenugasanTambahan }>(`/penugasan/tambahan/${id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data;
+  }
+
   const response = await axiosInstance.patch<{ data: PenugasanTambahan }>(`/penugasan/tambahan/${id}`, payload);
   return response.data.data;
+}
+
+function buildPenugasanTambahanFormData(payload: PenugasanTambahanPayload) {
+  const formData = new FormData();
+  payload.assignedEmployeeIds.forEach((id) => formData.append("assignedEmployeeIds", id));
+  formData.append("namaKegiatan", payload.namaKegiatan);
+  formData.append("deskripsiKegiatan", payload.deskripsiKegiatan ?? "");
+  formData.append("tanggalMulai", payload.tanggalMulai);
+  formData.append("tanggalSelesai", payload.tanggalSelesai);
+  if (payload.suratTugas) {
+    formData.append("suratTugas", payload.suratTugas);
+  }
+  return formData;
 }

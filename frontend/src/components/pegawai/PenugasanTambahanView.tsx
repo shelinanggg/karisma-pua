@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { Download, FileText, Search } from 'lucide-react';
+import { Download, Eye, Search } from 'lucide-react';
 
 import {
   getMyPenugasanTambahanList,
   type PenugasanTambahan as ApiPenugasanTambahan,
 } from '../../api/penugasanApi';
+import { downloadDokumen, openDokumen } from '../../api/documentApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { cn } from '../ui/utils';
@@ -211,6 +212,8 @@ export function PenugasanTambahanView() {
         item.tanggalMulai,
         item.tanggalSelesai,
         item.suratTugas,
+        item.dokumenSuratTugas?.namaFile,
+        item.dokumenSuratTugas?.fileName,
         formatPeriode(item),
         item.assignedEmployees.map((employee) => `${employee.nama} ${employee.nip}`).join(' '),
       ]
@@ -284,7 +287,11 @@ export function PenugasanTambahanView() {
                       </td>
                     </tr>
                   ) : paginated.length > 0 ? (
-                    paginated.map((item) => (
+                    paginated.map((item) => {
+                      const dokumen = item.dokumenSuratTugas;
+                      const filename = dokumen?.namaFile || dokumen?.fileName || item.suratTugas;
+
+                      return (
                       <tr key={item.id} className="align-top transition hover:bg-gray-50">
                         <td className="px-6 py-4 pr-8">
                           <p className="text-sm font-semibold text-gray-900">
@@ -303,32 +310,34 @@ export function PenugasanTambahanView() {
                           <StatusBadge status={item.status} />
                         </td>
                         <td className="px-6 py-4">
-                          {item.suratTugas ? (
+                          {dokumen?.id ? (
                             <div className="flex items-center gap-2">
-                              <a
-                                href={`/surat-tugas/${item.suratTugas}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={`Buka ${item.suratTugas}`}
+                              <button
+                                type="button"
+                                title={`Lihat ${filename}`}
+                                aria-label={`Lihat ${filename}`}
                                 className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                                onClick={() => openDokumen(dokumen)}
                               >
-                                <FileText className="size-4" />
-                              </a>
-                              <a
-                                href={`/surat-tugas/${item.suratTugas}`}
-                                download={item.suratTugas}
-                                title={`Unduh ${item.suratTugas}`}
+                                <Eye className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                title={`Unduh ${filename}`}
+                                aria-label={`Unduh ${filename}`}
                                 className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                                onClick={() => downloadDokumen(dokumen)}
                               >
                                 <Download className="size-4" />
-                              </a>
+                              </button>
                             </div>
                           ) : (
                             <span className="text-xs text-gray-400">Belum diunggah</span>
                           )}
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
