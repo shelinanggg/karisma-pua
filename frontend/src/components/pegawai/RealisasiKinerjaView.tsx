@@ -656,7 +656,7 @@ function RealisasiTab({
     tanggal: '',
     jumlah: '',
     keterangan: '',
-    suratTugas: '',
+    dokumenPendukung: '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -677,7 +677,7 @@ function RealisasiTab({
 
   const handleFile = (file: File | null) => {
     if (!file) return;
-    updateForm('suratTugas', file.name);
+    updateForm('dokumenPendukung', file.name);
   };
 
   const handleSubmit = async () => {
@@ -711,7 +711,7 @@ function RealisasiTab({
         keterangan: form.keterangan,
       });
       await onSaved();
-      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' });
+      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', dokumenPendukung: '' });
     } catch {
       setError('Gagal menyimpan realisasi kegiatan.');
     } finally {
@@ -803,9 +803,9 @@ function RealisasiTab({
           </div>
 
           <div className="space-y-2">
-            <Label>Surat Tugas</Label>
+            <Label>Dokumen Pendukung</Label>
             <input
-              id="surat-tugas-realisasi"
+              id="dokumen-pendukung-realisasi"
               type="file"
               className="hidden"
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
@@ -816,11 +816,11 @@ function RealisasiTab({
               style={{ borderColor: '#d1d5db' }}
             >
               <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
+                {form.dokumenPendukung ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
               </div>
-              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret surat tugas ke area ini'}</p>
+              <p className="text-sm font-semibold text-gray-900">{form.dokumenPendukung || 'Seret dokumen pendukung ke area ini'}</p>
               <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
-              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('surat-tugas-realisasi')?.click()}>
+              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('dokumen-pendukung-realisasi')?.click()}>
                 Cari File Manual
               </Button>
             </div>
@@ -831,7 +831,7 @@ function RealisasiTab({
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' })}
+              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', dokumenPendukung: '' })}
               disabled={isSubmitting}
             >
               Reset
@@ -876,7 +876,7 @@ function RealisasiTab({
                     <th className="w-[12%] px-6 py-3">Realisasi</th>
                     <th className="w-[12%] px-6 py-3">Status</th>
                     <th className="w-[20%] px-6 py-3">Keterangan</th>
-                    <th className="w-[18%] px-6 py-3">Surat Tugas</th>
+                    <th className="w-[18%] px-6 py-3">Dokumen Pendukung</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
