@@ -59,5 +59,18 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
   pgm.dropTable('pengguna');
-  pgm.dropTable('roles');
+  pgm.sql(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM pg_tables
+        WHERE schemaname = 'public'
+          AND tablename = 'roles'
+          AND tableowner = current_user
+      ) THEN
+        DROP TABLE roles;
+      END IF;
+    END $$;
+  `);
 };
