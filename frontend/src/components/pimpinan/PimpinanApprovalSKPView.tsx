@@ -382,9 +382,9 @@ export function PimpinanApprovalSKPView() {
                                 rel="noopener noreferrer"
                                 aria-label={`Lihat ${documentInfo.namaFile}`}
                                 title={`Lihat ${documentInfo.namaFile}`}
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                                className="approval-document-button"
                               >
-                                <Eye className="size-4" />
+                                <Eye />
                               </a>
                             ) : (
                               <button
@@ -392,9 +392,9 @@ export function PimpinanApprovalSKPView() {
                                 disabled
                                 aria-label="File belum tersedia"
                                 title="File belum tersedia"
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-gray-300"
+                                className="approval-document-button approval-document-button-disabled"
                               >
-                                <Eye className="size-4" />
+                                <Eye />
                               </button>
                             )}
 
@@ -404,9 +404,9 @@ export function PimpinanApprovalSKPView() {
                                 download={documentInfo.namaFile}
                                 aria-label={`Download ${documentInfo.namaFile}`}
                                 title={`Download ${documentInfo.namaFile}`}
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                                className="approval-document-button"
                               >
-                                <Download className="size-4" />
+                                <Download />
                               </a>
                             ) : (
                               <button
@@ -414,9 +414,9 @@ export function PimpinanApprovalSKPView() {
                                 disabled
                                 aria-label="File belum tersedia"
                                 title="File belum tersedia"
-                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-gray-300"
+                                className="approval-document-button approval-document-button-disabled"
                               >
-                                <Download className="size-4" />
+                                <Download />
                               </button>
                             )}
                           </div>
