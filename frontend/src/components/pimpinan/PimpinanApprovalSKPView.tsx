@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Download, Eye } from 'lucide-react';
 
 import {
   approveRealisasiKegiatan,
@@ -41,6 +41,14 @@ function StatusBadge({ status }: { status: ApprovalStatus }) {
       {statusLabelMap[status]}
     </span>
   );
+}
+
+function getDocumentInfo(item: ApprovalRealisasiItem) {
+  const namaFile = item.namaFile || item.fileName || item.dokumen?.namaFile || item.dokumen?.fileName || '';
+  const viewUrl = item.dokumenUrl || item.fileUrl || item.dokumen?.viewUrl || item.dokumen?.url || '';
+  const downloadUrl = item.downloadUrl || item.dokumen?.downloadUrl || viewUrl;
+
+  return { namaFile, viewUrl, downloadUrl };
 }
 
 export function PimpinanApprovalSKPView() {
@@ -309,7 +317,7 @@ export function PimpinanApprovalSKPView() {
 
       <div className="overflow-hidden rounded-xl border bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[940px] text-sm">
+          <table className="w-full min-w-[1080px] text-sm">
             <thead>
               <tr className="border-b bg-gray-100 text-left text-gray-600">
                 <th className="w-12 p-3"></th>
@@ -317,6 +325,7 @@ export function PimpinanApprovalSKPView() {
                 <th className="p-3 text-center">Tanggal</th>
                 <th className="p-3 text-center">Realisasi</th>
                 <th className="p-3 text-center">Status</th>
+                <th className="p-3">Dokumen</th>
                 <th className="p-3">Keterangan</th>
               </tr>
             </thead>
@@ -324,44 +333,103 @@ export function PimpinanApprovalSKPView() {
             <tbody>
               {isLoadingItems ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                     Memuat detail realisasi...
                   </td>
                 </tr>
               ) : filteredItems.length > 0 ? (
-                filteredItems.map((item) => (
-                  <tr key={item.id} className="border-b align-top last:border-b-0">
-                    <td className="p-3">
-                      {item.status === 'diajukan' && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(item.id)}
-                          onChange={() => toggleSelected(item.id)}
-                        />
-                      )}
-                    </td>
+                filteredItems.map((item) => {
+                  const documentInfo = getDocumentInfo(item);
+                  const hasDocument = Boolean(documentInfo.namaFile && documentInfo.viewUrl);
 
-                    <td className="p-3">
-                      <div className="font-medium text-gray-900">{item.namaKegiatan}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</div>
-                    </td>
+                  return (
+                    <tr key={item.id} className="border-b align-top last:border-b-0">
+                      <td className="p-3">
+                        {item.status === 'diajukan' && (
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(item.id)}
+                            onChange={() => toggleSelected(item.id)}
+                          />
+                        )}
+                      </td>
 
-                    <td className="p-3 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
+                      <td className="p-3">
+                        <div className="font-medium text-gray-900">{item.namaKegiatan}</div>
+                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</div>
+                      </td>
 
-                    <td className="p-3 text-center font-medium text-gray-800">
-                      {formatNumber(item.realisasiTarget)}
-                    </td>
+                      <td className="p-3 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
 
-                    <td className="p-3 text-center">
-                      <StatusBadge status={item.status} />
-                    </td>
+                      <td className="p-3 text-center font-medium text-gray-800">
+                        {formatNumber(item.realisasiTarget)}
+                      </td>
 
-                    <td className="p-3 text-gray-700">{item.keterangan || '-'}</td>
-                  </tr>
-                ))
+                      <td className="p-3 text-center">
+                        <StatusBadge status={item.status} />
+                      </td>
+
+                      <td className="p-3">
+                        <div className="max-w-[190px]">
+                          <p className={`break-words text-sm ${documentInfo.namaFile ? 'font-medium text-gray-900' : 'text-gray-400'}`}>
+                            {documentInfo.namaFile || 'Belum ada file'}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            {hasDocument ? (
+                              <a
+                                href={documentInfo.viewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Lihat ${documentInfo.namaFile}`}
+                                title={`Lihat ${documentInfo.namaFile}`}
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                              >
+                                <Eye className="size-4" />
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                aria-label="File belum tersedia"
+                                title="File belum tersedia"
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-gray-300"
+                              >
+                                <Eye className="size-4" />
+                              </button>
+                            )}
+
+                            {hasDocument ? (
+                              <a
+                                href={documentInfo.downloadUrl}
+                                download={documentInfo.namaFile}
+                                aria-label={`Download ${documentInfo.namaFile}`}
+                                title={`Download ${documentInfo.namaFile}`}
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
+                              >
+                                <Download className="size-4" />
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                aria-label="File belum tersedia"
+                                title="File belum tersedia"
+                                className="inline-flex size-8 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-gray-300"
+                              >
+                                <Download className="size-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="p-3 text-gray-700">{item.keterangan || '-'}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                     Tidak ada realisasi untuk status ini.
                   </td>
                 </tr>

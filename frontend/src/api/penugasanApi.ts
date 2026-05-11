@@ -86,6 +86,19 @@ export type ApprovalRealisasiItem = {
   keterangan: string;
   targetKetercapaian: string;
   status: 'diajukan' | 'disetujui';
+  namaFile?: string;
+  fileName?: string;
+  dokumenUrl?: string;
+  fileUrl?: string;
+  downloadUrl?: string;
+  dokumen?: {
+    id?: string;
+    namaFile?: string;
+    fileName?: string;
+    url?: string;
+    viewUrl?: string;
+    downloadUrl?: string;
+  } | null;
 };
 
 export type PenugasanTambahanEmployee = {
