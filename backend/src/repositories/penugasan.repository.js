@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 
 const formatDateColumn = (column) => `to_char(${column}, 'YYYY-MM-DD')`;
+const formatTimestampColumn = (column) => `to_char(${column}, 'YYYY-MM-DD"T"HH24:MI:SSOF')`;
 const additionalAssignmentRelationTables = [
   "penugasan_tambahan_pengguna",
   "pengguna_penugasan_tambahan",
@@ -72,6 +73,7 @@ const mapRealisasiRow = (row) => ({
   realisasiTarget: row.realisasi_target ?? "",
   keterangan: row.keterangan ?? "",
   status: row.status ?? "diajukan",
+  dokumen: mapDocumentRow(row),
 });
 
 const mapApprovalEmployeeRow = (row) => ({
@@ -97,6 +99,7 @@ const mapApprovalRealisasiRow = (row) => ({
   keterangan: row.keterangan ?? "",
   targetKetercapaian: row.target_ketercapaian ?? "",
   status: row.status ?? "diajukan",
+  dokumen: mapDocumentRow(row),
 });
 
 const mapTambahanRow = (row) => {
@@ -112,6 +115,7 @@ const mapTambahanRow = (row) => {
     tanggalMulai: row.tanggal_mulai ?? "",
     tanggalSelesai: row.tanggal_selesai ?? "",
     suratTugas: row.surat_tugas ?? "",
+    dokumenSuratTugas: mapDocumentRow(row, "surat_tugas"),
     assignedEmployees: assignedEmployees.map((employee) => ({
       id: String(employee.id),
       nama: employee.nama ?? "",
@@ -120,7 +124,7 @@ const mapTambahanRow = (row) => {
   };
 };
 
-const mapPimpinanKegiatanRow = (row) => {
+const mapPimpinanKegiatanRow = (row, documents = []) => {
   const targetTotal = Number(row.target_total ?? 0);
   const approvedTotal = Number(row.approved_total ?? 0);
   const assignedEmployees = Array.isArray(row.assigned_employees)
@@ -149,7 +153,7 @@ const mapPimpinanKegiatanRow = (row) => {
         progress: employeeTarget > 0 ? Math.min(100, Math.round((employeeApproved / employeeTarget) * 100)) : 0,
       };
     }),
-    documents: [],
+    documents,
   };
 };
 
@@ -201,6 +205,34 @@ const mapDashboardProfileRow = (row) => ({
 const toNumeric = (value) => {
   const parsed = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatFileSize = (value) => {
+  const size = Number(value ?? 0);
+  if (!Number.isFinite(size) || size <= 0) return "0 B";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${Math.round((size / (1024 * 1024)) * 10) / 10} MB`;
+};
+
+const mapDocumentRow = (row, prefix = "dokumen") => {
+  const id = row[`${prefix}_id_dokumen`];
+  if (!id) return null;
+
+  const namaFile = row[`${prefix}_original_filename`] ?? "";
+
+  return {
+    id: String(id),
+    namaFile,
+    fileName: namaFile,
+    mimeType: row[`${prefix}_mime_type`] ?? "",
+    fileSize: Number(row[`${prefix}_file_size`] ?? 0),
+    size: formatFileSize(row[`${prefix}_file_size`]),
+    uploadedBy: row[`${prefix}_uploaded_by_name`] ?? "",
+    uploadedDate: row[`${prefix}_created_at`] ?? "",
+    viewUrl: `/dokumen/${id}/lihat`,
+    downloadUrl: `/dokumen/${id}/download`,
+  };
 };
 
 export const findAssignableEmployees = async ({ idPeriodeSkp = null } = {}) => {
@@ -305,7 +337,7 @@ export const findButirAssignmentsByEmployee = async (idPengguna) => {
 };
 
 export const findPimpinanKegiatanDashboard = async ({ tahun = null, bulan = null } = {}) => {
-  const [yearsResult, kegiatanResult] = await Promise.all([
+  const [yearsResult, kegiatanResult, documentsResult] = await Promise.all([
     pool.query(`
       SELECT DISTINCT periode_skp.tahun
       FROM pengguna_kegiatan
@@ -416,11 +448,55 @@ export const findPimpinanKegiatanDashboard = async ({ tahun = null, bulan = null
       `,
       [tahun, tahun, bulan],
     ),
+    pool.query(
+      `
+        SELECT
+          butir_kegiatan.id_butir_kegiatan,
+          dokumen.id_dokumen AS dokumen_id_dokumen,
+          dokumen.original_filename AS dokumen_original_filename,
+          dokumen.mime_type AS dokumen_mime_type,
+          dokumen.file_size AS dokumen_file_size,
+          ${formatTimestampColumn("dokumen.created_at")} AS dokumen_created_at,
+          uploader.nama AS dokumen_uploaded_by_name
+        FROM realisasi_kegiatan
+        INNER JOIN dokumen
+          ON dokumen.id_dokumen = realisasi_kegiatan.id_dokumen
+          AND dokumen.deleted_at IS NULL
+        INNER JOIN pengguna_kegiatan
+          ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+        INNER JOIN butir_kegiatan
+          ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+        INNER JOIN periode_skp
+          ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+        LEFT JOIN pengguna uploader
+          ON uploader.id_pengguna = dokumen.uploaded_by
+        WHERE pengguna_kegiatan.status <> 'batal'
+          AND ($1::integer IS NULL OR periode_skp.tahun = $1::integer)
+          AND ($2::integer IS NULL OR EXTRACT(YEAR FROM realisasi_kegiatan.tanggal_realisasi)::integer = $2::integer)
+          AND ($3::integer IS NULL OR EXTRACT(MONTH FROM realisasi_kegiatan.tanggal_realisasi)::integer = $3::integer)
+        ORDER BY dokumen.created_at DESC, dokumen.id_dokumen DESC
+      `,
+      [tahun, tahun, bulan],
+    ),
   ]);
+
+  const documentsByButir = documentsResult.rows.reduce((acc, row) => {
+    const key = String(row.id_butir_kegiatan);
+    if (!acc.has(key)) acc.set(key, []);
+    const document = mapDocumentRow(row);
+    if (document) {
+      acc.get(key).push({
+        ...document,
+        name: document.namaFile,
+        type: document.mimeType,
+      });
+    }
+    return acc;
+  }, new Map());
 
   return {
     years: yearsResult.rows.map((row) => Number(row.tahun)).filter((year) => Number.isInteger(year)),
-    items: kegiatanResult.rows.map(mapPimpinanKegiatanRow),
+    items: kegiatanResult.rows.map((row) => mapPimpinanKegiatanRow(row, documentsByButir.get(String(row.id_butir_kegiatan)) ?? [])),
   };
 };
 
@@ -782,7 +858,13 @@ export const findMyRealisasiKegiatan = async (idPengguna) => {
         ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
         realisasi_kegiatan.realisasi_target,
         realisasi_kegiatan.keterangan,
-        realisasi_kegiatan.status
+        realisasi_kegiatan.status,
+        dokumen.id_dokumen AS dokumen_id_dokumen,
+        dokumen.original_filename AS dokumen_original_filename,
+        dokumen.mime_type AS dokumen_mime_type,
+        dokumen.file_size AS dokumen_file_size,
+        ${formatTimestampColumn("dokumen.created_at")} AS dokumen_created_at,
+        uploader.nama AS dokumen_uploaded_by_name
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
         ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
@@ -790,6 +872,11 @@ export const findMyRealisasiKegiatan = async (idPengguna) => {
         ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      LEFT JOIN dokumen
+        ON dokumen.id_dokumen = realisasi_kegiatan.id_dokumen
+        AND dokumen.deleted_at IS NULL
+      LEFT JOIN pengguna uploader
+        ON uploader.id_pengguna = dokumen.uploaded_by
       WHERE pengguna_kegiatan.id_pengguna = $1
         AND periode_skp.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::integer
       ORDER BY realisasi_kegiatan.tanggal_realisasi DESC, realisasi_kegiatan.id_realisasi_kegiatan DESC
@@ -806,17 +893,19 @@ export const createMyRealisasiKegiatan = async ({
   tanggalRealisasi,
   realisasiTarget,
   keterangan,
+  idDokumen = null,
 }) => {
   const result = await pool.query(
     `
       INSERT INTO realisasi_kegiatan (
         id_pengguna_kegiatan,
+        id_dokumen,
         tanggal_realisasi,
         realisasi_target,
         keterangan,
         status
       )
-      SELECT $2, $3, $4, $5, 'diajukan'
+      SELECT $2, $6, $3, $4, $5, 'diajukan'
       FROM pengguna_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
@@ -827,7 +916,7 @@ export const createMyRealisasiKegiatan = async ({
         AND btrim(pengguna_kegiatan.target_ketercapaian) <> ''
       RETURNING id_realisasi_kegiatan
     `,
-    [idPengguna, idPenggunaKegiatan, tanggalRealisasi, realisasiTarget, keterangan],
+    [idPengguna, idPenggunaKegiatan, tanggalRealisasi, realisasiTarget, keterangan, idDokumen],
   );
 
   if (!result.rows[0]) return null;
@@ -903,7 +992,13 @@ export const findApprovalRealisasiByEmployee = async (idPengguna, { idPeriodeSkp
         realisasi_kegiatan.realisasi_target,
         realisasi_kegiatan.keterangan,
         pengguna_kegiatan.target_ketercapaian,
-        realisasi_kegiatan.status
+        realisasi_kegiatan.status,
+        dokumen.id_dokumen AS dokumen_id_dokumen,
+        dokumen.original_filename AS dokumen_original_filename,
+        dokumen.mime_type AS dokumen_mime_type,
+        dokumen.file_size AS dokumen_file_size,
+        ${formatTimestampColumn("dokumen.created_at")} AS dokumen_created_at,
+        uploader.nama AS dokumen_uploaded_by_name
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
         ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
@@ -911,6 +1006,11 @@ export const findApprovalRealisasiByEmployee = async (idPengguna, { idPeriodeSkp
         ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
+      LEFT JOIN dokumen
+        ON dokumen.id_dokumen = realisasi_kegiatan.id_dokumen
+        AND dokumen.deleted_at IS NULL
+      LEFT JOIN pengguna uploader
+        ON uploader.id_pengguna = dokumen.uploaded_by
       WHERE pengguna_kegiatan.id_pengguna = $1
         AND realisasi_kegiatan.status IN ('diajukan', 'disetujui')
         AND (
@@ -956,6 +1056,12 @@ export const findAdditionalAssignments = async () => {
       ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
       ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
       penugasan_tambahan.surat_tugas,
+      MAX(surat_tugas_dokumen.id_dokumen) AS surat_tugas_id_dokumen,
+      MAX(surat_tugas_dokumen.original_filename) AS surat_tugas_original_filename,
+      MAX(surat_tugas_dokumen.mime_type) AS surat_tugas_mime_type,
+      MAX(surat_tugas_dokumen.file_size) AS surat_tugas_file_size,
+      ${formatTimestampColumn("MAX(surat_tugas_dokumen.created_at)")} AS surat_tugas_created_at,
+      MAX(surat_tugas_uploader.nama) AS surat_tugas_uploaded_by_name,
       COALESCE(
         json_agg(
           json_build_object(
@@ -968,6 +1074,11 @@ export const findAdditionalAssignments = async () => {
         '[]'::json
       ) AS assigned_employees
     FROM penugasan_tambahan
+    LEFT JOIN dokumen surat_tugas_dokumen
+      ON surat_tugas_dokumen.id_dokumen = penugasan_tambahan.id_surat_tugas_dokumen
+      AND surat_tugas_dokumen.deleted_at IS NULL
+    LEFT JOIN pengguna surat_tugas_uploader
+      ON surat_tugas_uploader.id_pengguna = surat_tugas_dokumen.uploaded_by
     LEFT JOIN ${relationTable}
       ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
     LEFT JOIN pengguna
@@ -991,6 +1102,12 @@ export const findAdditionalAssignmentsByEmployee = async (idPengguna) => {
         ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
         penugasan_tambahan.surat_tugas,
+        MAX(surat_tugas_dokumen.id_dokumen) AS surat_tugas_id_dokumen,
+        MAX(surat_tugas_dokumen.original_filename) AS surat_tugas_original_filename,
+        MAX(surat_tugas_dokumen.mime_type) AS surat_tugas_mime_type,
+        MAX(surat_tugas_dokumen.file_size) AS surat_tugas_file_size,
+        ${formatTimestampColumn("MAX(surat_tugas_dokumen.created_at)")} AS surat_tugas_created_at,
+        MAX(surat_tugas_uploader.nama) AS surat_tugas_uploaded_by_name,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1003,6 +1120,11 @@ export const findAdditionalAssignmentsByEmployee = async (idPengguna) => {
           '[]'::json
         ) AS assigned_employees
       FROM penugasan_tambahan
+      LEFT JOIN dokumen surat_tugas_dokumen
+        ON surat_tugas_dokumen.id_dokumen = penugasan_tambahan.id_surat_tugas_dokumen
+        AND surat_tugas_dokumen.deleted_at IS NULL
+      LEFT JOIN pengguna surat_tugas_uploader
+        ON surat_tugas_uploader.id_pengguna = surat_tugas_dokumen.uploaded_by
       LEFT JOIN ${relationTable}
         ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
       LEFT JOIN pengguna
@@ -1035,6 +1157,12 @@ export const findAdditionalAssignmentById = async (id) => {
         ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
         penugasan_tambahan.surat_tugas,
+        MAX(surat_tugas_dokumen.id_dokumen) AS surat_tugas_id_dokumen,
+        MAX(surat_tugas_dokumen.original_filename) AS surat_tugas_original_filename,
+        MAX(surat_tugas_dokumen.mime_type) AS surat_tugas_mime_type,
+        MAX(surat_tugas_dokumen.file_size) AS surat_tugas_file_size,
+        ${formatTimestampColumn("MAX(surat_tugas_dokumen.created_at)")} AS surat_tugas_created_at,
+        MAX(surat_tugas_uploader.nama) AS surat_tugas_uploaded_by_name,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1047,6 +1175,11 @@ export const findAdditionalAssignmentById = async (id) => {
           '[]'::json
         ) AS assigned_employees
       FROM penugasan_tambahan
+      LEFT JOIN dokumen surat_tugas_dokumen
+        ON surat_tugas_dokumen.id_dokumen = penugasan_tambahan.id_surat_tugas_dokumen
+        AND surat_tugas_dokumen.deleted_at IS NULL
+      LEFT JOIN pengguna surat_tugas_uploader
+        ON surat_tugas_uploader.id_pengguna = surat_tugas_dokumen.uploaded_by
       LEFT JOIN ${relationTable}
         ON ${relationTable}.id_penugasan_tambahan = penugasan_tambahan.id_penugasan_tambahan
       LEFT JOIN pengguna
@@ -1067,6 +1200,7 @@ export const createAdditionalAssignment = async ({
   deskripsi,
   tanggalMulai,
   tanggalSelesai,
+  idSuratTugasDokumen = null,
 }) => {
   const client = await pool.connect();
 
@@ -1083,12 +1217,13 @@ export const createAdditionalAssignment = async ({
           deskripsi,
           tanggal_mulai,
           tanggal_selesai,
+          id_surat_tugas_dokumen,
           surat_tugas
         )
-        VALUES ($1, $2, 'aktif', $3, $4, $5, NULL)
+        VALUES ($1, $2, 'aktif', $3, $4, $5, $6, NULL)
         RETURNING id_penugasan_tambahan
       `,
-      [assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai],
+      [assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai, idSuratTugasDokumen],
     );
 
     const idPenugasanTambahan = result.rows[0].id_penugasan_tambahan;
@@ -1122,6 +1257,7 @@ export const updateAdditionalAssignment = async ({
   deskripsi,
   tanggalMulai,
   tanggalSelesai,
+  idSuratTugasDokumen,
 }) => {
   const client = await pool.connect();
 
@@ -1138,11 +1274,12 @@ export const updateAdditionalAssignment = async ({
           deskripsi = $4,
           tanggal_mulai = $5,
           tanggal_selesai = $6,
+          id_surat_tugas_dokumen = COALESCE($7, id_surat_tugas_dokumen),
           updated_at = current_timestamp
         WHERE id_penugasan_tambahan = $1
         RETURNING id_penugasan_tambahan
       `,
-      [id, assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai],
+      [id, assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai, idSuratTugasDokumen],
     );
 
     if (!result.rows[0]) {

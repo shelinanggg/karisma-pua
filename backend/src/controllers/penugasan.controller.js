@@ -20,6 +20,8 @@ import {
   updateButirAssignment,
   updateOwnButirTarget,
 } from "../repositories/penugasan.repository.js";
+import { findDocumentMetadataById } from "../repositories/dokumen.repository.js";
+import { deleteStoredDocument, saveUploadedDocument } from "../services/dokumen.service.js";
 
 const nullableText = (value) => {
   if (value === undefined || value === null) return null;
@@ -45,11 +47,11 @@ const positiveNumberText = (value) => {
 };
 
 const uniqueIntegerList = (value) => {
-  if (!Array.isArray(value)) return [];
+  const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
 
   return Array.from(
     new Set(
-      value
+      values
         .map((item) => requiredInteger(item))
         .filter((item) => Number.isInteger(item)),
     ),
@@ -176,11 +178,11 @@ export const getMyButirAssignments = async (req, res) => {
 };
 
 const requiredIntegerList = (value) => {
-  if (!Array.isArray(value)) return [];
+  const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
 
   return Array.from(
     new Set(
-      value
+      values
         .map((item) => requiredInteger(item))
         .filter((item) => Number.isInteger(item)),
     ),
@@ -365,6 +367,8 @@ export const patchApproveRealisasi = async (req, res) => {
 };
 
 export const postMyRealisasi = async (req, res) => {
+  let savedDocument = null;
+
   try {
     const idPengguna = requiredInteger(req.user?.id_pengguna);
     const idPenggunaKegiatan = requiredInteger(req.body.idPenggunaKegiatan);
@@ -388,15 +392,23 @@ export const postMyRealisasi = async (req, res) => {
       return res.status(400).json({ message: "Keterangan realisasi wajib diisi." });
     }
 
+    savedDocument = await saveUploadedDocument({
+      file: req.file,
+      kategori: "realisasi-kinerja",
+      uploadedBy: idPengguna,
+    });
+
     const data = await createMyRealisasiKegiatan({
       idPengguna,
       idPenggunaKegiatan,
       tanggalRealisasi,
       realisasiTarget,
       keterangan,
+      idDokumen: savedDocument?.id_dokumen ?? null,
     });
 
     if (!data) {
+      await deleteStoredDocument(savedDocument);
       return res.status(404).json({
         message: "Penugasan tidak ditemukan, bukan periode tahun ini, atau target belum ditetapkan.",
       });
@@ -404,6 +416,12 @@ export const postMyRealisasi = async (req, res) => {
 
     res.status(201).json({ message: "Realisasi kegiatan berhasil disimpan.", data });
   } catch (err) {
+    await deleteStoredDocument(savedDocument);
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+
     if (err.code === "23502" || err.code === "23503") {
       return res.status(400).json({ message: "Data realisasi kegiatan tidak valid." });
     }
@@ -455,7 +473,10 @@ export const getAdditionalAssignment = async (req, res) => {
 };
 
 export const postAdditionalAssignment = async (req, res) => {
+  let savedDocument = null;
+
   try {
+    const uploadedBy = requiredInteger(req.user?.id_pengguna);
     const assignedEmployeeIds = uniqueIntegerList(req.body.assignedEmployeeIds);
     const namaKegiatan = nullableText(req.body.namaKegiatan);
     const deskripsi = nullableText(req.body.deskripsiKegiatan);
@@ -474,16 +495,29 @@ export const postAdditionalAssignment = async (req, res) => {
       return res.status(400).json({ message: "Tanggal penugasan wajib diisi." });
     }
 
+    savedDocument = await saveUploadedDocument({
+      file: req.file,
+      kategori: "surat-tugas",
+      uploadedBy,
+    });
+
     const data = await createAdditionalAssignment({
       assignedEmployeeIds,
       namaKegiatan,
       deskripsi,
       tanggalMulai,
       tanggalSelesai,
+      idSuratTugasDokumen: savedDocument?.id_dokumen ?? null,
     });
 
     res.status(201).json({ message: "Penugasan tambahan berhasil disimpan.", data });
   } catch (err) {
+    await deleteStoredDocument(savedDocument);
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+
     if (err.code === "23503") {
       return res.status(400).json({ message: "Pegawai penugasan tambahan tidak valid." });
     }
@@ -493,7 +527,11 @@ export const postAdditionalAssignment = async (req, res) => {
 };
 
 export const patchAdditionalAssignment = async (req, res) => {
+  let savedDocument = null;
+  let previousDocument = null;
+
   try {
+    const uploadedBy = requiredInteger(req.user?.id_pengguna);
     const id = requiredInteger(req.params.id);
     const assignedEmployeeIds = uniqueIntegerList(req.body.assignedEmployeeIds);
     const namaKegiatan = nullableText(req.body.namaKegiatan);
@@ -517,6 +555,22 @@ export const patchAdditionalAssignment = async (req, res) => {
       return res.status(400).json({ message: "Tanggal penugasan wajib diisi." });
     }
 
+    if (req.file) {
+      const currentAssignment = await findAdditionalAssignmentById(id);
+      if (!currentAssignment) {
+        return res.status(404).json({ message: "Penugasan tambahan tidak ditemukan." });
+      }
+
+      const previousDocumentId = currentAssignment.dokumenSuratTugas?.id;
+      previousDocument = previousDocumentId ? await findDocumentMetadataById(previousDocumentId) : null;
+    }
+
+    savedDocument = await saveUploadedDocument({
+      file: req.file,
+      kategori: "surat-tugas",
+      uploadedBy,
+    });
+
     const data = await updateAdditionalAssignment({
       id,
       assignedEmployeeIds,
@@ -524,14 +578,30 @@ export const patchAdditionalAssignment = async (req, res) => {
       deskripsi,
       tanggalMulai,
       tanggalSelesai,
+      idSuratTugasDokumen: savedDocument?.id_dokumen ?? null,
     });
 
     if (!data) {
+      await deleteStoredDocument(savedDocument);
       return res.status(404).json({ message: "Penugasan tambahan tidak ditemukan." });
+    }
+
+    if (savedDocument && previousDocument) {
+      try {
+        await deleteStoredDocument(previousDocument);
+      } catch {
+        // Dokumen lama tetap tidak dipakai; kegagalan cleanup tidak membatalkan update utama.
+      }
     }
 
     res.status(200).json({ message: "Penugasan tambahan berhasil diperbarui.", data });
   } catch (err) {
+    await deleteStoredDocument(savedDocument);
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+
     if (err.code === "23503") {
       return res.status(400).json({ message: "Pegawai penugasan tambahan tidak valid." });
     }

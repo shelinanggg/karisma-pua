@@ -22,6 +22,7 @@ import {
   removeButirAssignment,
 } from "../controllers/penugasan.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { uploadDocument } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
@@ -38,14 +39,14 @@ router.get("/butir/pegawai/:pegawaiId", authorizeRoles("admin", "pimpinan"), get
 router.patch("/butir/:id", authorizeRoles("admin"), patchButirAssignment);
 router.delete("/butir/:id", authorizeRoles("admin"), removeButirAssignment);
 router.get("/realisasi/saya", authorizeRoles("pegawai"), getMyRealisasi);
-router.post("/realisasi/saya", authorizeRoles("pegawai"), postMyRealisasi);
+router.post("/realisasi/saya", authorizeRoles("pegawai"), uploadDocument.single("dokumenPendukung"), postMyRealisasi);
 router.get("/approval-skp/pegawai", authorizeRoles("pimpinan"), getApprovalRealisasiEmployees);
 router.get("/approval-skp/pegawai/:pegawaiId/realisasi", authorizeRoles("pimpinan"), getApprovalRealisasiByEmployee);
 router.patch("/approval-skp/realisasi/approve", authorizeRoles("pimpinan"), patchApproveRealisasi);
 router.get("/tambahan/saya", authorizeRoles("pegawai"), getMyAdditionalAssignments);
 router.get("/tambahan", authorizeRoles("admin"), getAdditionalAssignments);
 router.get("/tambahan/:id", authorizeRoles("admin"), getAdditionalAssignment);
-router.post("/tambahan", authorizeRoles("admin"), postAdditionalAssignment);
-router.patch("/tambahan/:id", authorizeRoles("admin"), patchAdditionalAssignment);
+router.post("/tambahan", authorizeRoles("admin"), uploadDocument.single("suratTugas"), postAdditionalAssignment);
+router.patch("/tambahan/:id", authorizeRoles("admin"), uploadDocument.single("suratTugas"), patchAdditionalAssignment);
 
 export default router;

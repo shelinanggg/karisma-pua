@@ -70,12 +70,15 @@ export const up = (pgm) => {
   pgm.createTable('realisasi_kegiatan', {
     id_realisasi_kegiatan: 'id',
     id_pegawai_kegiatan: { type: 'integer', references: '"pegawai_kegiatan"(id_pegawai_kegiatan)', notNull: true, onDelete: 'CASCADE' },
+    id_dokumen: { type: 'integer', references: '"dokumen"(id_dokumen)', onDelete: 'SET NULL' },
     tanggal_realisasi: { type: 'date', notNull: true },
     realisasi_target: { type: 'text' },
     keterangan: { type: 'text' },
     created_at: { type: 'timestamp with time zone', default: pgm.func('current_timestamp') },
     updated_at: { type: 'timestamp with time zone', default: pgm.func('current_timestamp') },
   });
+
+  pgm.createIndex('realisasi_kegiatan', 'id_dokumen');
 
   pgm.sql(`
     INSERT INTO butir_kegiatan (nama_kegiatan) VALUES
