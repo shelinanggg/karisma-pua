@@ -25,6 +25,7 @@ export type Pegawai = {
   golongan_id: string;
   penempatan_id: string;
   sertifikasi_id: string;
+  angka_kredit?: string;
 };
 
 export type PegawaiReferences = {

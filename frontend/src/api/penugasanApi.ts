@@ -30,6 +30,10 @@ export type PenugasanButir = {
   uraian: string;
   targetKetercapaian: string;
   status: string;
+  approvalStatus?: 'draft' | 'pending' | 'approved' | 'rejected';
+  dibuatOlehPegawai?: boolean;
+  realisasiTotal?: number;
+  realisasiCount?: number;
 };
 
 export type MyPenugasanButir = PenugasanButir & {
@@ -258,5 +262,26 @@ export async function createPenugasanTambahan(payload: PenugasanTambahanPayload)
 
 export async function updatePenugasanTambahan(id: string, payload: PenugasanTambahanPayload) {
   const response = await axiosInstance.patch<{ data: PenugasanTambahan }>(`/penugasan/tambahan/${id}`, payload);
+  return response.data.data;
+}
+
+// Approval Workflow APIs
+export async function submitPegawaiKegiatan(id: string) {
+  const response = await axiosInstance.post<{ data: PenugasanButir }>(`/penugasan/kegiatan/${id}/submit`);
+  return response.data.data;
+}
+
+export async function approvePegawaiKegiatan(id: string) {
+  const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/kegiatan/${id}/approve`);
+  return response.data.data;
+}
+
+export async function rejectPegawaiKegiatan(id: string, alasan?: string) {
+  const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/kegiatan/${id}/reject`, { alasan });
+  return response.data.data;
+}
+
+export async function getPendingApprovalKegiatan() {
+  const response = await axiosInstance.get<{ data: Array<{ idPengguna: string; nama: string; nip: string; pendingCount: number; kegiatan: PenugasanButir[] }> }>("/penugasan/kegiatan/pending");
   return response.data.data;
 }

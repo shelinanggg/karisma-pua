@@ -25,9 +25,23 @@ export type DashboardKegiatan = {
   pegawai: DashboardKegiatanPegawai[];
 };
 
+export type StatisticItem = {
+  label: string;
+  value: number;
+  percentage: number;
+};
+
+export type EmployeeStatistics = {
+  golongan: StatisticItem[];
+  pendidikan: StatisticItem[];
+  fungsional: StatisticItem[];
+  jabatan: StatisticItem[];
+};
+
 export type DashboardUtamaData = {
   kpis: DashboardKpi[];
   kegiatan: DashboardKegiatan[];
+  statistics?: EmployeeStatistics;
 };
 
 export async function getDashboardUtamaData(params?: { idPeriodeSkp?: string }) {

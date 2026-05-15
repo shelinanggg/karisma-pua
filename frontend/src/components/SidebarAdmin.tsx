@@ -8,6 +8,7 @@ const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/log
 const navItems = [
   { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },
   { id: 'kegiatan', label: 'Dashboard Kegiatan', icon: FolderKanban },
+  { id: 'kelola-kegiatan', label: 'Kelola Kegiatan Pegawai', icon: ListChecks },
   { id: 'master-butir', label: 'Master Butir', icon: ListChecks },
   { id: 'master-periode', label: 'Master Periode', icon: CalendarDays },
   { id: 'penugasan', label: 'Penugasan', icon: ClipboardList },

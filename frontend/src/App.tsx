@@ -19,12 +19,15 @@ const PimpinanOverview = lazy(() => import('./components/pimpinan/PimpinanOvervi
 const PimpinanEarlyWarningSystemView = lazy(() => import('./components/pimpinan/PimpinanEarlyWarningSystemView').then((module) => ({ default: module.PimpinanEarlyWarningSystemView })));
 const PimpinanKegiatanView = lazy(() => import('./components/pimpinan/PimpinanKegiatanView').then((module) => ({ default: module.PimpinanKegiatanView })));
 const PimpinanApprovalSKPView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPView })));
+const PimpinanApprovalKegiatanView = lazy(() => import('./components/pimpinan/PimpinanApprovalKegiatanView').then((module) => ({ default: module.PimpinanApprovalKegiatanView })));
 const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
+const PimpinanPenugasanTambahanView = lazy(() => import('./components/pimpinan/PimpinanPenugasanTambahanView').then((module) => ({ default: module.PimpinanPenugasanTambahanView })));
 const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
 const PimpinanPengaturanView = lazy(() => import('./components/pimpinan/PimpinanPengaturanView').then((module) => ({ default: module.PimpinanPengaturanView })));
 
 const DashboardUtamaView = lazy(() => import('./components/admin/DashboardUtamaView').then((module) => ({ default: module.DashboardUtamaView })));
 const DashboardKegiatanView = lazy(() => import('./components/admin/DashboardKegiatanView').then((module) => ({ default: module.DashboardKegiatanView })));
+const AdminKegiatanEditorView = lazy(() => import('./components/admin/AdminKegiatanEditorView').then((module) => ({ default: module.AdminKegiatanEditorView })));
 const MasterButirView = lazy(() => import('./components/admin/MasterButirView').then((module) => ({ default: module.MasterButirView })));
 const PeriodeSkpView = lazy(() => import('./components/admin/PeriodeSkpView').then((module) => ({ default: module.PeriodeSkpView })));
 const PenugasanView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.PenugasanView })));
@@ -38,6 +41,7 @@ const ProfilView = lazy(() => import('./components/admin/ProfilView').then((modu
 const PengaturanView = lazy(() => import('./components/admin/PengaturanView').then((module) => ({ default: module.PengaturanView })));
 
 const PegawaiOverview = lazy(() => import('./components/pegawai/PegawaiOverview').then((module) => ({ default: module.PegawaiOverview })));
+const PegawaiKegiatanView = lazy(() => import('./components/pegawai/PegawaiKegiatanView').then((module) => ({ default: module.PegawaiKegiatanView })));
 const TargetKinerjaView = lazy(() => import('./components/pegawai/TargetKinerjaView').then((module) => ({ default: module.TargetKinerjaView })));
 const RealisasiKinerjaView = lazy(() => import('./components/pegawai/RealisasiKinerjaView').then((module) => ({ default: module.RealisasiKinerjaView })));
 const PenugasanTambahanView = lazy(() => import('./components/pegawai/PenugasanTambahanView').then((module) => ({ default: module.PenugasanTambahanView })));
@@ -196,6 +200,8 @@ export default function App() {
         <Route path="early-warning-system" element={<PimpinanEarlyWarningSystemView />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="approval-skp" element={<PimpinanApprovalSKPView />} />
+        <Route path="approval-kegiatan" element={<PimpinanApprovalKegiatanView />} />
+        <Route path="penugasan-tambahan" element={<PimpinanPenugasanTambahanView />} />
         <Route path="data-kepegawaian" element={<PimpinanDataKepegawaianView />} />
         <Route path="profil" element={<PimpinanProfilView />} />
         <Route path="pengaturan" element={<PimpinanPengaturanView />} />
@@ -215,6 +221,7 @@ export default function App() {
         <Route index element={<Navigate to="dashboard-utama" replace />} />
         <Route path="dashboard-utama" element={<DashboardUtamaView />} />
         <Route path="kegiatan" element={<DashboardKegiatanView />} />
+        <Route path="kelola-kegiatan" element={<AdminKegiatanEditorView />} />
         <Route path="master-butir" element={<MasterButirView />} />
         <Route path="master-periode" element={<PeriodeSkpView />} />
         <Route path="penugasan" element={<PenugasanView />} />
@@ -241,6 +248,7 @@ export default function App() {
       <Route path="/pegawai" element={<CommonLayout SidebarComponent={SidebarPegawai} allowedRole="pegawai" />}>
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<PegawaiOverview />} />
+        <Route path="kegiatan" element={<PegawaiKegiatanView />} />
         <Route path="target-kinerja" element={<TargetKinerjaView />} />
         <Route path="projects" element={<RealisasiKinerjaView />} />
         <Route path="organization" element={<PenugasanTambahanView />} />
