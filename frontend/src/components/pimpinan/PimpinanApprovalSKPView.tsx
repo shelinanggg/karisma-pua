@@ -314,6 +314,7 @@ export function PimpinanApprovalSKPView() {
               <tr className="border-b bg-gray-100 text-left text-gray-600">
                 <th className="w-12 p-3"></th>
                 <th className="p-3">Butir Kegiatan</th>
+                <th className="p-3 text-center">Target</th>
                 <th className="p-3 text-center">Tanggal</th>
                 <th className="p-3 text-center">Realisasi</th>
                 <th className="p-3 text-center">Status</th>
@@ -346,6 +347,8 @@ export function PimpinanApprovalSKPView() {
                       <div className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</div>
                     </td>
 
+                    <td className="p-3 text-center text-gray-700">{formatNumber(item.targetKetercapaian)}</td>
+
                     <td className="p-3 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
 
                     <td className="p-3 text-center font-medium text-gray-800">
@@ -361,7 +364,7 @@ export function PimpinanApprovalSKPView() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                     Tidak ada realisasi untuk status ini.
                   </td>
                 </tr>

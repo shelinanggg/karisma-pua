@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Eye, ListChecks, Search } from 'lucide-react';
+import { AlertCircle, Eye, ListChecks, Search, Plus } from 'lucide-react';
 import {
   getPegawaiList,
   getPegawaiReferences,
@@ -9,8 +9,13 @@ import {
 } from '../../api/pegawaiApi';
 import {
   getPenugasanButirByPegawai,
+  createPenugasanButir,
   type PenugasanButir,
 } from '../../api/penugasanApi';
+import {
+  getButirKegiatanList,
+  type ButirKegiatan,
+} from '../../api/butirKegiatanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import {
@@ -80,6 +85,7 @@ const detailSections = [
       ['penempatan_id', 'Penempatan'],
       ['sertifikasi_id', 'Sertifikasi'],
       ['target_ketercapaian', 'Target Ketercapaian'],
+      ['angka_kredit', 'Jumlah Angka Kredit'],
     ],
   },
   {
@@ -256,6 +262,193 @@ function DetailModal({
   );
 }
 
+function TentakanKegiatanModal({
+  employee,
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  employee: Employee | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}) {
+  const [butirList, setButirList] = useState<ButirKegiatan[]>([]);
+  const [selectedButir, setSelectedButir] = useState('');
+  const [deskripsi, setDeskripsi] = useState('');
+  const [uraian, setUraian] = useState('');
+  const [targetKetercapaian, setTargetKetercapaian] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadButir = async () => {
+      if (!open) return;
+
+      setIsLoading(true);
+      setErrorMessage('');
+      setButirList([]);
+
+      try {
+        const data = await getButirKegiatanList();
+        if (!ignore) {
+          setButirList(data);
+          if (data.length > 0) {
+            setSelectedButir(String(data[0].id));
+          }
+        }
+      } catch (error: any) {
+        if (!ignore) {
+          setErrorMessage(error.response?.data?.message || 'Gagal mengambil daftar butir kegiatan.');
+        }
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    };
+
+    loadButir();
+
+    return () => {
+      ignore = true;
+    };
+  }, [open]);
+
+  const handleSubmit = async () => {
+    if (!employee || !selectedButir) {
+      setErrorMessage('Pilih butir kegiatan terlebih dahulu.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      // Menggunakan periode SKP terbaru (ID 1 sebagai default untuk sekarang)
+      // TODO: Dinamis ambil periode SKP aktif jika diperlukan
+      await createPenugasanButir({
+        idPengguna: String(employee.id),
+        idButirKegiatan: selectedButir,
+        idPeriodeSkp: '1',
+        deskripsi: deskripsi || undefined,
+        uraian: uraian || undefined,
+        targetKetercapaian: targetKetercapaian || undefined,
+      });
+
+      setSuccessMessage('Kegiatan berhasil ditugaskan ke pegawai.');
+      setTimeout(() => {
+        setSelectedButir(butirList.length > 0 ? String(butirList[0].id) : '');
+        setDeskripsi('');
+        setUraian('');
+        setTargetKetercapaian('');
+        onOpenChange(false);
+        onSuccess?.();
+      }, 1500);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal menugaskan kegiatan.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!employee) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent style={{ maxWidth: '520px', maxHeight: '70vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
+        <DialogHeader style={{ gap: '0.25rem' }}>
+          <DialogTitle style={{ fontSize: '1rem' }}>Tentukan Kegiatan</DialogTitle>
+          <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip || '-'}</DialogDescription>
+        </DialogHeader>
+
+        <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(70vh - 5rem)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {errorMessage && (
+            <p className="flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+              <AlertCircle className="size-4" />
+              {errorMessage}
+            </p>
+          )}
+
+          {successMessage && (
+            <p className="flex items-center gap-2 rounded-md bg-green-50 p-3 text-sm font-medium text-green-600">
+              ✓ {successMessage}
+            </p>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Butir Kegiatan</label>
+              <select
+                value={selectedButir}
+                onChange={(e) => setSelectedButir(e.target.value)}
+                disabled={isLoading}
+                className="w-full h-9 rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none"
+              >
+                <option value="">-- Pilih Butir Kegiatan --</option>
+                {butirList.map((butir) => (
+                  <option key={butir.id} value={butir.id}>
+                    {butir.name}
+                  </option>
+                ))}
+              </select>
+              {isLoading && <p className="text-xs text-gray-500 mt-1">Memuat daftar kegiatan...</p>}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Deskripsi (Opsional)</label>
+              <textarea
+                value={deskripsi}
+                onChange={(e) => setDeskripsi(e.target.value)}
+                placeholder="Tambahkan deskripsi kegiatan..."
+                className="w-full h-20 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Uraian (Opsional)</label>
+              <textarea
+                value={uraian}
+                onChange={(e) => setUraian(e.target.value)}
+                placeholder="Tambahkan uraian detail kegiatan..."
+                className="w-full h-20 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Target Ketercapaian (Opsional)</label>
+              <Input
+                type="number"
+                value={targetKetercapaian}
+                onChange={(e) => setTargetKetercapaian(e.target.value)}
+                placeholder="Contoh: 100"
+                step="0.01"
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            Batal
+          </Button>
+          <Button
+            size="sm"
+            disabled={!selectedButir || isSubmitting || isLoading}
+            onClick={handleSubmit}
+          >
+            {isSubmitting ? 'Menyimpan...' : 'Simpan Penugasan'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DetailKegiatanModal({
   employee,
   open,
@@ -268,6 +461,22 @@ function DetailKegiatanModal({
   const [items, setItems] = useState<PenugasanButir[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isTentakanOpen, setIsTentakanOpen] = useState(false);
+
+  const reloadKegiatan = async () => {
+    if (!employee) return;
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const data = await getPenugasanButirByPegawai(String(employee.id));
+      setItems(data);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Gagal mengambil detail kegiatan pegawai.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -298,61 +507,145 @@ function DetailKegiatanModal({
   if (!employee) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent style={{ maxWidth: '760px', maxHeight: '68vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
-        <DialogHeader style={{ gap: '0.25rem' }}>
-          <DialogTitle style={{ fontSize: '1rem' }}>Detail Kegiatan</DialogTitle>
-          <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip || '-'}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent style={{ maxWidth: '760px', maxHeight: '68vh', overflow: 'hidden', padding: '1rem', gap: '0.75rem' }}>
+          <DialogHeader style={{ gap: '0.25rem' }}>
+            <DialogTitle style={{ fontSize: '1rem' }}>Detail Kegiatan</DialogTitle>
+            <DialogDescription style={{ fontSize: '0.8125rem' }}>{employee.nama} - NIP {employee.nip || '-'}</DialogDescription>
+          </DialogHeader>
 
-        <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(68vh - 5rem)' }}>
-          {errorMessage && (
-            <p className="mb-3 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
-              <AlertCircle className="size-4" />
-              {errorMessage}
-            </p>
-          )}
+          <div className="overflow-y-auto pr-1" style={{ maxHeight: 'calc(68vh - 7rem)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {errorMessage && (
+              <p className="mb-2 flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
+                <AlertCircle className="size-4" />
+                {errorMessage}
+              </p>
+            )}
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100 text-left text-gray-700">
-                  <th className="p-3 font-semibold">Butir Kegiatan</th>
-                  <th className="p-3 font-semibold">Target</th>
-                  <th className="p-3 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={3} className="p-6 text-center text-gray-500">Memuat detail kegiatan...</td>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-gray-100 text-left text-gray-700">
+                    <th className="p-3 font-semibold">Butir Kegiatan</th>
+                    <th className="p-3 font-semibold">Target</th>
+                    <th className="p-3 font-semibold text-center">Realisasi</th>
+                    <th className="p-3 font-semibold">Status</th>
+                    <th className="p-3 font-semibold text-center">Aksi</th>
                   </tr>
-                ) : items.length > 0 ? (
-                  items.map((item) => (
-                    <tr key={item.id} className="border-t align-top hover:bg-gray-50">
-                      <td className="p-3">
-                        <p className="font-semibold text-gray-900">{item.namaKegiatan || '-'}</p>
-                        <p className="mt-1 text-xs text-gray-500">{item.uraian || item.deskripsi || 'Belum ada uraian kegiatan.'}</p>
-                      </td>
-                      <td className="p-3 text-gray-700">{item.targetKetercapaian || '-'}</td>
-                      <td className="p-3">
-                        <span className="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-semibold text-green-700">
-                          {item.status || '-'}
-                        </span>
-                      </td>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-gray-500">Memuat detail kegiatan...</td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} className="p-6 text-center text-gray-500">Belum ada kegiatan yang ditetapkan untuk pegawai ini.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ) : items.length > 0 ? (
+                    items.map((item) => (
+                      <tr key={item.id} className="border-t align-top hover:bg-gray-50">
+                        <td className="p-3">
+                          <p className="font-semibold text-gray-900">{item.namaKegiatan || '-'}</p>
+                          <p className="mt-1 text-xs text-gray-500">{item.uraian || item.deskripsi || 'Belum ada uraian kegiatan.'}</p>
+                        </td>
+                        <td className="p-3 text-gray-700">{item.targetKetercapaian || '-'}</td>
+                        <td className="p-3 text-center text-gray-700">{item.realisasiTotal !== undefined ? item.realisasiTotal : '-'}</td>
+                        <td className="p-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-semibold text-green-700 w-fit">
+                              {item.status || '-'}
+                            </span>
+                            {item.approvalStatus && (
+                              <span
+                                className="inline-flex rounded-full px-2 py-1 text-xs font-semibold w-fit"
+                                style={{
+                                  backgroundColor:
+                                    item.approvalStatus === 'approved'
+                                      ? '#dcfce7'
+                                      : item.approvalStatus === 'pending'
+                                        ? '#fef3c7'
+                                        : item.approvalStatus === 'rejected'
+                                          ? '#fee2e2'
+                                          : '#f3f4f6',
+                                  color:
+                                    item.approvalStatus === 'approved'
+                                      ? '#166534'
+                                      : item.approvalStatus === 'pending'
+                                        ? '#92400e'
+                                        : item.approvalStatus === 'rejected'
+                                          ? '#991b1b'
+                                          : '#374151',
+                                }}
+                              >
+                                {item.approvalStatus === 'approved'
+                                  ? 'Disetujui'
+                                  : item.approvalStatus === 'pending'
+                                    ? 'Menunggu'
+                                    : item.approvalStatus === 'rejected'
+                                      ? 'Ditolak'
+                                      : 'Draft'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center">
+                          {item.approvalStatus === 'pending' && (
+                            <div className="flex justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // TODO: Call approve API
+                                  console.log('Approve kegiatan:', item.id);
+                                }}
+                                className="inline-flex items-center rounded bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100 transition"
+                              >
+                                Setujui
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  // TODO: Call reject API
+                                  console.log('Reject kegiatan:', item.id);
+                                }}
+                                className="inline-flex items-center rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition"
+                              >
+                                Tolak
+                              </button>
+                            </div>
+                          )}
+                          {item.approvalStatus !== 'pending' && item.approvalStatus && (
+                            <span className="text-xs text-gray-500">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="p-6 text-center text-gray-500">Belum ada kegiatan yang ditetapkan untuk pegawai ini.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+
+          <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Tutup
+            </Button>
+            <Button size="sm" onClick={() => setIsTentakanOpen(true)} className="gap-2">
+              <Plus className="size-4" />
+              Tentukan Kegiatan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <TentakanKegiatanModal
+        employee={employee}
+        open={isTentakanOpen}
+        onOpenChange={setIsTentakanOpen}
+        onSuccess={reloadKegiatan}
+      />
+    </>
   );
 }
 

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, Target, CalendarCheck, Users, Eye, ChevronDown, ChevronUp, Award, ClipboardList, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, CalendarCheck, Users, Eye, ChevronDown, ChevronUp, Award, ClipboardList, BarChart3, GraduationCap, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
 import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
-import { getDashboardUtamaData, type DashboardKegiatan, type DashboardKpi } from '../../api/dashboardApi';
+import { getDashboardUtamaData, type DashboardKegiatan, type DashboardKpi, type EmployeeStatistics } from '../../api/dashboardApi';
 
 const kpiColorMap: Record<string, { border: string }> = {
   blue: { border: 'border-blue-100' },
@@ -20,6 +20,37 @@ const kpiIconMap: Record<string, typeof Users> = {
   'Mendekati Pensiun': Award,
   'Mendekati KGB': Target,
   'Jumlah Kegiatan': CalendarCheck,
+};
+
+const demoEmployeeStatistics: EmployeeStatistics = {
+  golongan: [
+    { label: 'III/a', value: 34, percentage: 28.3 },
+    { label: 'III/b', value: 29, percentage: 24.2 },
+    { label: 'IV/a', value: 24, percentage: 20.0 },
+    { label: 'II/c', value: 13, percentage: 10.8 },
+    { label: 'Lainnya', value: 20, percentage: 16.7 },
+  ],
+  pendidikan: [
+    { label: 'S1', value: 45, percentage: 37.5 },
+    { label: 'S2', value: 28, percentage: 23.3 },
+    { label: 'D3', value: 19, percentage: 15.8 },
+    { label: 'SMA', value: 17, percentage: 14.2 },
+    { label: 'Lainnya', value: 11, percentage: 9.2 },
+  ],
+  fungsional: [
+    { label: 'Analis', value: 31, percentage: 25.8 },
+    { label: 'Pranata', value: 26, percentage: 21.7 },
+    { label: 'Perencana', value: 22, percentage: 18.3 },
+    { label: 'Auditor', value: 18, percentage: 15.0 },
+    { label: 'Lainnya', value: 23, percentage: 19.2 },
+  ],
+  jabatan: [
+    { label: 'Pelaksana', value: 42, percentage: 35.0 },
+    { label: 'Staf', value: 27, percentage: 22.5 },
+    { label: 'Kepala Subbag', value: 18, percentage: 15.0 },
+    { label: 'Kepala Bidang', value: 13, percentage: 10.8 },
+    { label: 'Lainnya', value: 20, percentage: 16.7 },
+  ],
 };
 
 function formatPeriodeLabel(periode: PeriodeSkp) {
@@ -38,6 +69,8 @@ export function PimpinanOverview() {
   const [showYearDropdown, setShowYearDropdown] = useState(false);
   const [dashboardKpis, setDashboardKpis] = useState<DashboardKpi[]>([]);
   const [dashboardKegiatan, setDashboardKegiatan] = useState<DashboardKegiatan[]>([]);
+  const [statistics, setStatistics] = useState<EmployeeStatistics | undefined>();
+  const displayStatistics = statistics ?? demoEmployeeStatistics;
   const selectedPeriode = periodeItems.find((periode) => String(periode.id) === selectedPeriodeId) ?? null;
 
   useEffect(() => {
@@ -76,11 +109,13 @@ export function PimpinanOverview() {
         if (!ignore) {
           setDashboardKpis(data.kpis);
           setDashboardKegiatan(data.kegiatan);
+          setStatistics(data.statistics);
         }
       } catch {
         if (!ignore) {
           setDashboardKpis([]);
           setDashboardKegiatan([]);
+          setStatistics(undefined);
         }
       }
     };
@@ -128,6 +163,113 @@ export function PimpinanOverview() {
                 <div className="px-4 py-2 text-sm text-gray-500">Tidak ada periode</div>
               )}
             </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-gray-700" />
+            <h2>Statistik Kepegawaian</h2>
+          </div>
+          {!statistics && (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 border border-amber-200">
+              Tampilan contoh frontend
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {displayStatistics.golongan.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Golongan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {displayStatistics.golongan.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700 font-medium">{item.label}</span>
+                      <span className="text-gray-600">{item.value}</span>
+                    </div>
+                    <Progress value={item.percentage} className="h-1.5" />
+                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {displayStatistics.pendidikan.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4" />
+                  Pendidikan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {displayStatistics.pendidikan.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700 font-medium">{item.label}</span>
+                      <span className="text-gray-600">{item.value}</span>
+                    </div>
+                    <Progress value={item.percentage} className="h-1.5" />
+                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {displayStatistics.fungsional.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  Fungsional
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {displayStatistics.fungsional.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700 font-medium truncate">{item.label}</span>
+                      <span className="text-gray-600">{item.value}</span>
+                    </div>
+                    <Progress value={item.percentage} className="h-1.5" />
+                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {displayStatistics.jabatan.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Jabatan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {displayStatistics.jabatan.map((item, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700 font-medium truncate">{item.label}</span>
+                      <span className="text-gray-600">{item.value}</span>
+                    </div>
+                    <Progress value={item.percentage} className="h-1.5" />
+                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
