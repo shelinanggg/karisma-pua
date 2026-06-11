@@ -32,5 +32,5 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropTable('refresh_tokens');
+  pgm.dropTable('refresh_tokens', { ifExists: true });
 };

@@ -101,6 +101,18 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
+  pgm.sql(`
+    ALTER TABLE IF EXISTS riwayat_jabatan
+      DROP CONSTRAINT IF EXISTS riwayat_jabatan_id_jabatan_fkey;
+
+    ALTER TABLE IF EXISTS riwayat_penempatan
+      DROP CONSTRAINT IF EXISTS riwayat_penempatan_id_penempatan_fkey;
+
+    ALTER TABLE IF EXISTS riwayat_pangkat
+      DROP CONSTRAINT IF EXISTS riwayat_pangkat_id_pangkat_fkey,
+      DROP CONSTRAINT IF EXISTS riwayat_pangkat_id_golongan_fkey;
+  `);
+
   pgm.dropColumns('pengguna', [
     'id_jabatan', 'id_pangkat', 'id_golongan', 'id_penempatan', 'id_sertifikasi'
   ]);
