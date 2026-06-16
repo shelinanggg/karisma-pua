@@ -223,7 +223,7 @@ export function PimpinanApprovalSKPView() {
               : { backgroundColor: '#dcfce7', borderColor: '#22c55e', color: '#166534' }
           }
         >
-          {totalPending} menunggu
+          {totalPending > 0 ? `${totalPending} menunggu` : 'Tidak ada pengajuan'}
         </div>
       </div>
 
@@ -392,6 +392,8 @@ export function PimpinanApprovalSKPDetailView() {
   }, [approvalItems, statusFilter]);
 
   const unapprovedFilteredItems = filteredItems.filter((item) => item.status === 'diajukan');
+  const isAllPendingSelected =
+    unapprovedFilteredItems.length > 0 && unapprovedFilteredItems.every((item) => selectedIds.has(item.id));
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -413,6 +415,15 @@ export function PimpinanApprovalSKPDetailView() {
   };
 
   const clearSelected = () => setSelectedIds(new Set());
+
+  const toggleSelectAllPending = () => {
+    if (isAllPendingSelected) {
+      clearSelected();
+      return;
+    }
+
+    selectAllPending();
+  };
 
   const approveSelected = async () => {
     if (!pegawaiId || selectedIds.size === 0) return;
@@ -452,20 +463,20 @@ export function PimpinanApprovalSKPDetailView() {
       {detailError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{detailError}</p>}
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3">
-        <Button type="button" variant="outline" size="sm" onClick={selectAllPending}>
-          Pilih semua
-        </Button>
-        <button
+        <Button
           type="button"
-          onClick={clearSelected}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            selectedIds.size > 0
-              ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
-              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-          }`}
+          variant={isAllPendingSelected ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleSelectAllPending}
+          disabled={unapprovedFilteredItems.length === 0}
+          className={
+            isAllPendingSelected
+              ? 'bg-gray-900 text-white hover:bg-gray-800'
+              : ''
+          }
         >
-          Reset
-        </button>
+          {isAllPendingSelected ? 'Semua dipilih' : 'Pilih semua'}
+        </Button>
         <select
           value={statusFilter}
           onChange={(event) => {
