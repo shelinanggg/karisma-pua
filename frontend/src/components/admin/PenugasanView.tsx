@@ -577,9 +577,9 @@ function EmployeeAssignmentTable() {
                     <div className="text-center font-semibold text-gray-900">{employee.assignmentCount ?? 0}</div>
                     <div className="flex justify-center gap-2">
                       <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => navigate(`/admin/penugasan/master-butir/ubah/${employee.id}`)}>
-                        Ubah
+                        Detail/Edit
                       </Button>
-                      <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => navigate(`/admin/penugasan/master-butir/terapkan-ke/${employee.id}`)}>
+                      <Button size="sm" className="h-8 bg-gray-900 px-3 text-xs text-white hover:bg-gray-800" onClick={() => navigate(`/admin/penugasan/master-butir/terapkan-ke/${employee.id}`)}>
                         Tetapkan
                       </Button>
                     </div>
@@ -1191,7 +1191,7 @@ export function EditPenugasanButirView() {
   const [assignmentItems, setAssignmentItems] = useState<PenugasanButir[]>([]);
   const [editingItem, setEditingItem] = useState<PenugasanButir | null>(null);
   const [deletingItem, setDeletingItem] = useState<PenugasanButir | null>(null);
-  const [editForm, setEditForm] = useState({ deskripsi: '', uraian: '' });
+  const [editForm, setEditForm] = useState({ deskripsi: '', uraian: '', targetKetercapaian: '' });
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -1238,7 +1238,7 @@ export function EditPenugasanButirView() {
 
   const openEditDialog = (item: PenugasanButir) => {
     setEditingItem(item);
-    setEditForm({ deskripsi: item.deskripsi, uraian: item.uraian });
+    setEditForm({ deskripsi: item.deskripsi, uraian: item.uraian, targetKetercapaian: item.targetKetercapaian });
     setError('');
     setStatusMessage('');
   };
@@ -1316,8 +1316,9 @@ export function EditPenugasanButirView() {
           {statusMessage && <p className="mb-4 rounded-md bg-green-50 p-3 text-sm font-medium text-green-700">{statusMessage}</p>}
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <div className="min-w-[760px]">
-              <div className="grid bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-700" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
+              <div className="grid bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-700" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(120px, 0.5fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
                 <div>Butir kegiatan</div>
+                <div>Target</div>
                 <div>Deskripsi</div>
                 <div>Uraian</div>
                 <div className="text-center">Aksi</div>
@@ -1327,8 +1328,9 @@ export function EditPenugasanButirView() {
                   <div className="px-6 py-10 text-center text-sm text-gray-500">Memuat data penugasan butir...</div>
                 ) : assignmentItems.length > 0 ? (
                   assignmentItems.map((item) => (
-                    <div key={item.id} className="grid items-center gap-4 px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
+                    <div key={item.id} className="grid items-center gap-4 px-6 py-4 text-sm" style={{ gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(120px, 0.5fr) minmax(220px, 1fr) minmax(220px, 1fr) 160px' }}>
                       <div className="font-semibold text-gray-900">{item.namaKegiatan || '-'}</div>
+                      <div className="font-medium text-gray-700">{item.targetKetercapaian || '-'}</div>
                       <div className="line-clamp-2 text-gray-600">{item.deskripsi || '-'}</div>
                       <div className="line-clamp-2 text-gray-600">{item.uraian || '-'}</div>
                       <div className="flex justify-center gap-2">
@@ -1361,6 +1363,18 @@ export function EditPenugasanButirView() {
           <div className="space-y-4">
             <div className="rounded-lg border bg-gray-50 p-3">
               <p className="text-sm font-semibold text-gray-900">{editingItem?.namaKegiatan ?? '-'}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-butir-target">Target Ketercapaian</Label>
+              <Input
+                id="edit-butir-target"
+                type="number"
+                min={1}
+                value={editForm.targetKetercapaian}
+                onChange={(event) => setEditForm((current) => ({ ...current, targetKetercapaian: event.target.value }))}
+                className="bg-white"
+                style={{ borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-butir-deskripsi">Deskripsi</Label>

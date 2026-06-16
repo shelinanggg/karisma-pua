@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Clock, XCircle, Search } from 'lucide-react';
+import { AlertCircle, Search } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { PenugasanButir, getPendingApprovalKegiatan, approvePegawaiKegiatan, rejectPegawaiKegiatan } from '../../api/penugasanApi';
+import { PenugasanButir, approvePegawaiKegiatan, getPendingApprovalKegiatan } from '../../api/penugasanApi';
 
 interface PendingKegiatanByEmployee {
   idPengguna: string;
@@ -20,11 +19,9 @@ export function PimpinanApprovalKegiatanView() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedKegiatan, setSelectedKegiatan] = useState<{ kegiatan: PenugasanButir; employee: PendingKegiatanByEmployee } | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<PendingKegiatanByEmployee | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
 
   useEffect(() => {
     loadPendingKegiatan();
@@ -33,15 +30,16 @@ export function PimpinanApprovalKegiatanView() {
   useEffect(() => {
     const query = search.trim().toLowerCase();
     setFilteredEmployees(
-      employees.filter((emp) =>
-        query === '' || emp.nama.toLowerCase().includes(query) || emp.nip.includes(query)
-      )
+      employees.filter((employee) =>
+        query === '' || employee.nama.toLowerCase().includes(query) || employee.nip.includes(query),
+      ),
     );
   }, [search, employees]);
 
   const loadPendingKegiatan = async () => {
     setIsLoading(true);
     setErrorMessage('');
+
     try {
       const data = await getPendingApprovalKegiatan();
       setEmployees(data);
@@ -54,55 +52,37 @@ export function PimpinanApprovalKegiatanView() {
 
   const handleApproveKegiatan = async (kegiatanId: string) => {
     setIsProcessing(true);
+    setErrorMessage('');
+
     try {
       await approvePegawaiKegiatan(kegiatanId);
-      
-      // Update UI
-      setEmployees((prev) =>
-        prev.map((emp) => ({
-          ...emp,
-          kegiatan: emp.kegiatan.filter((k) => k.id !== kegiatanId),
-          pendingCount: Math.max(0, emp.pendingCount - 1),
-        })).filter((emp) => emp.pendingCount > 0)
+      setEmployees((current) =>
+        current
+          .map((employee) => ({
+            ...employee,
+            kegiatan: employee.kegiatan.filter((item) => item.id !== kegiatanId),
+            pendingCount: Math.max(0, employee.pendingCount - 1),
+          }))
+          .filter((employee) => employee.pendingCount > 0),
       );
-      
-      setIsDetailOpen(false);
-      setSelectedKegiatan(null);
+      setSelectedEmployee((current) => {
+        if (!current) return null;
+        const kegiatan = current.kegiatan.filter((item) => item.id !== kegiatanId);
+        if (kegiatan.length === 0) {
+          setIsDetailOpen(false);
+          return null;
+        }
+
+        return { ...current, kegiatan, pendingCount: Math.max(0, current.pendingCount - 1) };
+      });
     } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Gagal menyetujui kegiatan.');
+      setErrorMessage(error.response?.data?.message || 'Gagal menerima kegiatan.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleRejectKegiatan = async () => {
-    if (!selectedKegiatan) return;
-    
-    setIsProcessing(true);
-    try {
-      await rejectPegawaiKegiatan(selectedKegiatan.kegiatan.id, rejectReason || undefined);
-      
-      // Update UI
-      setEmployees((prev) =>
-        prev.map((emp) => ({
-          ...emp,
-          kegiatan: emp.kegiatan.filter((k) => k.id !== selectedKegiatan.kegiatan.id),
-          pendingCount: Math.max(0, emp.pendingCount - 1),
-        })).filter((emp) => emp.pendingCount > 0)
-      );
-      
-      setIsRejectConfirmOpen(false);
-      setIsDetailOpen(false);
-      setSelectedKegiatan(null);
-      setRejectReason('');
-    } catch (error: any) {
-      setErrorMessage(error.response?.data?.message || 'Gagal menolak kegiatan.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const totalPending = employees.reduce((sum, emp) => sum + emp.pendingCount, 0);
+  const totalPending = employees.reduce((sum, employee) => sum + employee.pendingCount, 0);
 
   if (isLoading) {
     return (
@@ -115,8 +95,8 @@ export function PimpinanApprovalKegiatanView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Persetujuan Kegiatan</h1>
-        <p className="mt-1 text-sm text-gray-500">Review dan setujui atau tolak kegiatan yang diajukan pegawai.</p>
+        <h1 className="text-2xl font-semibold text-gray-900">Pengajuan Kegiatan</h1>
+        <p className="mt-1 text-sm text-gray-500">Review dan terima target ketercapaian yang diajukan pegawai.</p>
       </div>
 
       <div className="flex items-center gap-3">
@@ -124,16 +104,21 @@ export function PimpinanApprovalKegiatanView() {
           <Search className="size-4 shrink-0 text-gray-400" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Cari nama atau NIP..."
             className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
           />
         </div>
-        {totalPending > 0 && (
-          <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
-            {totalPending} menunggu
-          </span>
-        )}
+        <div
+          className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg border px-3 text-xs font-semibold"
+          style={
+            totalPending > 0
+              ? { backgroundColor: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' }
+              : { backgroundColor: '#dcfce7', borderColor: '#22c55e', color: '#166534' }
+          }
+        >
+          {totalPending > 0 ? `${totalPending} menunggu` : 'Tidak ada pengajuan'}
+        </div>
       </div>
 
       {errorMessage && (
@@ -143,79 +128,83 @@ export function PimpinanApprovalKegiatanView() {
         </div>
       )}
 
-      {filteredEmployees.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-gray-500">
-              {employees.length === 0 ? 'Tidak ada kegiatan yang menunggu persetujuan.' : 'Tidak ada hasil pencarian.'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredEmployees.map((employee) => (
-            <Card key={employee.idPengguna}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base">{employee.nama}</CardTitle>
-                    <CardDescription>NIP {employee.nip}</CardDescription>
-                  </div>
-                  <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800">
-                    {employee.pendingCount} kegiatan
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {employee.kegiatan.map((kegiatan) => (
-                    <div
-                      key={kegiatan.id}
-                      onClick={() => {
-                        setSelectedKegiatan({ kegiatan, employee });
-                        setIsDetailOpen(true);
-                      }}
-                      className="flex items-start gap-4 rounded-lg border border-gray-200 bg-amber-50 p-4 cursor-pointer hover:bg-amber-100 transition"
-                    >
-                      <Clock className="size-5 text-amber-700 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900">{kegiatan.namaKegiatan}</p>
-                        <p className="text-sm text-gray-600 mt-1">{kegiatan.uraian || kegiatan.deskripsi || '-'}</p>
-                        <p className="text-xs text-gray-600 mt-2">Target: {kegiatan.targetKetercapaian || '-'}</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        →
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                <th className="px-6 py-3">Pegawai</th>
+                <th className="px-6 py-3">Kegiatan Diajukan</th>
+                <th className="px-6 py-3 text-center">Jumlah Pengajuan</th>
+                <th className="px-6 py-3 text-center">Target Pertama</th>
+                <th className="px-6 py-3 text-center">Status</th>
+                <th className="px-6 py-3">Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-200">
+              {filteredEmployees.length > 0 ? (
+                filteredEmployees.map((employee) => {
+                  const firstKegiatan = employee.kegiatan[0];
+                  return (
+                    <tr key={employee.idPengguna} className="align-top">
+                      <td className="px-6 py-4 pr-8">
+                        <div className="font-medium text-gray-900">{employee.nama}</div>
+                        <div className="text-xs text-gray-500">NIP {employee.nip || '-'}</div>
+                      </td>
+
+                      <td className="px-6 py-4 pr-8">
+                        <div className="font-medium text-gray-900">{firstKegiatan?.namaKegiatan || '-'}</div>
+                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">
+                          {firstKegiatan?.uraian || firstKegiatan?.deskripsi || '-'}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-center font-semibold text-gray-800">
+                        {employee.pendingCount} kegiatan
+                      </td>
+
+                      <td className="px-6 py-4 text-center text-gray-700">
+                        {firstKegiatan?.targetKetercapaian || '-'}
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                          Menunggu
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setSelectedEmployee(employee);
+                            setIsDetailOpen(true);
+                          }}
+                        >
+                          Detail
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                    {employees.length === 0 ? 'Tidak ada kegiatan yang menunggu persetujuan.' : 'Tidak ada hasil pencarian.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
       <KegiatanApprovalModal
-        kegiatan={selectedKegiatan}
+        employee={selectedEmployee}
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
-        onApprove={() => handleApproveKegiatan(selectedKegiatan!.kegiatan.id)}
-        onReject={() => setIsRejectConfirmOpen(true)}
-        isProcessing={isProcessing}
-      />
-
-      <RejectConfirmDialog
-        open={isRejectConfirmOpen}
-        onOpenChange={setIsRejectConfirmOpen}
-        reason={rejectReason}
-        onReasonChange={setRejectReason}
-        onConfirm={handleRejectKegiatan}
+        onApprove={handleApproveKegiatan}
         isProcessing={isProcessing}
       />
     </div>
@@ -223,139 +212,71 @@ export function PimpinanApprovalKegiatanView() {
 }
 
 function KegiatanApprovalModal({
-  kegiatan,
+  employee,
   open,
   onOpenChange,
   onApprove,
-  onReject,
   isProcessing,
 }: {
-  kegiatan: { kegiatan: PenugasanButir; employee: any } | null;
+  employee: PendingKegiatanByEmployee | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApprove: () => void;
-  onReject: () => void;
+  onApprove: (kegiatanId: string) => void;
   isProcessing: boolean;
 }) {
-  if (!kegiatan) return null;
-
-  const { kegiatan: keg, employee } = kegiatan;
+  if (!employee) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent style={{ maxWidth: '560px' }}>
+      <DialogContent style={{ maxWidth: '760px' }}>
         <DialogHeader>
-          <DialogTitle>Persetujuan Kegiatan</DialogTitle>
+          <DialogTitle>Detail Pengajuan Kegiatan</DialogTitle>
           <DialogDescription>
-            {employee.nama} - NIP {employee.nip}
+            {employee.nama} - NIP {employee.nip || '-'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg bg-amber-50 p-4 border border-amber-200">
-            <div className="flex items-start gap-3">
-              <Clock className="size-5 text-amber-700 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-gray-900">{keg.namaKegiatan}</p>
-                <p className="text-sm text-gray-600 mt-1">{keg.uraian || keg.deskripsi || '-'}</p>
-              </div>
-            </div>
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">{employee.pendingCount} kegiatan menunggu persetujuan</p>
+            <p className="mt-1 text-xs text-gray-500">Periksa uraian dan target sebelum menerima pengajuan.</p>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Target Ketercapaian</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900">{keg.targetKetercapaian || '-'}</p>
+          <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead>
+                  <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-4 py-3">Kegiatan</th>
+                    <th className="px-4 py-3">Uraian</th>
+                    <th className="px-4 py-3 text-center">Target</th>
+                    <th className="px-4 py-3 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {employee.kegiatan.map((item) => (
+                    <tr key={item.id} className="align-top">
+                      <td className="px-4 py-3 font-medium text-gray-900">{item.namaKegiatan || '-'}</td>
+                      <td className="px-4 py-3 text-gray-700">{item.uraian || item.deskripsi || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-center font-medium text-gray-800">
+                        {item.targetKetercapaian || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button size="sm" onClick={() => onApprove(item.id)} disabled={isProcessing}>
+                          {isProcessing ? 'Memproses...' : 'Terima'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {keg.deskripsi && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Deskripsi</p>
-                <p className="mt-1 text-sm text-gray-900">{keg.deskripsi}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg bg-blue-50 p-3">
-            <p className="text-sm text-blue-800">
-              Silakan review kegiatan ini. Setujui untuk melanjutkan, atau tolak dengan alasan yang jelas.
-            </p>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 border-t pt-4">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isProcessing}>
-            Batal
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onReject}
-            disabled={isProcessing}
-          >
-            Tolak
-          </Button>
-          <Button
-            size="sm"
-            onClick={onApprove}
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Memproses...' : 'Setujui'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function RejectConfirmDialog({
-  open,
-  onOpenChange,
-  reason,
-  onReasonChange,
-  onConfirm,
-  isProcessing,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  reason: string;
-  onReasonChange: (reason: string) => void;
-  onConfirm: () => void;
-  isProcessing: boolean;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent style={{ maxWidth: '480px' }}>
-        <DialogHeader>
-          <DialogTitle>Tolak Kegiatan</DialogTitle>
-          <DialogDescription>
-            Berikan alasan penolakan agar pegawai dapat memperbaiki kegiatan mereka.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Alasan Penolakan (Opsional)</label>
-            <textarea
-              value={reason}
-              onChange={(e) => onReasonChange(e.target.value)}
-              placeholder="Tuliskan alasan penolakan kegiatan ini..."
-              className="w-full h-24 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isProcessing}>
-            Batal
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onConfirm}
-            disabled={isProcessing}
-          >
-            {isProcessing ? 'Menolak...' : 'Tolak Kegiatan'}
+            Tutup
           </Button>
         </div>
       </DialogContent>

@@ -30,6 +30,7 @@ export type PenugasanButir = {
   uraian: string;
   targetKetercapaian: string;
   status: string;
+  statusPengajuan?: 'diajukan' | 'diterima' | 'diubah';
   approvalStatus?: 'draft' | 'pending' | 'approved' | 'rejected';
   dibuatOlehPegawai?: boolean;
   realisasiTotal?: number;
@@ -173,6 +174,11 @@ export async function getPenugasanEmployees(params?: { idPeriodeSkp?: string }) 
   return response.data.data;
 }
 
+export async function getPimpinanPenugasanEmployees(params?: { idPeriodeSkp?: string }) {
+  const response = await axiosInstance.get<{ data: PenugasanEmployee[] }>("/penugasan/pimpinan/pegawai", { params });
+  return response.data.data;
+}
+
 export async function getPimpinanKegiatanDashboard(params?: { tahun?: number; bulan?: number }) {
   const response = await axiosInstance.get<{ data: PimpinanKegiatanDashboard }>("/penugasan/pimpinan/kegiatan", { params });
   return response.data.data;
@@ -183,8 +189,18 @@ export async function createPenugasanButir(payload: PenugasanButirPayload) {
   return response.data.data;
 }
 
+export async function createPimpinanPenugasanButir(payload: PenugasanButirPayload) {
+  const response = await axiosInstance.post("/penugasan/pimpinan/butir", payload);
+  return response.data.data;
+}
+
 export async function getPenugasanButirByPegawai(pegawaiId: string) {
   const response = await axiosInstance.get<{ data: PenugasanButir[] }>(`/penugasan/butir/pegawai/${pegawaiId}`);
+  return response.data.data;
+}
+
+export async function getPimpinanPenugasanButirByPegawai(pegawaiId: string) {
+  const response = await axiosInstance.get<{ data: PenugasanButir[] }>(`/penugasan/pimpinan/butir/pegawai/${pegawaiId}`);
   return response.data.data;
 }
 
@@ -200,6 +216,11 @@ export async function getMyDashboardSummary(params?: { idPeriodeSkp?: string; ta
 
 export async function updatePenugasanButir(id: string, payload: PenugasanButirUpdatePayload) {
   const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/butir/${id}`, payload);
+  return response.data.data;
+}
+
+export async function updatePimpinanPenugasanButir(id: string, payload: PenugasanButirUpdatePayload) {
+  const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/pimpinan/butir/${id}`, payload);
   return response.data.data;
 }
 
@@ -245,6 +266,11 @@ export async function getPenugasanTambahanList() {
   return response.data.data;
 }
 
+export async function getPimpinanPenugasanTambahanList() {
+  const response = await axiosInstance.get<{ data: PenugasanTambahan[] }>("/penugasan/pimpinan/tambahan");
+  return response.data.data;
+}
+
 export async function getMyPenugasanTambahanList() {
   const response = await axiosInstance.get<{ data: PenugasanTambahan[] }>("/penugasan/tambahan/saya");
   return response.data.data;
@@ -260,8 +286,18 @@ export async function createPenugasanTambahan(payload: PenugasanTambahanPayload)
   return response.data.data;
 }
 
+export async function createPimpinanPenugasanTambahan(payload: PenugasanTambahanPayload) {
+  const response = await axiosInstance.post<{ data: PenugasanTambahan }>("/penugasan/pimpinan/tambahan", payload);
+  return response.data.data;
+}
+
 export async function updatePenugasanTambahan(id: string, payload: PenugasanTambahanPayload) {
   const response = await axiosInstance.patch<{ data: PenugasanTambahan }>(`/penugasan/tambahan/${id}`, payload);
+  return response.data.data;
+}
+
+export async function updatePimpinanPenugasanTambahan(id: string, payload: PenugasanTambahanPayload) {
+  const response = await axiosInstance.patch<{ data: PenugasanTambahan }>(`/penugasan/pimpinan/tambahan/${id}`, payload);
   return response.data.data;
 }
 
@@ -273,11 +309,6 @@ export async function submitPegawaiKegiatan(id: string) {
 
 export async function approvePegawaiKegiatan(id: string) {
   const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/kegiatan/${id}/approve`);
-  return response.data.data;
-}
-
-export async function rejectPegawaiKegiatan(id: string, alasan?: string) {
-  const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/kegiatan/${id}/reject`, { alasan });
   return response.data.data;
 }
 

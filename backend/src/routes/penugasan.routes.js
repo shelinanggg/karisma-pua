@@ -10,8 +10,10 @@ import {
   getMyButirAssignments,
   getMyAdditionalAssignments,
   getMyRealisasi,
+  getPendingApprovalKegiatan,
   getPenugasanEmployees,
   getPimpinanKegiatanDashboard,
+  patchApproveKegiatan,
   patchApproveRealisasi,
   patchMyButirTarget,
   patchAdditionalAssignment,
@@ -20,6 +22,7 @@ import {
   postButirAssignment,
   postMyRealisasi,
   removeButirAssignment,
+  submitMyKegiatanApproval,
 } from "../controllers/penugasan.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -29,6 +32,14 @@ router.use(authenticate);
 
 router.get("/dashboard/utama", authorizeRoles("admin", "pimpinan"), getMainDashboard);
 router.get("/pimpinan/kegiatan", authorizeRoles("admin", "pimpinan"), getPimpinanKegiatanDashboard);
+router.get("/pimpinan/pegawai", authorizeRoles("pimpinan"), getPenugasanEmployees);
+router.post("/pimpinan/butir", authorizeRoles("pimpinan"), postButirAssignment);
+router.get("/pimpinan/butir/pegawai/:pegawaiId", authorizeRoles("pimpinan"), getButirAssignmentsByEmployee);
+router.patch("/pimpinan/butir/:id", authorizeRoles("pimpinan"), patchButirAssignment);
+router.get("/pimpinan/tambahan", authorizeRoles("pimpinan"), getAdditionalAssignments);
+router.get("/pimpinan/tambahan/:id", authorizeRoles("pimpinan"), getAdditionalAssignment);
+router.post("/pimpinan/tambahan", authorizeRoles("pimpinan"), postAdditionalAssignment);
+router.patch("/pimpinan/tambahan/:id", authorizeRoles("pimpinan"), patchAdditionalAssignment);
 router.get("/pegawai", authorizeRoles("admin"), getPenugasanEmployees);
 router.post("/butir", authorizeRoles("admin"), postButirAssignment);
 router.get("/dashboard/saya", authorizeRoles("pegawai"), getMyDashboard);
@@ -39,6 +50,9 @@ router.patch("/butir/:id", authorizeRoles("admin"), patchButirAssignment);
 router.delete("/butir/:id", authorizeRoles("admin"), removeButirAssignment);
 router.get("/realisasi/saya", authorizeRoles("pegawai"), getMyRealisasi);
 router.post("/realisasi/saya", authorizeRoles("pegawai"), postMyRealisasi);
+router.post("/kegiatan/:id/submit", authorizeRoles("pegawai"), submitMyKegiatanApproval);
+router.get("/kegiatan/pending", authorizeRoles("pimpinan"), getPendingApprovalKegiatan);
+router.patch("/kegiatan/:id/approve", authorizeRoles("pimpinan"), patchApproveKegiatan);
 router.get("/approval-skp/pegawai", authorizeRoles("pimpinan"), getApprovalRealisasiEmployees);
 router.get("/approval-skp/pegawai/:pegawaiId/realisasi", authorizeRoles("pimpinan"), getApprovalRealisasiByEmployee);
 router.patch("/approval-skp/realisasi/approve", authorizeRoles("pimpinan"), patchApproveRealisasi);

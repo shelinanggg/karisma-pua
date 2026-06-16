@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Check, ChevronsUpDown, FileText, Plus, Search, Upload } from 'lucide-react';
+import { Calendar, Check, ChevronsUpDown, FileText, Plus, Search, Upload } from 'lucide-react';
 
 import {
   createMyRealisasiKegiatan,
@@ -20,9 +20,33 @@ import { cn } from '../ui/utils';
 
 type Option = { id: string; label: string };
 type AssignmentStatus = 'Belum Ditetapkan' | 'Belum Ada Realisasi' | 'Sedang Berjalan' | 'Selesai' | 'Terlambat';
+type ActiveStatus = 'Aktif' | 'Selesai' | 'Batal';
+type TargetSubmissionStatus = 'diajukan' | 'diterima' | 'diubah';
 type RealisasiStatus = MyRealisasiKegiatan['status'];
+type FilterOption = { value: string; label: string };
 
 const pageSizeOptions = [5, 10, 20];
+const currentYearFilter = String(new Date().getFullYear());
+const assignmentStatusOptions: AssignmentStatus[] = [
+  'Belum Ditetapkan',
+  'Belum Ada Realisasi',
+  'Sedang Berjalan',
+  'Selesai',
+  'Terlambat',
+];
+const targetSubmissionStatusOptions: TargetSubmissionStatus[] = ['diajukan', 'diterima', 'diubah'];
+const realisasiStatusOptions: RealisasiStatus[] = ['diajukan', 'disetujui'];
+
+const targetSubmissionLabelMap: Record<TargetSubmissionStatus, string> = {
+  diajukan: 'Diajukan',
+  diterima: 'Diterima',
+  diubah: 'Diubah',
+};
+
+const realisasiStatusLabelMap: Record<RealisasiStatus, string> = {
+  diajukan: 'Diajukan',
+  disetujui: 'Disetujui',
+};
 
 function RequiredStar() {
   return <span className="ml-0.5 text-red-500">*</span>;
@@ -49,6 +73,25 @@ function formatPeriode(item: MyPenugasanButir): string {
   return `${formatTanggal(item.tanggalMulai)} - ${formatTanggal(item.tanggalSelesai)}`;
 }
 
+function formatTahunPeriode(item: MyPenugasanButir): string {
+  return `Tahun ${item.tahun}`;
+}
+
+function getYearOptions(years: Array<number | string | null | undefined>): string[] {
+  return Array.from(
+    new Set([
+      currentYearFilter,
+      ...years
+        .map((year) => String(year ?? '').slice(0, 4))
+        .filter((year) => /^\d{4}$/.test(year)),
+    ]),
+  ).sort((a, b) => Number(b) - Number(a));
+}
+
+function getRealisasiYear(item: MyRealisasiKegiatan): string {
+  return item.tanggalRealisasi.slice(0, 4);
+}
+
 function getAssignmentTarget(item: MyPenugasanButir): number {
   return toNumber(item.targetKetercapaian);
 }
@@ -70,12 +113,38 @@ function getAssignmentStatus(item: MyPenugasanButir): AssignmentStatus {
   return 'Belum Ada Realisasi';
 }
 
+function getActiveStatus(item: MyPenugasanButir): ActiveStatus {
+  if (item.status === 'batal') return 'Batal';
+  if (item.status === 'selesai') return 'Selesai';
+
+  const target = getAssignmentTarget(item);
+  if (target > 0 && item.realisasiTotal >= target) return 'Selesai';
+
+  return 'Aktif';
+}
+
+function getTargetSubmissionStatus(item: MyPenugasanButir): TargetSubmissionStatus {
+  if (item.statusPengajuan === 'diterima' || item.statusPengajuan === 'diubah') {
+    return item.statusPengajuan;
+  }
+
+  return 'diajukan';
+}
+
 function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
   const element = ref.current;
   if (!element) return;
   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
   const focusable = element.querySelector('button, input, textarea') as HTMLElement | null;
   window.setTimeout(() => focusable?.focus(), 250);
+}
+
+function openDatePicker(input: HTMLInputElement) {
+  try {
+    input.showPicker?.();
+  } catch {
+    input.focus();
+  }
 }
 
 function getAdaptivePages(currentPage: number, totalPages: number): number[] {
@@ -167,6 +236,33 @@ function Pagination({
   );
 }
 
+function FilterSelect({
+  value,
+  options,
+  ariaLabel,
+  onChange,
+}: {
+  value: string;
+  options: FilterOption[];
+  ariaLabel: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      aria-label={ariaLabel}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function SearchableSelect({
   label,
   options,
@@ -184,7 +280,7 @@ function SearchableSelect({
   const filteredOptions = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
-    <div className="relative">
+    <div className={cn('relative', open && 'z-50')}>
       <Button
         type="button"
         variant="outline"
@@ -203,7 +299,7 @@ function SearchableSelect({
       </Button>
 
       {open && (
-        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg">
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg">
           <div className="border-b border-gray-200 p-2">
             <Input
               value={query}
@@ -241,17 +337,20 @@ function SearchableSelect({
 }
 
 function StatusBadge({ status }: { status: AssignmentStatus }) {
-  const styleMap: Record<AssignmentStatus, string> = {
-    'Belum Ditetapkan': 'bg-gray-100 text-gray-700',
-    'Belum Ada Realisasi': 'bg-slate-100 text-slate-700',
-    'Sedang Berjalan': 'bg-blue-50 text-blue-700',
-    Selesai: 'bg-green-50 text-green-700',
-    Terlambat: 'bg-red-50 text-red-700',
+  const styleMap: Record<AssignmentStatus, { bg: string; fg: string }> = {
+    'Belum Ditetapkan': { bg: '#f3f4f6', fg: '#374151' },
+    'Belum Ada Realisasi': { bg: '#f1f5f9', fg: '#334155' },
+    'Sedang Berjalan': { bg: '#dbeafe', fg: '#1d4ed8' },
+    Selesai: { bg: '#dcfce7', fg: '#15803d' },
+    Terlambat: { bg: '#fee2e2', fg: '#b91c1c' },
   };
 
   return (
-    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
-      {status}
+    <span
+      className="inline-flex min-w-28 max-w-full items-center justify-center rounded-full px-3 py-1 text-xs font-medium"
+      style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
+    >
+      <span className="truncate">{status}</span>
     </span>
   );
 }
@@ -262,14 +361,40 @@ function RealisasiStatusBadge({ status }: { status: RealisasiStatus }) {
     disetujui: 'bg-green-50 text-green-700',
   };
 
-  const labelMap: Record<RealisasiStatus, string> = {
-    diajukan: 'Diajukan',
-    disetujui: 'Disetujui',
+  return (
+    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
+      {realisasiStatusLabelMap[status]}
+    </span>
+  );
+}
+
+function ActiveStatusBadge({ status }: { status: ActiveStatus }) {
+  const styleMap: Record<ActiveStatus, string> = {
+    Aktif: 'bg-green-50 text-green-700',
+    Selesai: 'bg-slate-100 text-slate-700',
+    Batal: 'bg-red-50 text-red-700',
   };
 
   return (
     <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
-      {labelMap[status]}
+      {status}
+    </span>
+  );
+}
+
+function TargetSubmissionBadge({ status }: { status: TargetSubmissionStatus }) {
+  const styleMap: Record<TargetSubmissionStatus, { bg: string; fg: string }> = {
+    diajukan: { bg: '#fef3c7', fg: '#b45309' },
+    diterima: { bg: '#dcfce7', fg: '#15803d' },
+    diubah: { bg: '#dbeafe', fg: '#1d4ed8' },
+  };
+
+  return (
+    <span
+      className="inline-flex w-24 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
+    >
+      <span className="truncate">{targetSubmissionLabelMap[status]}</span>
     </span>
   );
 }
@@ -278,37 +403,44 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max <= 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
   return (
     <div className="w-full">
-      <div className="mb-1.5 flex items-center justify-between text-xs text-gray-500">
-        <span>
-          {formatNumber(value)} / {formatNumber(max)}
-        </span>
-        <span className="font-medium">{pct}%</span>
-      </div>
+      <p className="mb-1.5 whitespace-nowrap text-xs text-gray-500">
+        {formatNumber(value)} / {formatNumber(max)}
+      </p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${pct}%`, background: pct >= 100 ? '#16a34a' : '#2563eb' }}
         />
       </div>
+      <p className="mt-1.5 text-right text-xs font-medium text-gray-500">{pct}%</p>
     </div>
   );
 }
 
 function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir[]; isLoading: boolean }) {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | AssignmentStatus>('all');
+  const [periodFilter, setPeriodFilter] = useState(currentYearFilter);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
+  const yearOptions = useMemo(() => getYearOptions(assignments.map((item) => item.tahun)), [assignments]);
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return assignments;
-    return assignments.filter((item) =>
-      [item.namaKegiatan, item.deskripsi, item.uraian, getAssignmentStatus(item), formatPeriode(item)]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [assignments, search]);
+    return assignments.filter((item) => {
+      const status = getAssignmentStatus(item);
+      const matchesPeriod = String(item.tahun) === periodFilter;
+      const matchesStatus = statusFilter === 'all' || status === statusFilter;
+      const matchesSearch =
+        !query ||
+        [item.namaKegiatan, item.deskripsi, item.uraian, status, formatTahunPeriode(item)]
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+
+      return matchesPeriod && matchesStatus && matchesSearch;
+    });
+  }, [assignments, periodFilter, search, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -341,24 +473,49 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
 
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
             <div>
               <CardTitle>Progress Pekerjaan</CardTitle>
               <CardDescription className="mt-1">
                 Butir kegiatan periode tahun berjalan dan progres terhadap target yang Anda tetapkan.
               </CardDescription>
             </div>
-            <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
-              <Search className="size-4 shrink-0 text-gray-400" />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Cari kegiatan, status..."
-                className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-              />
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[760px] gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+                <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                  <Search className="size-4 shrink-0 text-gray-400" />
+                  <Input
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Cari kegiatan, status..."
+                    className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <FilterSelect
+                  value={statusFilter}
+                  ariaLabel="Filter status progress pekerjaan"
+                  onChange={(value) => {
+                    setStatusFilter(value as 'all' | AssignmentStatus);
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'Semua Status' },
+                    ...assignmentStatusOptions.map((status) => ({ value: status, label: status })),
+                  ]}
+                />
+                <FilterSelect
+                  value={periodFilter}
+                  ariaLabel="Filter periode progress pekerjaan"
+                  onChange={(value) => {
+                    setPeriodFilter(value);
+                    setPage(1);
+                  }}
+                  options={yearOptions.map((year) => ({ value: year, label: `Tahun ${year}` }))}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -371,7 +528,7 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
                     <th className="w-[30%] px-6 py-3">Nama Kegiatan</th>
                     <th className="w-[16%] px-6 py-3">Periode</th>
                     <th className="w-[34%] px-6 py-3">Progress</th>
-                    <th className="w-[20%] px-6 py-3">Status</th>
+                    <th className="w-[20%] px-6 py-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -385,18 +542,18 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
                     paginated.map((item) => {
                       const target = getAssignmentTarget(item);
                       return (
-                        <tr key={item.id} className="align-middle transition hover:bg-gray-50">
+                        <tr key={item.id} className="align-top transition hover:bg-gray-50">
                           <td className="px-6 py-4 pr-8">
                             <p className="text-sm font-semibold text-gray-900">{item.namaKegiatan}</p>
                             <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
                               {item.deskripsi || item.uraian || '-'}
                             </p>
                           </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{formatPeriode(item)}</td>
+                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{formatTahunPeriode(item)}</td>
                           <td className="min-w-[320px] px-6 py-4 pr-8">
                             <ProgressBar value={item.realisasiTotal} max={target} />
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 text-center">
                             <StatusBadge status={getAssignmentStatus(item)} />
                           </td>
                         </tr>
@@ -405,7 +562,7 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
                   ) : (
                     <tr>
                       <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Tidak ada butir kegiatan pada periode tahun ini.
+                        Tidak ada butir kegiatan sesuai filter.
                       </td>
                     </tr>
                   )}
@@ -446,11 +603,49 @@ function TargetTab({
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [submissionStatusFilter, setSubmissionStatusFilter] = useState<'all' | TargetSubmissionStatus>('all');
+  const [periodFilter, setPeriodFilter] = useState(currentYearFilter);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
+  const yearOptions = useMemo(() => getYearOptions(assignments.map((item) => item.tahun)), [assignments]);
   const options = useMemo(
     () => assignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
     [assignments],
   );
+  const activeAssignments = useMemo(
+    () => assignments.filter((item) => getActiveStatus(item) === 'Aktif'),
+    [assignments],
+  );
+  const filteredAssignments = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return activeAssignments.filter((item) => {
+      const submissionStatus = getTargetSubmissionStatus(item);
+      const matchesPeriod = String(item.tahun) === periodFilter;
+      const matchesStatus = submissionStatusFilter === 'all' || submissionStatus === submissionStatusFilter;
+      const matchesSearch =
+        !query ||
+        [
+          item.namaKegiatan,
+          item.targetKetercapaian,
+          item.uraian,
+          item.deskripsi,
+          formatPeriode(item),
+          getActiveStatus(item),
+          targetSubmissionLabelMap[submissionStatus],
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+
+      return matchesPeriod && matchesStatus && matchesSearch;
+    });
+  }, [activeAssignments, periodFilter, search, submissionStatusFilter]);
+  const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedAssignments = filteredAssignments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -495,7 +690,7 @@ function TargetTab({
       await onSaved();
       setForm({ penugasanId: '', target: '', uraian: '', deskripsi: '' });
     } catch {
-      setError('Gagal menyimpan target kinerja.');
+      setError('Gagal mengajukan target kinerja.');
     } finally {
       setIsSubmitting(false);
     }
@@ -578,7 +773,7 @@ function TargetTab({
               Reset
             </Button>
             <Button disabled={isSubmitting} onClick={handleSubmit}>
-              {isSubmitting ? 'Menyimpan...' : 'Simpan Target'}
+              {isSubmitting ? 'Mengajukan...' : 'Ajukan'}
             </Button>
           </div>
         </CardContent>
@@ -586,8 +781,54 @@ function TargetTab({
 
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle>Daftar Target Kinerja</CardTitle>
-          <CardDescription>Target, uraian, dan deskripsi yang tersimpan pada butir kegiatan tahun berjalan.</CardDescription>
+          <div className="space-y-4">
+            <div>
+              <CardTitle>Daftar Target Kinerja</CardTitle>
+              <CardDescription className="mt-1">
+                Target, uraian, dan deskripsi yang tersimpan pada butir kegiatan tahun berjalan.
+              </CardDescription>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[760px] gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+                <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                  <Search className="size-4 shrink-0 text-gray-400" />
+                  <Input
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Cari kegiatan, target, status..."
+                    className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <FilterSelect
+                  value={submissionStatusFilter}
+                  ariaLabel="Filter status pengajuan target kinerja"
+                  onChange={(value) => {
+                    setSubmissionStatusFilter(value as 'all' | TargetSubmissionStatus);
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'Semua Status' },
+                    ...targetSubmissionStatusOptions.map((status) => ({
+                      value: status,
+                      label: targetSubmissionLabelMap[status],
+                    })),
+                  ]}
+                />
+                <FilterSelect
+                  value={periodFilter}
+                  ariaLabel="Filter periode target kinerja"
+                  onChange={(value) => {
+                    setPeriodFilter(value);
+                    setPage(1);
+                  }}
+                  options={yearOptions.map((year) => ({ value: year, label: `Tahun ${year}` }))}
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
@@ -595,15 +836,17 @@ function TargetTab({
               <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="w-[30%] px-6 py-3">Butir Kegiatan</th>
-                    <th className="w-[12%] px-6 py-3">Target</th>
-                    <th className="w-[28%] px-6 py-3">Uraian</th>
-                    <th className="w-[30%] px-6 py-3">Deskripsi</th>
+                    <th className="w-[24%] px-6 py-3">Butir Kegiatan</th>
+                    <th className="w-[10%] px-6 py-3">Target</th>
+                    <th className="w-[20%] px-6 py-3">Uraian</th>
+                    <th className="w-[18%] px-6 py-3">Deskripsi</th>
+                    <th className="w-[14%] px-6 py-3">Status Aktif</th>
+                    <th className="w-[14%] px-6 py-3">Status Pengajuan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {assignments.length > 0 ? (
-                    assignments.map((item) => (
+                  {paginatedAssignments.length > 0 ? (
+                    paginatedAssignments.map((item) => (
                       <tr key={item.id} className="align-top">
                         <td className="px-6 py-4 pr-8">
                           <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
@@ -618,18 +861,34 @@ function TargetTab({
                         <td className="px-6 py-4 text-gray-700">
                           {item.deskripsi || <span className="text-gray-400">-</span>}
                         </td>
+                        <td className="px-6 py-4">
+                          <ActiveStatusBadge status={getActiveStatus(item)} />
+                        </td>
+                        <td className="px-6 py-4">
+                          <TargetSubmissionBadge status={getTargetSubmissionStatus(item)} />
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Belum ada butir kegiatan yang di-assign pada periode tahun ini.
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                        {search.trim() || submissionStatusFilter !== 'all' || periodFilter !== currentYearFilter
+                          ? 'Data target kinerja tidak ditemukan.'
+                          : 'Belum ada butir kegiatan yang di-assign pada periode tahun ini.'}
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredAssignments.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </div>
         </CardContent>
       </Card>
@@ -661,9 +920,12 @@ function RealisasiTab({
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | RealisasiStatus>('all');
+  const [periodFilter, setPeriodFilter] = useState(currentYearFilter);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
+  const yearOptions = useMemo(() => getYearOptions(history.map((item) => getRealisasiYear(item))), [history]);
   const targetAssignments = useMemo(() => assignments.filter(hasTarget), [assignments]);
   const options = useMemo(
     () => targetAssignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
@@ -721,14 +983,19 @@ function RealisasiTab({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return history;
-    return history.filter((item) =>
-      [item.namaKegiatan, item.keterangan, item.realisasiTarget, item.tanggalRealisasi, item.status]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [history, search]);
+    return history.filter((item) => {
+      const matchesPeriod = getRealisasiYear(item) === periodFilter;
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesSearch =
+        !query ||
+        [item.namaKegiatan, item.keterangan, item.realisasiTarget, item.tanggalRealisasi, realisasiStatusLabelMap[item.status]]
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+
+      return matchesPeriod && matchesStatus && matchesSearch;
+    });
+  }, [history, periodFilter, search, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -761,13 +1028,27 @@ function RealisasiTab({
                 Tanggal Realisasi
                 <RequiredStar />
               </Label>
-              <Input
-                id="tanggal-realisasi"
-                type="date"
-                value={form.tanggal}
-                onChange={(event) => updateForm('tanggal', event.target.value)}
-                className="h-11 border-gray-300 bg-white"
-              />
+              <div
+                className="relative cursor-pointer"
+                onClick={(event) => {
+                  const input = event.currentTarget.querySelector('input');
+                  if (input) openDatePicker(input);
+                }}
+              >
+                <Input
+                  id="tanggal-realisasi"
+                  type="date"
+                  value={form.tanggal}
+                  onChange={(event) => updateForm('tanggal', event.target.value)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openDatePicker(event.currentTarget);
+                  }}
+                  className="admin-date-input cursor-pointer bg-white"
+                  style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb', paddingRight: '2.5rem' }}
+                />
+                <Calendar className="text-gray-400" style={{ position: 'absolute', right: '0.875rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              </div>
             </div>
 
             <div ref={jumlahRef} className="space-y-2">
@@ -782,7 +1063,8 @@ function RealisasiTab({
                 value={form.jumlah}
                 onChange={(event) => updateForm('jumlah', event.target.value)}
                 placeholder="Contoh: 1"
-                className="h-11 border-gray-300 bg-white"
+                className="bg-white"
+                style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
               />
             </div>
           </div>
@@ -803,7 +1085,7 @@ function RealisasiTab({
           </div>
 
           <div className="space-y-2">
-            <Label>Surat Tugas</Label>
+            <Label>Dokumen Pendukung</Label>
             <input
               id="surat-tugas-realisasi"
               type="file"
@@ -818,7 +1100,7 @@ function RealisasiTab({
               <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
                 {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
               </div>
-              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret surat tugas ke area ini'}</p>
+              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret dokumen pendukung ke area ini'}</p>
               <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
               <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('surat-tugas-realisasi')?.click()}>
                 Cari File Manual
@@ -846,22 +1128,50 @@ function RealisasiTab({
 
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-4">
             <div>
               <CardTitle>Riwayat Realisasi Kegiatan</CardTitle>
               <CardDescription className="mt-1">Realisasi kegiatan yang sudah Anda catat pada periode tahun berjalan.</CardDescription>
             </div>
-            <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 lg:w-80">
-              <Search className="size-4 shrink-0 text-gray-400" />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Cari kegiatan, tanggal, status..."
-                className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-              />
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[760px] gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+                <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                  <Search className="size-4 shrink-0 text-gray-400" />
+                  <Input
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Cari kegiatan, tanggal, status..."
+                    className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                  />
+                </div>
+                <FilterSelect
+                  value={statusFilter}
+                  ariaLabel="Filter status realisasi kegiatan"
+                  onChange={(value) => {
+                    setStatusFilter(value as 'all' | RealisasiStatus);
+                    setPage(1);
+                  }}
+                  options={[
+                    { value: 'all', label: 'Semua Status' },
+                    ...realisasiStatusOptions.map((status) => ({
+                      value: status,
+                      label: realisasiStatusLabelMap[status],
+                    })),
+                  ]}
+                />
+                <FilterSelect
+                  value={periodFilter}
+                  ariaLabel="Filter periode realisasi kegiatan"
+                  onChange={(value) => {
+                    setPeriodFilter(value);
+                    setPage(1);
+                  }}
+                  options={yearOptions.map((year) => ({ value: year, label: `Tahun ${year}` }))}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -876,7 +1186,7 @@ function RealisasiTab({
                     <th className="w-[12%] px-6 py-3">Realisasi</th>
                     <th className="w-[12%] px-6 py-3">Status</th>
                     <th className="w-[20%] px-6 py-3">Keterangan</th>
-                    <th className="w-[18%] px-6 py-3">Surat Tugas</th>
+                    <th className="w-[18%] px-6 py-3">Dokumen Pendukung</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -900,7 +1210,9 @@ function RealisasiTab({
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                        Belum ada riwayat realisasi.
+                        {search.trim() || statusFilter !== 'all' || periodFilter !== currentYearFilter
+                          ? 'Data realisasi kegiatan tidak ditemukan.'
+                          : 'Belum ada riwayat realisasi.'}
                       </td>
                     </tr>
                   )}

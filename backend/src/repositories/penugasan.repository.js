@@ -53,6 +53,11 @@ const mapButirAssignmentRow = (row) => ({
   deskripsi: row.deskripsi ?? "",
   targetKetercapaian: row.target_ketercapaian ?? "",
   status: row.status,
+  statusPengajuan: row.status_pengajuan ?? "diajukan",
+  approvalStatus:
+    row.status_pengajuan === "diterima" || row.status_pengajuan === "diubah"
+      ? "approved"
+      : "pending",
 });
 
 const mapMyButirAssignmentRow = (row) => ({
@@ -256,9 +261,10 @@ export const createButirAssignment = async ({
         uraian,
         deskripsi,
         target_ketercapaian,
-        status
+        status,
+        status_pengajuan
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'aktif')
+      VALUES ($1, $2, $3, $4, $5, $6, 'aktif', 'diajukan')
       RETURNING
         id_pengguna_kegiatan,
         id_pengguna,
@@ -267,7 +273,8 @@ export const createButirAssignment = async ({
         uraian,
         deskripsi,
         target_ketercapaian,
-        status
+        status,
+        status_pengajuan
     `,
     [idPengguna, idButirKegiatan, idPeriodeSkp, uraian, deskripsi, targetKetercapaian],
   );
@@ -285,7 +292,8 @@ const butirAssignmentSelect = `
     pengguna_kegiatan.uraian,
     pengguna_kegiatan.deskripsi,
     pengguna_kegiatan.target_ketercapaian,
-    pengguna_kegiatan.status
+    pengguna_kegiatan.status,
+    pengguna_kegiatan.status_pengajuan
   FROM pengguna_kegiatan
   INNER JOIN butir_kegiatan
     ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
@@ -614,6 +622,7 @@ export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filt
         pengguna_kegiatan.deskripsi,
         pengguna_kegiatan.target_ketercapaian,
         pengguna_kegiatan.status,
+        pengguna_kegiatan.status_pengajuan,
         periode_skp.tahun,
         ${formatDateColumn("periode_skp.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("periode_skp.tanggal_selesai")} AS tanggal_selesai,
@@ -720,6 +729,13 @@ export const updateButirAssignment = async ({ id, uraian, deskripsi, targetKeter
         uraian = $2,
         deskripsi = $3,
         target_ketercapaian = COALESCE($4, target_ketercapaian),
+        status_pengajuan = CASE
+          WHEN $4 IS NOT NULL
+            AND COALESCE(target_ketercapaian, '') IS DISTINCT FROM $4
+            AND status_pengajuan = 'diterima'
+            THEN 'diubah'
+          ELSE status_pengajuan
+        END,
         updated_at = current_timestamp
       WHERE id_pengguna_kegiatan = $1
       RETURNING id_pengguna_kegiatan
@@ -745,6 +761,7 @@ export const updateOwnButirTarget = async ({
         target_ketercapaian = $3,
         uraian = $4,
         deskripsi = $5,
+        status_pengajuan = 'diajukan',
         updated_at = current_timestamp
       WHERE id_pengguna_kegiatan = $1
         AND id_pengguna = $2
@@ -757,6 +774,101 @@ export const updateOwnButirTarget = async ({
 
   const assignments = await findCurrentYearButirAssignmentsByEmployee(idPengguna);
   return assignments.find((assignment) => assignment.id === String(id)) ?? null;
+};
+
+export const submitButirAssignmentForApproval = async ({ id, idPengguna }) => {
+  const result = await pool.query(
+    `
+      UPDATE pengguna_kegiatan
+      SET
+        status_pengajuan = 'diajukan',
+        updated_at = current_timestamp
+      WHERE id_pengguna_kegiatan = $1
+        AND id_pengguna = $2
+        AND target_ketercapaian IS NOT NULL
+        AND btrim(target_ketercapaian) <> ''
+      RETURNING id_pengguna_kegiatan
+    `,
+    [id, idPengguna],
+  );
+
+  if (!result.rows[0]) return null;
+
+  const assignments = await findCurrentYearButirAssignmentsByEmployee(idPengguna);
+  return assignments.find((assignment) => assignment.id === String(id)) ?? null;
+};
+
+export const approveButirAssignmentTarget = async (id) => {
+  const result = await pool.query(
+    `
+      UPDATE pengguna_kegiatan
+      SET
+        status_pengajuan = 'diterima',
+        updated_at = current_timestamp
+      WHERE id_pengguna_kegiatan = $1
+        AND status_pengajuan = 'diajukan'
+      RETURNING id_pengguna_kegiatan
+    `,
+    [id],
+  );
+
+  if (!result.rows[0]) return null;
+  return findButirAssignmentById(id);
+};
+
+export const findPendingApprovalKegiatan = async () => {
+  const result = await pool.query(
+    `
+      SELECT
+        pengguna.id_pengguna,
+        pengguna.nama,
+        pengguna.nip,
+        pengguna_kegiatan.id_pengguna_kegiatan,
+        pengguna_kegiatan.id_butir_kegiatan,
+        pengguna_kegiatan.id_periode_skp,
+        butir_kegiatan.nama_kegiatan,
+        pengguna_kegiatan.uraian,
+        pengguna_kegiatan.deskripsi,
+        pengguna_kegiatan.target_ketercapaian,
+        pengguna_kegiatan.status,
+        pengguna_kegiatan.status_pengajuan
+      FROM pengguna_kegiatan
+      INNER JOIN pengguna
+        ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna
+      INNER JOIN butir_kegiatan
+        ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      WHERE pengguna_kegiatan.status_pengajuan = 'diajukan'
+        AND pengguna_kegiatan.status <> 'batal'
+        AND pengguna_kegiatan.target_ketercapaian IS NOT NULL
+        AND btrim(pengguna_kegiatan.target_ketercapaian) <> ''
+        AND pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+      ORDER BY pengguna.nama ASC, pengguna.id_pengguna ASC, pengguna_kegiatan.updated_at DESC
+    `,
+  );
+
+  const grouped = new Map();
+
+  for (const row of result.rows) {
+    const id = String(row.id_pengguna);
+    if (!grouped.has(id)) {
+      grouped.set(id, {
+        idPengguna: id,
+        nama: row.nama ?? "",
+        nip: row.nip ?? "",
+        pendingCount: 0,
+        kegiatan: [],
+      });
+    }
+
+    const employee = grouped.get(id);
+    employee.pendingCount += 1;
+    employee.kegiatan.push(mapButirAssignmentRow(row));
+  }
+
+  return Array.from(grouped.values());
 };
 
 export const deleteButirAssignment = async (id) => {

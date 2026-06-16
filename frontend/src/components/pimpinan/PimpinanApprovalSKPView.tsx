@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Check, Search } from 'lucide-react';
 
 import {
   approveRealisasiKegiatan,
@@ -9,8 +10,12 @@ import {
   type ApprovalRealisasiItem,
 } from '../../api/penugasanApi';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 
 type ApprovalStatus = ApprovalRealisasiItem['status'];
+type DetailRouteState = { employee?: ApprovalRealisasiEmployee } | null;
+
+const pageSizeOptions = [5, 10, 20];
 
 const statusLabelMap: Record<ApprovalStatus, string> = {
   diajukan: 'Belum Disetujui',
@@ -43,45 +48,102 @@ function StatusBadge({ status }: { status: ApprovalStatus }) {
   );
 }
 
+function getAdaptivePages(currentPage: number, totalPages: number): number[] {
+  if (totalPages <= 4) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  if (currentPage === 1) return [1, 2, 3, totalPages];
+  if (currentPage >= totalPages - 1) return [totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  return Array.from(
+    new Set([currentPage - 1, currentPage, currentPage + 1, totalPages].filter((page) => page >= 1 && page <= totalPages)),
+  ).sort((a, b) => a - b);
+}
+
+function ApprovalPagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}) {
+  const visiblePages = getAdaptivePages(currentPage, totalPages);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  return (
+    <div className="flex flex-col items-start gap-3 border-t border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-gray-500">
+        Menampilkan {startItem}-{endItem} dari {totalItems} data
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+          <span className="text-xs text-gray-500">Tampilkan</span>
+          <select
+            value={pageSize}
+            onChange={(event) => {
+              onPageSizeChange(Number(event.target.value));
+              onPageChange(1);
+            }}
+            className="bg-transparent text-xs font-medium outline-none"
+          >
+            {pageSizeOptions.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Sebelumnya
+        </button>
+        {visiblePages.map((page, idx) => (
+          <span key={page} className="flex items-center gap-2">
+            {idx > 0 && page - visiblePages[idx - 1] > 1 && <span className="px-1 text-xs text-gray-500">...</span>}
+            <button
+              type="button"
+              onClick={() => onPageChange(page)}
+              className={`min-w-8 rounded-lg border px-2 py-1 text-xs font-medium transition ${
+                page === currentPage
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {page}
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages || totalPages === 0}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition disabled:opacity-40"
+        >
+          Berikutnya
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PimpinanApprovalSKPView() {
+  const navigate = useNavigate();
   const [approvalEmployees, setApprovalEmployees] = useState<ApprovalRealisasiEmployee[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRealisasiEmployee | null>(null);
-  const [approvalItems, setApprovalItems] = useState<ApprovalRealisasiItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [isApproving, setIsApproving] = useState(false);
   const [employeeError, setEmployeeError] = useState('');
-  const [detailError, setDetailError] = useState('');
-
-  const loadEmployees = async () => {
-    setIsLoadingEmployees(true);
-    setEmployeeError('');
-
-    try {
-      const data = await getApprovalRealisasiEmployees();
-      setApprovalEmployees(data);
-    } catch {
-      setEmployeeError('Gagal mengambil data pegawai yang mengajukan realisasi SKP.');
-    } finally {
-      setIsLoadingEmployees(false);
-    }
-  };
-
-  const loadEmployeeRealisasi = async (employeeId: string) => {
-    setIsLoadingItems(true);
-    setDetailError('');
-
-    try {
-      const data = await getApprovalRealisasiByEmployee(employeeId);
-      setApprovalItems(data);
-    } catch {
-      setDetailError('Gagal mengambil detail realisasi pegawai.');
-    } finally {
-      setIsLoadingItems(false);
-    }
-  };
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let ignore = false;
@@ -107,18 +169,209 @@ export function PimpinanApprovalSKPView() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedEmployee) return;
+  const openDetail = (employee: ApprovalRealisasiEmployee) => {
+    navigate(`/pimpinan/approval-pegawai/realisasi/${employee.id}`, { state: { employee } });
+  };
 
+  const filteredApprovalEmployees = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return approvalEmployees;
+
+    return approvalEmployees.filter((employee) =>
+      [
+        employee.nama,
+        employee.nip,
+        employee.fungsional,
+        employee.pangkat,
+        employee.golongan,
+      ]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [approvalEmployees, search]);
+
+  const totalPending = approvalEmployees.reduce((sum, employee) => sum + employee.pendingCount, 0);
+  const totalPages = Math.max(1, Math.ceil(filteredApprovalEmployees.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedEmployees = filteredApprovalEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Persetujuan SKP</h1>
+        <p className="mt-1 text-sm text-gray-500">Daftar pegawai yang sedang mengajukan realisasi kegiatan.</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 sm:max-w-xs">
+          <Search className="size-4 shrink-0 text-gray-400" />
+          <Input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari nama atau NIP..."
+            className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+          />
+        </div>
+        <div
+          className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg border px-3 text-xs font-semibold"
+          style={
+            totalPending > 0
+              ? { backgroundColor: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' }
+              : { backgroundColor: '#dcfce7', borderColor: '#22c55e', color: '#166534' }
+          }
+        >
+          {totalPending} menunggu
+        </div>
+      </div>
+
+      {employeeError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{employeeError}</p>}
+
+      <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                <th className="px-6 py-3">Pegawai</th>
+                <th className="px-6 py-3">Pangkat/Golongan</th>
+                <th className="px-6 py-3 text-center">Belum Disetujui</th>
+                <th className="px-6 py-3 text-center">Total Realisasi</th>
+                <th className="px-6 py-3 text-center">Terakhir Diajukan</th>
+                <th className="px-6 py-3">Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-200">
+              {isLoadingEmployees ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                    Memuat pengajuan realisasi SKP...
+                  </td>
+                </tr>
+              ) : paginatedEmployees.length > 0 ? (
+                paginatedEmployees.map((employee) => (
+                  <tr key={employee.id} className="align-top">
+                    <td className="px-6 py-4 pr-8">
+                      <div className="font-medium text-gray-900">{employee.nama}</div>
+                      <div className="text-xs text-gray-500">NIP {employee.nip || '-'}</div>
+                      <div className="mt-0.5 text-xs text-gray-500">{employee.fungsional}</div>
+                    </td>
+
+                    <td className="px-6 py-4 pr-8 text-gray-700">
+                      <div>{employee.pangkat}</div>
+                      <div className="text-xs text-gray-500">{employee.golongan}</div>
+                    </td>
+
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-sm font-semibold text-gray-700">
+                        {employee.pendingCount} belum disetujui
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-center font-medium text-gray-800">
+                      {formatNumber(employee.pendingRealisasiTotal)}
+                    </td>
+
+                    <td className="whitespace-nowrap px-6 py-4 text-center text-gray-700">{formatTanggal(employee.lastTanggalRealisasi)}</td>
+
+                    <td className="px-6 py-4">
+                      <Button size="sm" onClick={() => openDetail(employee)}>
+                        Detail
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                    {approvalEmployees.length === 0 ? 'Belum ada pegawai yang mengajukan realisasi SKP.' : 'Tidak ada hasil pencarian.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <ApprovalPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredApprovalEmployees.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function PimpinanApprovalSKPDetailView() {
+  const navigate = useNavigate();
+  const { pegawaiId } = useParams();
+  const location = useLocation();
+  const routeState = location.state as DetailRouteState;
+  const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRealisasiEmployee | null>(routeState?.employee ?? null);
+  const [approvalItems, setApprovalItems] = useState<ApprovalRealisasiItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [isApproving, setIsApproving] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
+  const loadDetail = async () => {
+    if (!pegawaiId) {
+      setDetailError('ID pegawai tidak ditemukan.');
+      setIsLoadingItems(false);
+      return;
+    }
+
+    setIsLoadingItems(true);
+    setDetailError('');
+
+    try {
+      const [items, employees] = await Promise.all([
+        getApprovalRealisasiByEmployee(pegawaiId),
+        getApprovalRealisasiEmployees().catch(() => [] as ApprovalRealisasiEmployee[]),
+      ]);
+      const employee = employees.find((item) => item.id === pegawaiId);
+      setApprovalItems(items);
+      if (employee) setSelectedEmployee(employee);
+    } catch {
+      setDetailError('Gagal mengambil detail realisasi pegawai.');
+    } finally {
+      setIsLoadingItems(false);
+    }
+  };
+
+  useEffect(() => {
     let ignore = false;
 
     const load = async () => {
+      if (!pegawaiId) {
+        if (!ignore) {
+          setDetailError('ID pegawai tidak ditemukan.');
+          setIsLoadingItems(false);
+        }
+        return;
+      }
+
       setIsLoadingItems(true);
       setDetailError('');
 
       try {
-        const data = await getApprovalRealisasiByEmployee(selectedEmployee.id);
-        if (!ignore) setApprovalItems(data);
+        const [items, employees] = await Promise.all([
+          getApprovalRealisasiByEmployee(pegawaiId),
+          getApprovalRealisasiEmployees().catch(() => [] as ApprovalRealisasiEmployee[]),
+        ]);
+        const employee = employees.find((item) => item.id === pegawaiId);
+
+        if (!ignore) {
+          setApprovalItems(items);
+          if (employee) setSelectedEmployee(employee);
+        }
       } catch {
         if (!ignore) setDetailError('Gagal mengambil detail realisasi pegawai.');
       } finally {
@@ -131,7 +384,7 @@ export function PimpinanApprovalSKPView() {
     return () => {
       ignore = true;
     };
-  }, [selectedEmployee]);
+  }, [pegawaiId]);
 
   const filteredItems = useMemo(() => {
     if (statusFilter === 'all') return approvalItems;
@@ -139,19 +392,12 @@ export function PimpinanApprovalSKPView() {
   }, [approvalItems, statusFilter]);
 
   const unapprovedFilteredItems = filteredItems.filter((item) => item.status === 'diajukan');
-
-  const openDetail = (employee: ApprovalRealisasiEmployee) => {
-    setSelectedEmployee(employee);
-    setApprovalItems([]);
-    setSelectedIds(new Set());
-    setStatusFilter('all');
-  };
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const backToList = () => {
-    setSelectedEmployee(null);
-    setApprovalItems([]);
-    setSelectedIds(new Set());
-    setStatusFilter('all');
+    navigate('/pimpinan/approval-pegawai', { state: { tab: 'realisasi' } });
   };
 
   const toggleSelected = (id: string) => {
@@ -169,7 +415,7 @@ export function PimpinanApprovalSKPView() {
   const clearSelected = () => setSelectedIds(new Set());
 
   const approveSelected = async () => {
-    if (!selectedEmployee || selectedIds.size === 0) return;
+    if (!pegawaiId || selectedIds.size === 0) return;
 
     setIsApproving(true);
     setDetailError('');
@@ -177,7 +423,7 @@ export function PimpinanApprovalSKPView() {
     try {
       await approveRealisasiKegiatan(Array.from(selectedIds));
       clearSelected();
-      await Promise.all([loadEmployeeRealisasi(selectedEmployee.id), loadEmployees()]);
+      await loadDetail();
     } catch {
       setDetailError('Gagal menyetujui realisasi kegiatan.');
     } finally {
@@ -185,94 +431,22 @@ export function PimpinanApprovalSKPView() {
     }
   };
 
-  if (!selectedEmployee) {
-    return (
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-xl font-semibold">Persetujuan SKP</h1>
-          <p className="mt-1 text-sm text-gray-500">Daftar pegawai yang sedang mengajukan realisasi kegiatan.</p>
-        </div>
-
-        {employeeError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{employeeError}</p>}
-
-        <div className="overflow-hidden rounded-xl border bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead>
-                <tr className="border-b bg-gray-100 text-left text-gray-600">
-                  <th className="p-3">Pegawai</th>
-                  <th className="p-3">Pangkat/Golongan</th>
-                  <th className="p-3 text-center">Belum Disetujui</th>
-                  <th className="p-3 text-center">Total Realisasi</th>
-                  <th className="p-3 text-center">Terakhir Diajukan</th>
-                  <th className="p-3">Aksi</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {isLoadingEmployees ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                      Memuat pengajuan realisasi SKP...
-                    </td>
-                  </tr>
-                ) : approvalEmployees.length > 0 ? (
-                  approvalEmployees.map((employee) => (
-                    <tr key={employee.id} className="border-b last:border-b-0">
-                      <td className="p-3">
-                        <div className="font-medium text-gray-900">{employee.nama}</div>
-                        <div className="text-xs text-gray-500">NIP {employee.nip || '-'}</div>
-                        <div className="mt-0.5 text-xs text-gray-500">{employee.fungsional}</div>
-                      </td>
-
-                      <td className="p-3 text-gray-700">
-                        <div>{employee.pangkat}</div>
-                        <div className="text-xs text-gray-500">{employee.golongan}</div>
-                      </td>
-
-                      <td className="p-3 text-center">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {employee.pendingCount} belum disetujui
-                        </span>
-                      </td>
-
-                      <td className="p-3 text-center font-medium text-gray-800">
-                        {formatNumber(employee.pendingRealisasiTotal)}
-                      </td>
-
-                      <td className="p-3 text-center text-gray-700">{formatTanggal(employee.lastTanggalRealisasi)}</td>
-
-                      <td className="p-3">
-                        <Button size="sm" onClick={() => openDetail(employee)}>
-                          Detail
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                      Belum ada pegawai yang mengajukan realisasi SKP.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      <button type="button" onClick={backToList} className="text-sm text-blue-600">
-        &lt; Kembali
-      </button>
-
+    <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold">{selectedEmployee.nama}</h2>
-        <p className="mt-1 text-sm text-gray-500">NIP {selectedEmployee.nip || '-'}</p>
+        <Button variant="outline" className="mb-4 h-9 px-3 text-sm" onClick={backToList}>
+          <ArrowLeft className="size-4" />
+          Kembali
+        </Button>
+        <h1 className="text-2xl font-semibold text-gray-900">Detail Realisasi Kegiatan</h1>
+        <p className="mt-1 text-base text-gray-500">Tinjau dan setujui realisasi kegiatan pegawai terpilih.</p>
+      </div>
+
+      <div className="rounded-lg border bg-gray-50 p-4">
+        <p className="text-sm font-semibold text-gray-900">
+          {selectedEmployee?.nama ?? (isLoadingItems ? 'Memuat data pegawai...' : 'Pegawai terpilih')}
+        </p>
+        <p className="mt-1 text-xs text-gray-500">NIP {selectedEmployee?.nip ?? '-'}</p>
       </div>
 
       {detailError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{detailError}</p>}
@@ -296,6 +470,7 @@ export function PimpinanApprovalSKPView() {
           value={statusFilter}
           onChange={(event) => {
             setStatusFilter(event.target.value as 'all' | ApprovalStatus);
+            setPage(1);
             clearSelected();
           }}
           className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm"
@@ -307,32 +482,32 @@ export function PimpinanApprovalSKPView() {
         <span className="ml-auto text-sm text-gray-600">{selectedIds.size} item dipilih</span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-white">
+      <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[940px] text-sm">
+          <table className="w-full min-w-[940px] border-collapse text-sm">
             <thead>
-              <tr className="border-b bg-gray-100 text-left text-gray-600">
-                <th className="w-12 p-3"></th>
-                <th className="p-3">Butir Kegiatan</th>
-                <th className="p-3 text-center">Target</th>
-                <th className="p-3 text-center">Tanggal</th>
-                <th className="p-3 text-center">Realisasi</th>
-                <th className="p-3 text-center">Status</th>
-                <th className="p-3">Keterangan</th>
+              <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
+                <th className="w-12 px-6 py-3"></th>
+                <th className="px-6 py-3">Butir Kegiatan</th>
+                <th className="px-6 py-3 text-center">Target</th>
+                <th className="px-6 py-3 text-center">Tanggal</th>
+                <th className="px-6 py-3 text-center">Realisasi</th>
+                <th className="px-6 py-3 text-center">Status</th>
+                <th className="px-6 py-3">Keterangan</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-gray-200">
               {isLoadingItems ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                     Memuat detail realisasi...
                   </td>
                 </tr>
-              ) : filteredItems.length > 0 ? (
-                filteredItems.map((item) => (
-                  <tr key={item.id} className="border-b align-top last:border-b-0">
-                    <td className="p-3">
+              ) : paginatedItems.length > 0 ? (
+                paginatedItems.map((item) => (
+                  <tr key={item.id} className="align-top">
+                    <td className="px-6 py-4">
                       {item.status === 'diajukan' && (
                         <input
                           type="checkbox"
@@ -342,24 +517,24 @@ export function PimpinanApprovalSKPView() {
                       )}
                     </td>
 
-                    <td className="p-3">
+                    <td className="px-6 py-4 pr-8">
                       <div className="font-medium text-gray-900">{item.namaKegiatan}</div>
                       <div className="mt-1 line-clamp-2 text-xs text-gray-500">{item.uraian || item.deskripsi || '-'}</div>
                     </td>
 
-                    <td className="p-3 text-center text-gray-700">{formatNumber(item.targetKetercapaian)}</td>
+                    <td className="px-6 py-4 text-center text-gray-700">{formatNumber(item.targetKetercapaian)}</td>
 
-                    <td className="p-3 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-center text-gray-700">{formatTanggal(item.tanggalRealisasi)}</td>
 
-                    <td className="p-3 text-center font-medium text-gray-800">
+                    <td className="px-6 py-4 text-center font-medium text-gray-800">
                       {formatNumber(item.realisasiTarget)}
                     </td>
 
-                    <td className="p-3 text-center">
+                    <td className="px-6 py-4 text-center">
                       <StatusBadge status={item.status} />
                     </td>
 
-                    <td className="p-3 text-gray-700">{item.keterangan || '-'}</td>
+                    <td className="px-6 py-4 text-gray-700">{item.keterangan || '-'}</td>
                   </tr>
                 ))
               ) : (
@@ -372,6 +547,14 @@ export function PimpinanApprovalSKPView() {
             </tbody>
           </table>
         </div>
+        <ApprovalPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredItems.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <div className="flex justify-end">

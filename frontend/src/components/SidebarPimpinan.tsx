@@ -7,8 +7,7 @@ const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/log
 
 const navItems = [
   { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },
-  { id: 'approval-skp', label: 'Persetujuan SKP', icon: ClipboardCheck },
-  { id: 'approval-kegiatan', label: 'Persetujuan Kegiatan', icon: ClipboardCheck },
+  { id: 'approval-pegawai', label: 'Persetujuan Pegawai', icon: ClipboardCheck },
   { id: 'penugasan-tambahan', label: 'Penugasan Tambahan', icon: CheckSquare },
   { id: 'early-warning-system', label: 'Early Warning System', icon: BellRing },
   { id: 'kegiatan', label: 'Kegiatan', icon: FolderKanban },

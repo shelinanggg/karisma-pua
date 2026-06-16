@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Users, Calendar, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import {
-  getPenugasanTambahanList,
-  getPenugasanEmployees,
-  createPenugasanTambahan,
-  updatePenugasanTambahan,
+  getPimpinanPenugasanTambahanList,
+  getPimpinanPenugasanEmployees,
+  createPimpinanPenugasanTambahan,
+  updatePimpinanPenugasanTambahan,
   type PenugasanTambahan,
   type PenugasanEmployee,
 } from '../../api/penugasanApi';
@@ -59,8 +59,8 @@ export function PimpinanPenugasanTambahanView() {
       setErrorMessage('');
       try {
         const [penugasanData, employeeData] = await Promise.all([
-          getPenugasanTambahanList(),
-          getPenugasanEmployees(),
+          getPimpinanPenugasanTambahanList(),
+          getPimpinanPenugasanEmployees(),
         ]);
         setPenugasanList(penugasanData);
         setEmployeeOptions(employeeData);
@@ -136,15 +136,15 @@ export function PimpinanPenugasanTambahanView() {
       };
 
       if (isEditing && editingId) {
-        await updatePenugasanTambahan(editingId, payload);
+        await updatePimpinanPenugasanTambahan(editingId, payload);
         setSuccessMessage('Penugasan tambahan berhasil diperbarui.');
       } else {
-        await createPenugasanTambahan(payload);
+        await createPimpinanPenugasanTambahan(payload);
         setSuccessMessage('Penugasan tambahan berhasil dibuat.');
       }
 
       // Reload data
-      const penugasanData = await getPenugasanTambahanList();
+      const penugasanData = await getPimpinanPenugasanTambahanList();
       setPenugasanList(penugasanData);
 
       handleCloseDialog();

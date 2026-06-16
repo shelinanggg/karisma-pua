@@ -18,8 +18,8 @@ const PersonalDraftsView = lazy(() => import('./components/personal/PersonalDraf
 const PimpinanOverview = lazy(() => import('./components/pimpinan/PimpinanOverview').then((module) => ({ default: module.PimpinanOverview })));
 const PimpinanEarlyWarningSystemView = lazy(() => import('./components/pimpinan/PimpinanEarlyWarningSystemView').then((module) => ({ default: module.PimpinanEarlyWarningSystemView })));
 const PimpinanKegiatanView = lazy(() => import('./components/pimpinan/PimpinanKegiatanView').then((module) => ({ default: module.PimpinanKegiatanView })));
-const PimpinanApprovalSKPView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPView })));
-const PimpinanApprovalKegiatanView = lazy(() => import('./components/pimpinan/PimpinanApprovalKegiatanView').then((module) => ({ default: module.PimpinanApprovalKegiatanView })));
+const PimpinanApprovalPegawaiView = lazy(() => import('./components/pimpinan/PimpinanApprovalPegawaiView').then((module) => ({ default: module.PimpinanApprovalPegawaiView })));
+const PimpinanApprovalSKPDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPDetailView })));
 const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
 const PimpinanPenugasanTambahanView = lazy(() => import('./components/pimpinan/PimpinanPenugasanTambahanView').then((module) => ({ default: module.PimpinanPenugasanTambahanView })));
 const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
@@ -199,8 +199,10 @@ export default function App() {
         <Route path="dashboard-utama" element={<PimpinanOverview />} />
         <Route path="early-warning-system" element={<PimpinanEarlyWarningSystemView />} />
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
-        <Route path="approval-skp" element={<PimpinanApprovalSKPView />} />
-        <Route path="approval-kegiatan" element={<PimpinanApprovalKegiatanView />} />
+        <Route path="approval-pegawai" element={<PimpinanApprovalPegawaiView />} />
+        <Route path="approval-pegawai/realisasi/:pegawaiId" element={<PimpinanApprovalSKPDetailView />} />
+        <Route path="approval-skp" element={<Navigate to="/pimpinan/approval-pegawai" replace />} />
+        <Route path="approval-kegiatan" element={<Navigate to="/pimpinan/approval-pegawai" replace />} />
         <Route path="penugasan-tambahan" element={<PimpinanPenugasanTambahanView />} />
         <Route path="data-kepegawaian" element={<PimpinanDataKepegawaianView />} />
         <Route path="profil" element={<PimpinanProfilView />} />

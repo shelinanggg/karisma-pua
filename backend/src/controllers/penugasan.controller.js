@@ -1,5 +1,6 @@
 import {
   approveRealisasiKegiatan,
+  approveButirAssignmentTarget,
   createAdditionalAssignment,
   createButirAssignment,
   createMyRealisasiKegiatan,
@@ -14,8 +15,10 @@ import {
   findCurrentYearButirAssignmentsByEmployee,
   findMainDashboardSummary,
   findMyDashboardSummary,
+  findPendingApprovalKegiatan,
   findMyRealisasiKegiatan,
   findPimpinanKegiatanDashboard,
+  submitButirAssignmentForApproval,
   updateAdditionalAssignment,
   updateButirAssignment,
   updateOwnButirTarget,
@@ -263,9 +266,61 @@ export const patchMyButirTarget = async (req, res) => {
       return res.status(404).json({ message: "Penugasan butir tidak ditemukan untuk akun ini." });
     }
 
-    res.status(200).json({ message: "Target kinerja berhasil disimpan.", data });
+    res.status(200).json({ message: "Target kinerja berhasil diajukan.", data });
   } catch (err) {
     res.status(500).json({ message: "Gagal menyimpan target kinerja." });
+  }
+};
+
+export const submitMyKegiatanApproval = async (req, res) => {
+  try {
+    const id = requiredInteger(req.params.id);
+    const idPengguna = requiredInteger(req.user?.id_pengguna);
+
+    if (!id || Number.isNaN(id) || !idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID penugasan butir tidak valid." });
+    }
+
+    const data = await submitButirAssignmentForApproval({ id, idPengguna });
+
+    if (!data) {
+      return res.status(404).json({
+        message: "Penugasan tidak ditemukan untuk akun ini atau target belum diisi.",
+      });
+    }
+
+    res.status(200).json({ message: "Target kegiatan berhasil diajukan.", data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengajukan target kegiatan." });
+  }
+};
+
+export const getPendingApprovalKegiatan = async (_req, res) => {
+  try {
+    const data = await findPendingApprovalKegiatan();
+    res.status(200).json({ data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal mengambil kegiatan yang menunggu persetujuan." });
+  }
+};
+
+export const patchApproveKegiatan = async (req, res) => {
+  try {
+    const id = requiredInteger(req.params.id);
+
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ message: "ID penugasan butir tidak valid." });
+    }
+
+    const data = await approveButirAssignmentTarget(id);
+
+    if (!data) {
+      return res.status(404).json({ message: "Pengajuan target kegiatan tidak ditemukan." });
+    }
+
+    res.status(200).json({ message: "Target kegiatan berhasil diterima.", data });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal menerima target kegiatan." });
   }
 };
 
