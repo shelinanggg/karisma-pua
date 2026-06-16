@@ -732,7 +732,6 @@ export const updateButirAssignment = async ({ id, uraian, deskripsi, targetKeter
         status_pengajuan = CASE
           WHEN $4 IS NOT NULL
             AND COALESCE(target_ketercapaian, '') IS DISTINCT FROM $4
-            AND status_pengajuan = 'diterima'
             THEN 'diubah'
           ELSE status_pengajuan
         END,

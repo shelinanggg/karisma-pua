@@ -20,6 +20,7 @@ const PimpinanEarlyWarningSystemView = lazy(() => import('./components/pimpinan/
 const PimpinanKegiatanView = lazy(() => import('./components/pimpinan/PimpinanKegiatanView').then((module) => ({ default: module.PimpinanKegiatanView })));
 const PimpinanApprovalPegawaiView = lazy(() => import('./components/pimpinan/PimpinanApprovalPegawaiView').then((module) => ({ default: module.PimpinanApprovalPegawaiView })));
 const PimpinanApprovalSKPDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPDetailView })));
+const PimpinanApprovalKegiatanDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalKegiatanView').then((module) => ({ default: module.PimpinanApprovalKegiatanDetailView })));
 const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
 const PimpinanPenugasanTambahanView = lazy(() => import('./components/pimpinan/PimpinanPenugasanTambahanView').then((module) => ({ default: module.PimpinanPenugasanTambahanView })));
 const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
@@ -201,6 +202,7 @@ export default function App() {
         <Route path="kegiatan" element={<PimpinanKegiatanView />} />
         <Route path="approval-pegawai" element={<PimpinanApprovalPegawaiView />} />
         <Route path="approval-pegawai/realisasi/:pegawaiId" element={<PimpinanApprovalSKPDetailView />} />
+        <Route path="approval-pegawai/pengajuan/:pegawaiId" element={<PimpinanApprovalKegiatanDetailView />} />
         <Route path="approval-skp" element={<Navigate to="/pimpinan/approval-pegawai" replace />} />
         <Route path="approval-kegiatan" element={<Navigate to="/pimpinan/approval-pegawai" replace />} />
         <Route path="penugasan-tambahan" element={<PimpinanPenugasanTambahanView />} />

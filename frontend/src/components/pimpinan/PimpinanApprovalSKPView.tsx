@@ -239,7 +239,7 @@ export function PimpinanApprovalSKPView() {
                 <th className="px-6 py-3 text-center">Belum Disetujui</th>
                 <th className="px-6 py-3 text-center">Total Realisasi</th>
                 <th className="px-6 py-3 text-center">Terakhir Diajukan</th>
-                <th className="px-6 py-3">Aksi</th>
+                <th className="w-28 px-6 py-3 text-center">Aksi</th>
               </tr>
             </thead>
 
@@ -276,7 +276,7 @@ export function PimpinanApprovalSKPView() {
 
                     <td className="whitespace-nowrap px-6 py-4 text-center text-gray-700">{formatTanggal(employee.lastTanggalRealisasi)}</td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       <Button size="sm" onClick={() => openDetail(employee)}>
                         Detail
                       </Button>
