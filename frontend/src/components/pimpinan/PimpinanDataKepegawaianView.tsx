@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Eye, ListChecks, Search, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   getPegawaiList,
   getPegawaiReferences,
@@ -650,6 +651,7 @@ function DetailKegiatanModal({
 }
 
 export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [references, setReferences] = useState<PegawaiReferences>(fallbackReferences);
   const [search, setSearch] = useState('');
@@ -659,7 +661,6 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null);
-  const [detailKegiatanEmployee, setDetailKegiatanEmployee] = useState<Employee | null>(null);
   const employeeGridStyle = {
     minWidth: '1080px',
     gridTemplateColumns: 'minmax(240px, 1.35fr) minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(140px, 0.75fr) minmax(100px, 0.55fr) 220px',
@@ -810,7 +811,12 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
                           <Eye className="size-3.5" />
                           Detail
                         </Button>
-                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailKegiatanEmployee(employee)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs"
+                          onClick={() => navigate(`/pimpinan/data-kepegawaian/${employee.id}/kegiatan`)}
+                        >
                           <ListChecks className="size-3.5" />
                           Kegiatan
                         </Button>
@@ -842,11 +848,6 @@ export function PimpinanDataKepegawaianView(_props: DataKepegawaianViewProps) {
         onOpenChange={(open) => !open && setDetailEmployee(null)}
       />
 
-      <DetailKegiatanModal
-        employee={detailKegiatanEmployee}
-        open={Boolean(detailKegiatanEmployee)}
-        onOpenChange={(open) => !open && setDetailKegiatanEmployee(null)}
-      />
     </div>
   );
 }

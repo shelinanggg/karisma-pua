@@ -131,6 +131,10 @@ function getTargetSubmissionStatus(item: MyPenugasanButir): TargetSubmissionStat
   return 'diajukan';
 }
 
+function isTargetLocked(item: MyPenugasanButir): boolean {
+  return item.statusPengajuan === 'diterima' || item.statusPengajuan === 'diubah';
+}
+
 function focusFormField(ref: React.RefObject<HTMLDivElement | null>) {
   const element = ref.current;
   if (!element) return;
@@ -522,13 +526,19 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
         <CardContent>
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] border-collapse text-sm">
+              <table className="w-full min-w-[960px] table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col style={{ width: '37%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '35%' }} />
+                  <col style={{ width: '15%' }} />
+                </colgroup>
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
-                    <th className="w-[30%] px-6 py-3">Nama Kegiatan</th>
-                    <th className="w-[16%] px-6 py-3">Periode</th>
-                    <th className="w-[34%] px-6 py-3">Progress</th>
-                    <th className="w-[20%] px-6 py-3 text-center">Status</th>
+                    <th className="px-6 py-3">Nama Kegiatan</th>
+                    <th className="px-6 py-3">Periode</th>
+                    <th className="px-6 py-3">Progress</th>
+                    <th className="px-6 py-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -550,7 +560,7 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
                             </p>
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{formatTahunPeriode(item)}</td>
-                          <td className="min-w-[320px] px-6 py-4 pr-8">
+                          <td className="px-6 py-4 pr-8">
                             <ProgressBar value={item.realisasiTotal} max={target} />
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -610,9 +620,13 @@ function TargetTab({
   const [pageSize, setPageSize] = useState(5);
 
   const yearOptions = useMemo(() => getYearOptions(assignments.map((item) => item.tahun)), [assignments]);
-  const options = useMemo(
-    () => assignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
+  const editableAssignments = useMemo(
+    () => assignments.filter((item) => !isTargetLocked(item)),
     [assignments],
+  );
+  const options = useMemo(
+    () => editableAssignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
+    [editableAssignments],
   );
   const activeAssignments = useMemo(
     () => assignments.filter((item) => getActiveStatus(item) === 'Aktif'),
@@ -653,17 +667,26 @@ function TargetTab({
   };
 
   const handleSelectAssignment = (id: string) => {
-    const assignment = assignments.find((item) => item.id === id);
+    const assignment = editableAssignments.find((item) => item.id === id);
+    if (!assignment) {
+      setError('Target yang sudah diterima atau diubah tidak dapat diedit kembali.');
+      return;
+    }
     setForm({
       penugasanId: id,
-      target: assignment?.targetKetercapaian ?? '',
-      uraian: assignment?.uraian ?? '',
-      deskripsi: assignment?.deskripsi ?? '',
+      target: assignment.targetKetercapaian ?? '',
+      uraian: assignment.uraian ?? '',
+      deskripsi: assignment.deskripsi ?? '',
     });
     setError('');
   };
 
   const handleSubmit = async () => {
+    const assignment = assignments.find((item) => item.id === form.penugasanId);
+    if (assignment && isTargetLocked(assignment)) {
+      setError('Target yang sudah diterima atau diubah tidak dapat diedit kembali.');
+      return;
+    }
     if (!form.penugasanId) {
       setError('Penugasan wajib dipilih.');
       focusFormField(penugasanRef);
@@ -689,8 +712,8 @@ function TargetTab({
       });
       await onSaved();
       setForm({ penugasanId: '', target: '', uraian: '', deskripsi: '' });
-    } catch {
-      setError('Gagal mengajukan target kinerja.');
+    } catch (submitError: any) {
+      setError(submitError.response?.data?.message || 'Gagal mengajukan target kinerja.');
     } finally {
       setIsSubmitting(false);
     }
@@ -717,6 +740,9 @@ function TargetTab({
               value={form.penugasanId}
               onChange={handleSelectAssignment}
             />
+            <p className="text-xs text-gray-500">
+              Target berstatus Diterima atau Diubah sudah dikunci dan tidak dapat diedit kembali.
+            </p>
           </div>
 
           <div ref={targetJumlahRef} className="space-y-2">
@@ -928,8 +954,20 @@ function RealisasiTab({
   const yearOptions = useMemo(() => getYearOptions(history.map((item) => getRealisasiYear(item))), [history]);
   const targetAssignments = useMemo(() => assignments.filter(hasTarget), [assignments]);
   const options = useMemo(
-    () => targetAssignments.map((item) => ({ id: item.id, label: item.namaKegiatan })),
+    () =>
+      targetAssignments.map((item) => ({
+        id: item.id,
+        label: `${item.namaKegiatan} (Target: ${formatNumber(getAssignmentTarget(item))})`,
+      })),
     [targetAssignments],
+  );
+  const selectedAssignment = useMemo(
+    () => targetAssignments.find((item) => item.id === form.penugasanId) ?? null,
+    [form.penugasanId, targetAssignments],
+  );
+  const targetByAssignmentId = useMemo(
+    () => new Map(assignments.map((item) => [item.id, getAssignmentTarget(item)])),
+    [assignments],
   );
 
   const updateForm = (key: keyof typeof form, value: string) => {
@@ -1020,6 +1058,11 @@ function RealisasiTab({
               value={form.penugasanId}
               onChange={(value) => updateForm('penugasanId', value)}
             />
+            {selectedAssignment && (
+              <p className="text-xs font-medium text-gray-500">
+                Target: {formatNumber(getAssignmentTarget(selectedAssignment))}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -1196,7 +1239,12 @@ function RealisasiTab({
                         <td className="whitespace-nowrap px-6 py-4 pr-6 text-gray-700">
                           {formatTanggal(item.tanggalRealisasi)}
                         </td>
-                        <td className="px-6 py-4 pr-8 font-medium text-gray-900">{item.namaKegiatan}</td>
+                        <td className="px-6 py-4 pr-8">
+                          <p className="font-medium text-gray-900">{item.namaKegiatan}</p>
+                          <p className="mt-1 text-xs font-normal text-gray-500">
+                            Target: {formatNumber(targetByAssignmentId.get(item.idPenggunaKegiatan) ?? 0)}
+                          </p>
+                        </td>
                         <td className="whitespace-nowrap px-6 py-4 pr-6 font-medium text-gray-700">
                           {item.realisasiTarget}
                         </td>

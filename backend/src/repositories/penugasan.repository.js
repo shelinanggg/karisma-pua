@@ -764,6 +764,7 @@ export const updateOwnButirTarget = async ({
         updated_at = current_timestamp
       WHERE id_pengguna_kegiatan = $1
         AND id_pengguna = $2
+        AND COALESCE(status_pengajuan, 'diajukan') NOT IN ('diterima', 'diubah')
       RETURNING id_pengguna_kegiatan
     `,
     [id, idPengguna, targetKetercapaian, uraian, deskripsi],
@@ -786,6 +787,7 @@ export const submitButirAssignmentForApproval = async ({ id, idPengguna }) => {
         AND id_pengguna = $2
         AND target_ketercapaian IS NOT NULL
         AND btrim(target_ketercapaian) <> ''
+        AND COALESCE(status_pengajuan, 'diajukan') NOT IN ('diterima', 'diubah')
       RETURNING id_pengguna_kegiatan
     `,
     [id, idPengguna],

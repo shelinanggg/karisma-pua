@@ -204,6 +204,14 @@ export async function getPimpinanPenugasanButirByPegawai(pegawaiId: string) {
   return response.data.data;
 }
 
+export async function getPimpinanKinerjaByPegawai(pegawaiId: string, params?: { tahun?: number }) {
+  const response = await axiosInstance.get<{ data: MyPenugasanButir[] }>(
+    `/penugasan/pimpinan/kinerja/pegawai/${pegawaiId}`,
+    { params },
+  );
+  return response.data.data;
+}
+
 export async function getMyPenugasanButir() {
   const response = await axiosInstance.get<{ data: MyPenugasanButir[] }>("/penugasan/butir/saya");
   return response.data.data;

@@ -12,6 +12,7 @@ import {
   getMyRealisasi,
   getPendingApprovalKegiatan,
   getPenugasanEmployees,
+  getPimpinanKinerjaByEmployee,
   getPimpinanKegiatanDashboard,
   patchApproveKegiatan,
   patchApproveRealisasi,
@@ -33,6 +34,7 @@ router.use(authenticate);
 router.get("/dashboard/utama", authorizeRoles("admin", "pimpinan"), getMainDashboard);
 router.get("/pimpinan/kegiatan", authorizeRoles("admin", "pimpinan"), getPimpinanKegiatanDashboard);
 router.get("/pimpinan/pegawai", authorizeRoles("pimpinan"), getPenugasanEmployees);
+router.get("/pimpinan/kinerja/pegawai/:pegawaiId", authorizeRoles("pimpinan"), getPimpinanKinerjaByEmployee);
 router.post("/pimpinan/butir", authorizeRoles("pimpinan"), postButirAssignment);
 router.get("/pimpinan/butir/pegawai/:pegawaiId", authorizeRoles("pimpinan"), getButirAssignmentsByEmployee);
 router.patch("/pimpinan/butir/:id", authorizeRoles("pimpinan"), patchButirAssignment);

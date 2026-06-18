@@ -122,8 +122,11 @@ export function PromotionWarningRows({
                     <div className="flex items-center gap-3">
                       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
                         <div
-                          className={`h-full transition-all ${achieved ? 'bg-green-600' : 'bg-gray-900'}`}
-                          style={{ width: `${progressPercentage}%` }}
+                          className="h-full transition-all"
+                          style={{
+                            width: `${progressPercentage}%`,
+                            backgroundColor: achieved ? '#16a34a' : '#111827',
+                          }}
                         />
                       </div>
                       <span className={`w-12 text-sm ${achieved ? 'font-semibold text-green-700' : 'text-gray-500'}`}>

@@ -11,6 +11,7 @@ import {
   findApprovalRealisasiByEmployee,
   findApprovalRealisasiEmployees,
   findAssignableEmployees,
+  findButirAssignmentById,
   findButirAssignmentsByEmployee,
   findCurrentYearButirAssignmentsByEmployee,
   findMainDashboardSummary,
@@ -163,6 +164,27 @@ export const getButirAssignmentsByEmployee = async (req, res) => {
   }
 };
 
+export const getPimpinanKinerjaByEmployee = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.params.pegawaiId);
+    const tahun = req.query.tahun === undefined ? null : requiredInteger(req.query.tahun);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun periode tidak valid." });
+    }
+
+    const data = await findCurrentYearButirAssignmentsByEmployee(idPengguna, {
+      tahun,
+    });
+    res.status(200).json({ data });
+  } catch {
+    res.status(500).json({ message: "Gagal mengambil data kinerja pegawai." });
+  }
+};
+
 export const getMyButirAssignments = async (req, res) => {
   try {
     const idPengguna = requiredInteger(req.user?.id_pengguna);
@@ -263,6 +285,16 @@ export const patchMyButirTarget = async (req, res) => {
     });
 
     if (!data) {
+      const assignment = await findButirAssignmentById(id);
+      if (
+        assignment?.idPengguna === String(idPengguna)
+        && (assignment.statusPengajuan === "diterima" || assignment.statusPengajuan === "diubah")
+      ) {
+        return res.status(409).json({
+          message: "Target yang sudah diterima atau diubah tidak dapat diedit kembali.",
+        });
+      }
+
       return res.status(404).json({ message: "Penugasan butir tidak ditemukan untuk akun ini." });
     }
 
