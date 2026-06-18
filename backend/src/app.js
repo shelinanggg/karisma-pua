@@ -9,9 +9,14 @@ import penugasanRoutes from "./routes/penugasan.routes.js";
 import periodeSkpRoutes from "./routes/periodeSkp.routes.js";
 import sistemRoutes from "./routes/sistem.routes.js";
 import { env } from "./config/env.js";
+import pool from "./config/db.js";
 import { auditCrudActivity } from "./middlewares/audit.middleware.js";
 
 const app = express();
+
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 
 const configuredOrigins = (env.CORS_ORIGINS || "")
   .split(",")
@@ -48,6 +53,15 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json({ limit: "100mb" }));
 app.use(auditCrudActivity);
+
+app.get("/api/health", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/butir-kegiatan", butirKegiatanRoutes);
