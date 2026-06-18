@@ -50,6 +50,7 @@ services:
       PGUSER: ${DB_USER}
       PGPASSWORD: ${DB_PASSWORD}
       PGDATABASE: ${DB_NAME}
+      ALLOW_HARDCODED_PERIOD_ID: ${ALLOW_HARDCODED_PERIOD_ID:-false}
     command: ["sh", "scripts/import-private-data.sh"]
     volumes:
       - ./private-data:/private-data:ro

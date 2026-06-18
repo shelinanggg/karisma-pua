@@ -1,5 +1,9 @@
 # Menjalankan Karisma PUA dengan Docker
 
+Panduan deployment lengkap dan berurutan tersedia di:
+
+[`docs/DEPLOYMENT_DOCKER.md`](docs/DEPLOYMENT_DOCKER.md)
+
 Konfigurasi ini menjalankan empat service:
 
 - `postgres`: PostgreSQL 18 dengan volume persisten.

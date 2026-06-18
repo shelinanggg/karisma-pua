@@ -84,4 +84,4 @@ uploads/*
 # =========================
 # Local documentation/data scripts
 # =========================
-docs/
+docs/*
