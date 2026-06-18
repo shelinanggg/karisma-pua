@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { Download, FileText, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 import {
   getMyPenugasanTambahanList,
   type PenugasanTambahan as ApiPenugasanTambahan,
 } from '../../api/penugasanApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { DocumentLinkButton } from '../ui/document-link-button';
 import { Input } from '../ui/input';
 import { cn } from '../ui/utils';
 
@@ -210,7 +211,7 @@ export function PenugasanTambahanView() {
         item.status,
         item.tanggalMulai,
         item.tanggalSelesai,
-        item.suratTugas,
+        item.linkSurat,
         formatPeriode(item),
         item.assignedEmployees.map((employee) => `${employee.nama} ${employee.nip}`).join(' '),
       ]
@@ -273,7 +274,7 @@ export function PenugasanTambahanView() {
                     <th className="w-[34%] px-6 py-3">Deskripsi Kegiatan</th>
                     <th className="w-[16%] px-6 py-3">Tanggal</th>
                     <th className="w-[10%] px-6 py-3">Status</th>
-                    <th className="w-[12%] px-6 py-3">Surat Tugas</th>
+                    <th className="w-[12%] px-6 py-3 text-center">Surat Tugas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -302,30 +303,8 @@ export function PenugasanTambahanView() {
                         <td className="px-6 py-4">
                           <StatusBadge status={item.status} />
                         </td>
-                        <td className="px-6 py-4">
-                          {item.suratTugas ? (
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={`/surat-tugas/${item.suratTugas}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={`Buka ${item.suratTugas}`}
-                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
-                              >
-                                <FileText className="size-4" />
-                              </a>
-                              <a
-                                href={`/surat-tugas/${item.suratTugas}`}
-                                download={item.suratTugas}
-                                title={`Unduh ${item.suratTugas}`}
-                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-gray-900"
-                              >
-                                <Download className="size-4" />
-                              </a>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-gray-400">Belum diunggah</span>
-                          )}
+                        <td className="px-6 py-4 text-center">
+                          <DocumentLinkButton href={item.linkSurat} title="Buka Link Drive Surat Tugas" />
                         </td>
                       </tr>
                     ))

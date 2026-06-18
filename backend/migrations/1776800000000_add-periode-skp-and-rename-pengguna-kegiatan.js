@@ -165,15 +165,11 @@ export const up = (pgm) => {
       deskripsi text,
       tanggal_mulai date,
       tanggal_selesai date,
-      id_surat_tugas_dokumen integer REFERENCES dokumen(id_dokumen) ON DELETE SET NULL,
-      surat_tugas text,
+      link_surat text,
       created_at timestamp with time zone DEFAULT current_timestamp,
       updated_at timestamp with time zone DEFAULT current_timestamp,
       CONSTRAINT penugasan_tambahan_status_check CHECK (status IN ('aktif', 'selesai', 'batal'))
     );
-
-    CREATE INDEX IF NOT EXISTS penugasan_tambahan_id_surat_tugas_dokumen_idx
-      ON penugasan_tambahan(id_surat_tugas_dokumen);
 
     DO $$
     BEGIN

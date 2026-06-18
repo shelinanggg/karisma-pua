@@ -58,6 +58,7 @@ export type MyRealisasiKegiatan = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+  linkDokumenPendukung: string;
   status: 'diajukan' | 'disetujui';
 };
 
@@ -66,6 +67,7 @@ export type MyRealisasiKegiatanPayload = {
   tanggalRealisasi: string;
   realisasiTarget: string;
   keterangan: string;
+  linkDokumenPendukung?: string;
 };
 
 export type ApprovalRealisasiEmployee = {
@@ -90,6 +92,7 @@ export type ApprovalRealisasiItem = {
   realisasiTarget: string;
   keterangan: string;
   targetKetercapaian: string;
+  linkDokumenPendukung: string;
   status: 'diajukan' | 'disetujui';
 };
 
@@ -106,7 +109,7 @@ export type PenugasanTambahan = {
   status: string;
   tanggalMulai: string;
   tanggalSelesai: string;
-  suratTugas: string;
+  linkSurat: string;
   assignedEmployees: PenugasanTambahanEmployee[];
 };
 
@@ -116,6 +119,7 @@ export type PenugasanTambahanPayload = {
   deskripsiKegiatan?: string;
   tanggalMulai: string;
   tanggalSelesai: string;
+  linkSurat?: string;
 };
 
 export type MyDashboardSummary = {
@@ -123,6 +127,8 @@ export type MyDashboardSummary = {
     achievementPercentage: number | null;
     realisasiTotal: number;
     targetKetercapaian: number;
+    angkaKreditSaatIni: number | null;
+    targetAngkaKreditNaikJabatan: number | null;
     totalKegiatan: number;
   };
   timeline: {

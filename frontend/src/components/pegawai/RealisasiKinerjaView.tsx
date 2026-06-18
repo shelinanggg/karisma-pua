@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Calendar, Check, ChevronsUpDown, FileText, Plus, Search, Upload } from 'lucide-react';
+import { Calendar, Check, ChevronsUpDown, Pencil, Plus, Search } from 'lucide-react';
 
 import {
   createMyRealisasiKegiatan,
@@ -14,6 +14,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { DocumentLinkButton } from '../ui/document-link-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { cn } from '../ui/utils';
@@ -21,7 +22,7 @@ import { cn } from '../ui/utils';
 type Option = { id: string; label: string };
 type AssignmentStatus = 'Belum Ditetapkan' | 'Belum Ada Realisasi' | 'Sedang Berjalan' | 'Selesai' | 'Terlambat';
 type ActiveStatus = 'Aktif' | 'Selesai' | 'Batal';
-type TargetSubmissionStatus = 'diajukan' | 'diterima' | 'diubah';
+type TargetSubmissionStatus = 'belum_diajukan' | 'diajukan' | 'diterima' | 'diubah';
 type RealisasiStatus = MyRealisasiKegiatan['status'];
 type FilterOption = { value: string; label: string };
 
@@ -34,10 +35,11 @@ const assignmentStatusOptions: AssignmentStatus[] = [
   'Selesai',
   'Terlambat',
 ];
-const targetSubmissionStatusOptions: TargetSubmissionStatus[] = ['diajukan', 'diterima', 'diubah'];
+const targetSubmissionStatusOptions: TargetSubmissionStatus[] = ['belum_diajukan', 'diajukan', 'diterima', 'diubah'];
 const realisasiStatusOptions: RealisasiStatus[] = ['diajukan', 'disetujui'];
 
 const targetSubmissionLabelMap: Record<TargetSubmissionStatus, string> = {
+  belum_diajukan: 'Belum Diajukan',
   diajukan: 'Diajukan',
   diterima: 'Diterima',
   diubah: 'Diubah',
@@ -124,6 +126,10 @@ function getActiveStatus(item: MyPenugasanButir): ActiveStatus {
 }
 
 function getTargetSubmissionStatus(item: MyPenugasanButir): TargetSubmissionStatus {
+  if (!hasTarget(item)) {
+    return 'belum_diajukan';
+  }
+
   if (item.statusPengajuan === 'diterima' || item.statusPengajuan === 'diubah') {
     return item.statusPengajuan;
   }
@@ -360,14 +366,17 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
 }
 
 function RealisasiStatusBadge({ status }: { status: RealisasiStatus }) {
-  const styleMap: Record<RealisasiStatus, string> = {
-    diajukan: 'bg-amber-50 text-amber-700',
-    disetujui: 'bg-green-50 text-green-700',
+  const styleMap: Record<RealisasiStatus, { bg: string; fg: string }> = {
+    diajukan: { bg: '#fef3c7', fg: '#b45309' },
+    disetujui: { bg: '#dcfce7', fg: '#15803d' },
   };
 
   return (
-    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
-      {realisasiStatusLabelMap[status]}
+    <span
+      className="inline-flex w-24 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
+    >
+      <span className="truncate">{realisasiStatusLabelMap[status]}</span>
     </span>
   );
 }
@@ -388,6 +397,7 @@ function ActiveStatusBadge({ status }: { status: ActiveStatus }) {
 
 function TargetSubmissionBadge({ status }: { status: TargetSubmissionStatus }) {
   const styleMap: Record<TargetSubmissionStatus, { bg: string; fg: string }> = {
+    belum_diajukan: { bg: '#f3f4f6', fg: '#4b5563' },
     diajukan: { bg: '#fef3c7', fg: '#b45309' },
     diterima: { bg: '#dcfce7', fg: '#15803d' },
     diubah: { bg: '#dbeafe', fg: '#1d4ed8' },
@@ -395,7 +405,7 @@ function TargetSubmissionBadge({ status }: { status: TargetSubmissionStatus }) {
 
   return (
     <span
-      className="inline-flex w-24 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
+      className="inline-flex min-w-28 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
       style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
     >
       <span className="truncate">{targetSubmissionLabelMap[status]}</span>
@@ -660,6 +670,8 @@ function TargetTab({
   const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedAssignments = filteredAssignments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const selectedTargetAssignment = assignments.find((item) => item.id === form.penugasanId);
+  const isEditingSubmittedTarget = Boolean(selectedTargetAssignment && hasTarget(selectedTargetAssignment));
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -679,6 +691,11 @@ function TargetTab({
       deskripsi: assignment.deskripsi ?? '',
     });
     setError('');
+  };
+
+  const handleEditAssignment = (id: string) => {
+    handleSelectAssignment(id);
+    window.setTimeout(() => focusFormField(targetJumlahRef), 50);
   };
 
   const handleSubmit = async () => {
@@ -799,7 +816,7 @@ function TargetTab({
               Reset
             </Button>
             <Button disabled={isSubmitting} onClick={handleSubmit}>
-              {isSubmitting ? 'Mengajukan...' : 'Ajukan'}
+              {isSubmitting ? 'Menyimpan...' : isEditingSubmittedTarget ? 'Simpan Perubahan' : 'Ajukan'}
             </Button>
           </div>
         </CardContent>
@@ -891,7 +908,21 @@ function TargetTab({
                           <ActiveStatusBadge status={getActiveStatus(item)} />
                         </td>
                         <td className="px-6 py-4">
-                          <TargetSubmissionBadge status={getTargetSubmissionStatus(item)} />
+                          <div className="flex flex-col items-start gap-2">
+                            <TargetSubmissionBadge status={getTargetSubmissionStatus(item)} />
+                            {getTargetSubmissionStatus(item) === 'diajukan' && hasTarget(item) && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2.5 text-xs"
+                                onClick={() => handleEditAssignment(item.id)}
+                              >
+                                <Pencil className="size-3.5" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -941,7 +972,7 @@ function RealisasiTab({
     tanggal: '',
     jumlah: '',
     keterangan: '',
-    suratTugas: '',
+    linkDokumenPendukung: '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -975,11 +1006,6 @@ function RealisasiTab({
     setError('');
   };
 
-  const handleFile = (file: File | null) => {
-    if (!file) return;
-    updateForm('suratTugas', file.name);
-  };
-
   const handleSubmit = async () => {
     if (!form.penugasanId) {
       setError('Penugasan wajib dipilih.');
@@ -1009,9 +1035,10 @@ function RealisasiTab({
         tanggalRealisasi: form.tanggal,
         realisasiTarget: form.jumlah,
         keterangan: form.keterangan,
+        linkDokumenPendukung: form.linkDokumenPendukung,
       });
       await onSaved();
-      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' });
+      setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', linkDokumenPendukung: '' });
     } catch {
       setError('Gagal menyimpan realisasi kegiatan.');
     } finally {
@@ -1128,27 +1155,15 @@ function RealisasiTab({
           </div>
 
           <div className="space-y-2">
-            <Label>Dokumen Pendukung</Label>
-            <input
-              id="surat-tugas-realisasi"
-              type="file"
-              className="hidden"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+            <Label htmlFor="link-dokumen-pendukung">Link Drive Dokumen Pendukung</Label>
+            <Input
+              id="link-dokumen-pendukung"
+              type="url"
+              value={form.linkDokumenPendukung}
+              onChange={(event) => updateForm('linkDokumenPendukung', event.target.value)}
+              placeholder="https://drive.google.com/..."
+              className="h-11 border-gray-300 bg-white"
             />
-            <div
-              className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center transition hover:bg-gray-100"
-              style={{ borderColor: '#d1d5db' }}
-            >
-              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret dokumen pendukung ke area ini'}</p>
-              <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
-              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('surat-tugas-realisasi')?.click()}>
-                Cari File Manual
-              </Button>
-            </div>
           </div>
 
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
@@ -1156,7 +1171,7 @@ function RealisasiTab({
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', suratTugas: '' })}
+              onClick={() => setForm({ penugasanId: '', tanggal: '', jumlah: '', keterangan: '', linkDokumenPendukung: '' })}
               disabled={isSubmitting}
             >
               Reset
@@ -1229,7 +1244,7 @@ function RealisasiTab({
                     <th className="w-[12%] px-6 py-3">Realisasi</th>
                     <th className="w-[12%] px-6 py-3">Status</th>
                     <th className="w-[20%] px-6 py-3">Keterangan</th>
-                    <th className="w-[18%] px-6 py-3">Dokumen Pendukung</th>
+                    <th className="w-[18%] px-6 py-3 text-center">Dokumen Pendukung</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1252,7 +1267,9 @@ function RealisasiTab({
                           <RealisasiStatusBadge status={item.status} />
                         </td>
                         <td className="px-6 py-4 pr-8 text-gray-700">{item.keterangan || '-'}</td>
-                        <td className="px-6 py-4 text-gray-500">Tidak ada dokumen</td>
+                        <td className="px-6 py-4 text-center">
+                          <DocumentLinkButton href={item.linkDokumenPendukung} title="Buka dokumen pendukung" />
+                        </td>
                       </tr>
                     ))
                   ) : (

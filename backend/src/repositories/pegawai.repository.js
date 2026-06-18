@@ -57,6 +57,19 @@ export const findAllPegawai = async () => {
   return result.rows.map(mapPegawaiRow);
 };
 
+export const deactivateRetiredPegawai = async () => {
+  const result = await pool.query(`
+    UPDATE pengguna
+    SET status_aktif = FALSE
+    WHERE status_aktif IS DISTINCT FROM FALSE
+      AND tmt_pensiun IS NOT NULL
+      AND tmt_pensiun::date <= CURRENT_DATE
+    RETURNING id_pengguna
+  `);
+
+  return result.rowCount;
+};
+
 export const findPegawaiById = async (id) => {
   const result = await pool.query(
     `
