@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ClipboardList,
   Clock,
-  Download,
   FileText,
   Hourglass,
   TrendingUp,
@@ -24,6 +23,7 @@ import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { DocumentLinkButton } from '../ui/document-link-button';
 import { Progress } from '../ui/progress';
 import { cn } from '../ui/utils';
 
@@ -257,18 +257,19 @@ export function PegawaiOverview() {
 
     return [
       {
-        label: 'Ketercapaian',
+        label: 'Angka Kredit',
         value: isLoading
           ? '...'
-          : dashboard?.summary.achievementPercentage === null
+          : dashboard?.summary.angkaKreditSaatIni === null || dashboard?.summary.angkaKreditSaatIni === undefined
             ? '-'
-            : `${formatNumber(dashboard?.summary.achievementPercentage ?? 0)}%`,
+            : formatNumber(dashboard.summary.angkaKreditSaatIni),
         detail:
           isLoading
             ? 'Memuat data'
-            : dashboard?.summary.targetKetercapaian
-            ? `${formatNumber(dashboard.summary.realisasiTotal)}/${formatNumber(dashboard.summary.targetKetercapaian)}`
-            : 'Target belum diisi',
+            : dashboard?.summary.targetAngkaKreditNaikJabatan === null ||
+                dashboard?.summary.targetAngkaKreditNaikJabatan === undefined
+              ? 'Target untuk kenaikan jabatan berikutnya belum tersedia'
+              : `Target untuk kenaikan jabatan berikutnya: ${formatNumber(dashboard.summary.targetAngkaKreditNaikJabatan)}`,
         detailIcon: TrendingUp,
         icon: BarChart3,
         color: 'amber',
@@ -439,27 +440,18 @@ export function PegawaiOverview() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold leading-tight text-gray-900">{item.namaKegiatan}</p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                        <span className="truncate">{item.suratTugas || 'Belum ada surat tugas'}</span>
+                        <span className="truncate">{item.linkSurat ? 'Link surat tugas tersedia' : 'Belum ada surat tugas'}</span>
                         <span>-</span>
                         <span className="shrink-0">{formatPeriodeTambahan(item)}</span>
                       </div>
                     </div>
                   </div>
 
-                  {item.suratTugas ? (
-                    <a
-                      href={`/surat-tugas/${item.suratTugas}`}
-                      download={item.suratTugas}
-                      title={`Unduh ${item.suratTugas}`}
-                      className="ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition hover:bg-blue-50 hover:text-blue-600"
-                    >
-                      <Download className="size-4" />
-                    </a>
-                  ) : (
-                    <Button variant="ghost" size="icon" className="ml-2 size-8 shrink-0 text-gray-300" disabled title="Surat tugas belum tersedia">
-                      <Download className="size-4" />
-                    </Button>
-                  )}
+                  <DocumentLinkButton
+                    href={item.linkSurat}
+                    title="Buka Link Drive Surat Tugas"
+                    className="ml-2 shrink-0"
+                  />
                 </div>
               ))
             ) : (

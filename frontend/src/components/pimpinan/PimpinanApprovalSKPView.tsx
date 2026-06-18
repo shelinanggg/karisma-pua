@@ -10,6 +10,7 @@ import {
   type ApprovalRealisasiItem,
 } from '../../api/penugasanApi';
 import { Button } from '../ui/button';
+import { DocumentLinkButton } from '../ui/document-link-button';
 import { Input } from '../ui/input';
 
 type ApprovalStatus = ApprovalRealisasiItem['status'];
@@ -22,9 +23,20 @@ const statusLabelMap: Record<ApprovalStatus, string> = {
   disetujui: 'Disetujui',
 };
 
-const statusClassMap: Record<ApprovalStatus, string> = {
-  diajukan: 'bg-amber-50 text-amber-700',
-  disetujui: 'bg-green-50 text-green-700',
+const statusStyleMap: Record<
+  ApprovalStatus,
+  { backgroundColor: string; borderColor: string; color: string }
+> = {
+  diajukan: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    color: '#92400e',
+  },
+  disetujui: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#22c55e',
+    color: '#166534',
+  },
 };
 
 function formatTanggal(iso: string) {
@@ -42,8 +54,24 @@ function formatNumber(value: number | string) {
 
 function StatusBadge({ status }: { status: ApprovalStatus }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusClassMap[status]}`}>
-      {statusLabelMap[status]}
+    <span
+      className="inline-flex min-w-28 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm"
+      style={statusStyleMap[status]}
+    >
+      <span className="truncate">{statusLabelMap[status]}</span>
+    </span>
+  );
+}
+
+function PendingApprovalCard({ count }: { count: number }) {
+  const status: ApprovalStatus = count > 0 ? 'diajukan' : 'disetujui';
+
+  return (
+    <span
+      className="inline-flex min-w-36 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-semibold shadow-sm"
+      style={statusStyleMap[status]}
+    >
+      {count > 0 ? `${count} belum disetujui` : 'Semua disetujui'}
     </span>
   );
 }
@@ -265,9 +293,7 @@ export function PimpinanApprovalSKPView() {
                     </td>
 
                     <td className="px-6 py-4 text-center">
-                      <span className="text-sm font-semibold text-gray-700">
-                        {employee.pendingCount} belum disetujui
-                      </span>
+                      <PendingApprovalCard count={employee.pendingCount} />
                     </td>
 
                     <td className="px-6 py-4 text-center font-medium text-gray-800">
@@ -314,7 +340,7 @@ export function PimpinanApprovalSKPDetailView() {
   const [selectedEmployee, setSelectedEmployee] = useState<ApprovalRealisasiEmployee | null>(routeState?.employee ?? null);
   const [approvalItems, setApprovalItems] = useState<ApprovalRealisasiItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ApprovalStatus>('diajukan');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
@@ -495,7 +521,7 @@ export function PimpinanApprovalSKPDetailView() {
 
       <div className="overflow-hidden rounded-md border border-gray-200 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[940px] border-collapse text-sm">
+          <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead>
               <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
                 <th className="w-12 px-6 py-3"></th>
@@ -505,13 +531,14 @@ export function PimpinanApprovalSKPDetailView() {
                 <th className="px-6 py-3 text-center">Realisasi</th>
                 <th className="px-6 py-3 text-center">Status</th>
                 <th className="px-6 py-3">Keterangan</th>
+                <th className="px-6 py-3 text-center">Dokumen Pendukung</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-gray-200">
               {isLoadingItems ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500">
                     Memuat detail realisasi...
                   </td>
                 </tr>
@@ -546,11 +573,15 @@ export function PimpinanApprovalSKPDetailView() {
                     </td>
 
                     <td className="px-6 py-4 text-gray-700">{item.keterangan || '-'}</td>
+
+                    <td className="px-6 py-4 text-center">
+                      <DocumentLinkButton href={item.linkDokumenPendukung} title="Buka dokumen pendukung" />
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500">
                     Tidak ada realisasi untuk status ini.
                   </td>
                 </tr>

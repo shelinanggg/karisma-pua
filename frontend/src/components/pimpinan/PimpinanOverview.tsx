@@ -3,10 +3,17 @@ import { TrendingUp, TrendingDown, Target, CalendarCheck, Users, Eye, ChevronDow
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
+import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 import { WorkspaceDashboard } from '../workspace/WorkspaceDashboard';
 import { Workspace } from '../../types';
 import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
-import { getDashboardUtamaData, type DashboardKegiatan, type DashboardKpi, type EmployeeStatistics } from '../../api/dashboardApi';
+import {
+  getDashboardUtamaData,
+  type DashboardKegiatan,
+  type DashboardKpi,
+  type EmployeeStatistics,
+  type StatisticItem,
+} from '../../api/dashboardApi';
 
 const kpiColorMap: Record<string, { border: string }> = {
   blue: { border: 'border-blue-100' },
@@ -22,36 +29,15 @@ const kpiIconMap: Record<string, typeof Users> = {
   'Jumlah Kegiatan': CalendarCheck,
 };
 
-const demoEmployeeStatistics: EmployeeStatistics = {
-  golongan: [
-    { label: 'III/a', value: 34, percentage: 28.3 },
-    { label: 'III/b', value: 29, percentage: 24.2 },
-    { label: 'IV/a', value: 24, percentage: 20.0 },
-    { label: 'II/c', value: 13, percentage: 10.8 },
-    { label: 'Lainnya', value: 20, percentage: 16.7 },
-  ],
-  pendidikan: [
-    { label: 'S1', value: 45, percentage: 37.5 },
-    { label: 'S2', value: 28, percentage: 23.3 },
-    { label: 'D3', value: 19, percentage: 15.8 },
-    { label: 'SMA', value: 17, percentage: 14.2 },
-    { label: 'Lainnya', value: 11, percentage: 9.2 },
-  ],
-  fungsional: [
-    { label: 'Analis', value: 31, percentage: 25.8 },
-    { label: 'Pranata', value: 26, percentage: 21.7 },
-    { label: 'Perencana', value: 22, percentage: 18.3 },
-    { label: 'Auditor', value: 18, percentage: 15.0 },
-    { label: 'Lainnya', value: 23, percentage: 19.2 },
-  ],
-  jabatan: [
-    { label: 'Pelaksana', value: 42, percentage: 35.0 },
-    { label: 'Staf', value: 27, percentage: 22.5 },
-    { label: 'Kepala Subbag', value: 18, percentage: 15.0 },
-    { label: 'Kepala Bidang', value: 13, percentage: 10.8 },
-    { label: 'Lainnya', value: 20, percentage: 16.7 },
-  ],
+const emptyEmployeeStatistics: EmployeeStatistics = {
+  golongan: [],
+  pendidikan: [],
+  fungsional: [],
+  jabatan: [],
 };
+
+const statisticColors = ['#2563eb', '#16a34a', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+const pieLabelRadius = 53;
 
 function formatPeriodeLabel(periode: PeriodeSkp) {
   return String(periode.tahun);
@@ -59,6 +45,114 @@ function formatPeriodeLabel(periode: PeriodeSkp) {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value || 0);
+}
+
+function compactStatisticItems(items: StatisticItem[]): StatisticItem[] {
+  const populatedItems = items.filter((item) => item.value > 0);
+  if (populatedItems.length <= statisticColors.length) return populatedItems;
+
+  const visibleItems = populatedItems.slice(0, statisticColors.length - 1);
+  const remainingItems = populatedItems.slice(statisticColors.length - 1);
+  return [
+    ...visibleItems,
+    {
+      label: 'Lainnya',
+      value: remainingItems.reduce((sum, item) => sum + item.value, 0),
+      percentage: remainingItems.reduce((sum, item) => sum + item.percentage, 0),
+    },
+  ];
+}
+
+function renderPiePercentageLabel({
+  cx,
+  cy,
+  midAngle,
+  percent,
+}: {
+  cx: number;
+  cy: number;
+  midAngle: number;
+  percent: number;
+}) {
+  const radians = (-midAngle * Math.PI) / 180;
+  const x = cx + pieLabelRadius * Math.cos(radians);
+  const y = cy + pieLabelRadius * Math.sin(radians);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={8}
+      fontWeight={700}
+      pointerEvents="none"
+    >
+      {`${Math.round(percent * 100)}%`}
+    </text>
+  );
+}
+
+function StatisticsPieCard({
+  title,
+  icon: Icon,
+  items,
+}: {
+  title: string;
+  icon: typeof Users;
+  items: StatisticItem[];
+}) {
+  const chartItems = compactStatisticItems(items);
+
+  return (
+    <Card className="gap-2 py-4">
+      <CardHeader className="px-4 pb-0">
+        <CardDescription className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          {title}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-3">
+        {chartItems.length > 0 ? (
+          <>
+            <div className="flex h-40 w-full items-center justify-center overflow-hidden">
+              <PieChart width={210} height={160}>
+                <Pie
+                  data={chartItems}
+                  dataKey="value"
+                  nameKey="label"
+                  cx={105}
+                  cy={78}
+                  innerRadius={40}
+                  outerRadius={66}
+                  paddingAngle={2}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  label={renderPiePercentageLabel}
+                  labelLine={false}
+                >
+                  {chartItems.map((item, index) => (
+                    <Cell key={item.label} fill={statisticColors[index % statisticColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value, _name, entry) => [
+                    `${formatNumber(Number(value))} pegawai (${Number(entry.payload.percentage).toFixed(1)}%)`,
+                    entry.payload.label,
+                  ]}
+                />
+              </PieChart>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-40 items-center justify-center text-sm text-gray-500">
+            Belum ada data pegawai.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function PimpinanOverview() {
@@ -70,7 +164,7 @@ export function PimpinanOverview() {
   const [dashboardKpis, setDashboardKpis] = useState<DashboardKpi[]>([]);
   const [dashboardKegiatan, setDashboardKegiatan] = useState<DashboardKegiatan[]>([]);
   const [statistics, setStatistics] = useState<EmployeeStatistics | undefined>();
-  const displayStatistics = statistics ?? demoEmployeeStatistics;
+  const displayStatistics = statistics ?? emptyEmployeeStatistics;
   const selectedPeriode = periodeItems.find((periode) => String(periode.id) === selectedPeriodeId) ?? null;
 
   useEffect(() => {
@@ -168,109 +262,17 @@ export function PimpinanOverview() {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-gray-700" />
-            <h2>Statistik Kepegawaian</h2>
-          </div>
-          {!statistics && (
-            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 border border-amber-200">
-              Tampilan contoh frontend
-            </span>
-          )}
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-gray-700" />
+          <h2>Statistik Kepegawaian</h2>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {displayStatistics.golongan.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  Golongan
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {displayStatistics.golongan.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700 font-medium">{item.label}</span>
-                      <span className="text-gray-600">{item.value}</span>
-                    </div>
-                    <Progress value={item.percentage} className="h-1.5" />
-                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {displayStatistics.pendidikan.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4" />
-                  Pendidikan
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {displayStatistics.pendidikan.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700 font-medium">{item.label}</span>
-                      <span className="text-gray-600">{item.value}</span>
-                    </div>
-                    <Progress value={item.percentage} className="h-1.5" />
-                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {displayStatistics.fungsional.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4" />
-                  Fungsional
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {displayStatistics.fungsional.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700 font-medium truncate">{item.label}</span>
-                      <span className="text-gray-600">{item.value}</span>
-                    </div>
-                    <Progress value={item.percentage} className="h-1.5" />
-                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {displayStatistics.jabatan.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Target className="w-4 h-4" />
-                  Jabatan
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {displayStatistics.jabatan.map((item, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-700 font-medium truncate">{item.label}</span>
-                      <span className="text-gray-600">{item.value}</span>
-                    </div>
-                    <Progress value={item.percentage} className="h-1.5" />
-                    <p className="text-xs text-gray-500">{item.percentage.toFixed(1)}%</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+        <div className="overflow-x-auto pb-1">
+          <div className="grid min-w-[900px] grid-cols-4 gap-4">
+            <StatisticsPieCard title="Golongan" icon={Users} items={displayStatistics.golongan} />
+            <StatisticsPieCard title="Pendidikan" icon={GraduationCap} items={displayStatistics.pendidikan} />
+            <StatisticsPieCard title="Fungsional" icon={Briefcase} items={displayStatistics.fungsional} />
+            <StatisticsPieCard title="Jabatan" icon={Target} items={displayStatistics.jabatan} />
+          </div>
         </div>
       </div>
 

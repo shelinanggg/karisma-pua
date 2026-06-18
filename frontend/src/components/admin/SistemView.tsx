@@ -299,14 +299,15 @@ export function SistemView() {
     setRestoreRunning(true);
     setRestoreError('');
     try {
-      const sqlContent = await restoreFile.text();
-      await restoreBackup({ fileName: restoreFile.name, sqlContent });
+      await restoreBackup(restoreFile);
       setRestoreConfirmModalOpen(false);
       setRestoreFile(null);
       setBackupPage(1);
       await loadBackupLogs();
     } catch (error: any) {
-      setRestoreError(error.response?.data?.message || 'Gagal restore database.');
+      const message = error.response?.data?.message || 'Gagal restore database.';
+      const detail = error.response?.data?.detail;
+      setRestoreError(detail ? `${message} ${detail}` : message);
       await loadBackupLogs();
     } finally {
       setRestoreRunning(false);
@@ -611,35 +612,72 @@ export function SistemView() {
       )}
 
       {isRestoreConfirmModalOpen && (
-        <Modal onClose={() => !isRestoreRunning && setRestoreConfirmModalOpen(false)} title="" hideHeader>
-          <div className="p-6 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: 'var(--status-failed-bg)', color: 'var(--status-failed)' }}>
-              <AlertCircle className="h-7 w-7" />
-            </div>
-            <h3 className="mb-3 text-xl font-bold text-foreground">Pulihkan Basis Data</h3>
-            {restoreFile && (
-              <div className="mb-3 inline-flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
-                <FileText className="h-3.5 w-3.5" />
-                {restoreFile.name}
+        <Modal onClose={() => !isRestoreRunning && setRestoreConfirmModalOpen(false)} title="" size="lg" hideHeader>
+          <div className="restore-confirm-dialog">
+            <div className="restore-confirm-dialog__glow" />
+            <button
+              type="button"
+              aria-label="Tutup dialog"
+              disabled={isRestoreRunning}
+              onClick={() => setRestoreConfirmModalOpen(false)}
+              className="restore-confirm-dialog__close"
+            >
+              <X />
+            </button>
+
+            <div className="restore-confirm-dialog__body">
+              <div className="restore-confirm-dialog__icon">
+                <Database />
               </div>
-            )}
-            <div className="flex gap-3 rounded-lg p-4 text-left text-sm" style={{ background: 'var(--status-failed-bg)', color: 'var(--status-failed)' }}>
-              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
-              <div>
-                <p className="mb-1 font-bold">PERINGATAN KRITIS</p>
-                <p>Proses ini akan menimpa data yang ada sesuai isi file SQL. Pastikan database sudah dicadangkan sebelum melanjutkan.</p>
+
+              <p className="restore-confirm-dialog__eyebrow">
+                Konfirmasi pemulihan
+              </p>
+              <h3 className="restore-confirm-dialog__title">Pulihkan basis data?</h3>
+              <p className="restore-confirm-dialog__description">
+                Sistem akan mengganti struktur dan data saat ini dengan isi cadangan yang dipilih.
+              </p>
+
+              {restoreFile && (
+                <div className="restore-confirm-dialog__file">
+                  <div className="restore-confirm-dialog__file-icon">
+                    <FileText />
+                  </div>
+                  <div className="restore-confirm-dialog__file-copy">
+                    <p className="restore-confirm-dialog__file-name">{restoreFile.name}</p>
+                    <p className="restore-confirm-dialog__file-meta">{formatBytes(restoreFile.size)} · File cadangan SQL</p>
+                  </div>
+                  <span className="restore-confirm-dialog__file-badge">SQL</span>
+                </div>
+              )}
+
+              <div className="restore-confirm-dialog__warning">
+                <AlertCircle />
+                <div>
+                  <p className="restore-confirm-dialog__warning-title">Pastikan cadangan ini sudah benar</p>
+                  <p className="restore-confirm-dialog__warning-copy">
+                    Proses tidak dapat dibatalkan setelah selesai. Jika terjadi kesalahan saat restore, seluruh perubahan akan otomatis dibatalkan.
+                  </p>
+                </div>
               </div>
+
+              {restoreError && (
+                <div className="restore-confirm-dialog__error">
+                  <AlertCircle />
+                  <p>{restoreError}</p>
+                </div>
+              )}
             </div>
-            {restoreError && <p className="mt-3 rounded-md bg-red-50 p-3 text-left text-sm font-medium text-red-600">{restoreError}</p>}
           </div>
-          <ModalFooter>
-            <button type="button" disabled={isRestoreRunning} onClick={() => { setRestoreConfirmModalOpen(false); setRestoreFile(null); }} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-60">
+          <div className="restore-confirm-dialog__footer">
+            <button type="button" disabled={isRestoreRunning} onClick={() => { setRestoreConfirmModalOpen(false); setRestoreFile(null); }} className="restore-confirm-dialog__button restore-confirm-dialog__button--cancel">
               Batal
             </button>
-            <button type="button" disabled={isRestoreRunning} onClick={handleRestore} className="rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60" style={{ background: 'var(--status-failed)' }}>
-              {isRestoreRunning ? 'Memulihkan...' : 'Pulihkan Basis Data'}
+            <button type="button" disabled={isRestoreRunning} onClick={handleRestore} className="restore-confirm-dialog__button restore-confirm-dialog__button--restore">
+              {isRestoreRunning ? <RefreshCw className="animate-spin" /> : <Database />}
+              {isRestoreRunning ? 'Sedang memulihkan...' : 'Ya, pulihkan sekarang'}
             </button>
-          </ModalFooter>
+          </div>
         </Modal>
       )}
     </div>

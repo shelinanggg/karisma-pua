@@ -9,6 +9,10 @@ router.use(authenticate, authorizeRoles("admin"));
 router.get("/audit-logs", getAuditLogs);
 router.get("/backups", getBackupLogs);
 router.post("/backups", createBackup);
-router.post("/restore", restoreBackup);
+router.post(
+  "/restore",
+  express.raw({ type: ["application/sql", "text/plain"], limit: "100mb" }),
+  restoreBackup,
+);
 
 export default router;

@@ -96,3 +96,35 @@ export const deletePeriodeSkp = async (id) => {
 
   return result.rowCount > 0;
 };
+
+export const ensureUpcomingPeriodeSkp = async () => {
+  const result = await pool.query(`
+    WITH periode_terbaru AS (
+      SELECT
+        tahun,
+        tanggal_selesai
+      FROM periode_skp
+      WHERE CURRENT_DATE >= tanggal_selesai - INTERVAL '3 months'
+      ORDER BY tahun DESC, tanggal_selesai DESC, id_periode_skp DESC
+      LIMIT 1
+    )
+    INSERT INTO periode_skp (
+      tahun,
+      tanggal_mulai,
+      tanggal_selesai
+    )
+    SELECT
+      periode_terbaru.tahun + 1,
+      make_date(periode_terbaru.tahun + 1, 1, 1),
+      make_date(periode_terbaru.tahun + 1, 12, 31)
+    FROM periode_terbaru
+    ON CONFLICT (tahun) DO NOTHING
+    RETURNING
+      id_periode_skp,
+      tahun,
+      tanggal_mulai::text AS tanggal_mulai,
+      tanggal_selesai::text AS tanggal_selesai
+  `);
+
+  return result.rows[0] ? mapPeriodeRow(result.rows[0]) : null;
+};

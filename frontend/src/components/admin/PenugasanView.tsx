@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, Check, ChevronsUpDown, Eye, FileText, Pencil, Search, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, ChevronsUpDown, Eye, Pencil, Search, Trash2, X } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getButirKegiatanList, type ButirKegiatan } from '../../api/butirKegiatanApi';
 import { getPeriodeSkpList, type PeriodeSkp } from '../../api/periodeSkpApi';
@@ -29,6 +29,7 @@ import {
 } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { DocumentLinkButton } from '../ui/document-link-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { cn } from '../ui/utils';
@@ -621,7 +622,7 @@ function PenugasanTambahanForm() {
     tanggalMulai: '',
     tanggalSelesai: '',
     tanggalKegiatan: '',
-    suratTugas: '',
+    linkSurat: '',
   });
   const [error, setError] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -675,11 +676,6 @@ function PenugasanTambahanForm() {
     setError('');
   };
 
-  const handleFile = (file: File | null) => {
-    if (!file) return;
-    updateForm('suratTugas', file.name);
-  };
-
   const isFormValid =
     Boolean(assignedEmployeeIds[0]) &&
     Boolean(form.namaKegiatan.trim()) &&
@@ -717,6 +713,7 @@ function PenugasanTambahanForm() {
         deskripsiKegiatan: form.deskripsiKegiatan,
         tanggalMulai,
         tanggalSelesai,
+        linkSurat: form.linkSurat,
       });
       setAssignedEmployeeIds(['']);
       setForm({
@@ -726,7 +723,7 @@ function PenugasanTambahanForm() {
         tanggalMulai: '',
         tanggalSelesai: '',
         tanggalKegiatan: '',
-        suratTugas: '',
+        linkSurat: '',
       });
       setHistoryPage(1);
       await loadFormData();
@@ -791,18 +788,15 @@ function PenugasanTambahanForm() {
           )}
 
           <div className="space-y-2">
-            <Label>Surat Tugas</Label>
-            <input id="surat-tugas" type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={(event) => handleFile(event.target.files?.[0] ?? null)} />
-            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center transition hover:bg-gray-100" style={{ borderColor: '#d1d5db' }}>
-              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                {form.suratTugas ? <FileText className="size-5 text-gray-700" /> : <Upload className="size-5 text-gray-500" />}
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Seret surat tugas ke area ini'}</p>
-              <p className="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, atau PNG</p>
-              <Button type="button" variant="outline" className="mt-4 h-9 px-3 text-sm" onClick={() => document.getElementById('surat-tugas')?.click()}>
-                Cari File Manual
-              </Button>
-            </div>
+            <Label htmlFor="link-surat-tugas">Link Drive Surat Tugas</Label>
+            <Input
+              id="link-surat-tugas"
+              type="url"
+              value={form.linkSurat}
+              onChange={(event) => updateForm('linkSurat', event.target.value)}
+              placeholder="https://drive.google.com/..."
+              className="h-11 border-gray-300 bg-white"
+            />
           </div>
 
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
@@ -828,7 +822,7 @@ function PenugasanTambahanForm() {
               <div className="text-center">Deadline</div>
               <div className="text-center">Tanggal Kegiatan</div>
               <div className="text-center">Jumlah Pegawai</div>
-              <div>Surat Tugas</div>
+              <div className="text-center">Surat Tugas</div>
               <div className="text-center">Aksi</div>
             </div>
             <div className="divide-y divide-gray-200">
@@ -848,8 +842,8 @@ function PenugasanTambahanForm() {
                           <div className="text-center text-gray-700">{dates.deadline}</div>
                           <div className="text-center text-gray-700">{dates.tanggalKegiatan}</div>
                           <div className="text-center text-gray-700">{item.assignedEmployees.length} pegawai</div>
-                          <div className="min-w-0">
-                            <p className="truncate text-gray-500">Tidak ada surat</p>
+                          <div className="flex justify-center">
+                            <DocumentLinkButton href={item.linkSurat} title="Buka Link Drive Surat Tugas" />
                           </div>
                           <div className="flex justify-center gap-2">
                             <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs" onClick={() => setDetailItem(item)}>
@@ -914,7 +908,12 @@ function PenugasanTambahanForm() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase text-gray-500">Surat Tugas</p>
-                      <p className="mt-1 text-gray-900">Tidak ada surat</p>
+                      <DocumentLinkButton
+                        href={detailItem.linkSurat}
+                        title="Buka Link Drive Surat Tugas"
+                        label="Buka link"
+                        className="mt-1"
+                      />
                     </div>
                   </div>
                   <div>
@@ -982,7 +981,7 @@ export function EditPenugasanTambahanView() {
     tanggalMulai: '',
     tanggalSelesai: '',
     tanggalKegiatan: '',
-    suratTugas: '',
+    linkSurat: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -1027,7 +1026,7 @@ export function EditPenugasanTambahanView() {
           tanggalMulai: useTanggalKegiatan ? '' : assignmentData.tanggalMulai,
           tanggalSelesai: useTanggalKegiatan ? '' : assignmentData.tanggalSelesai,
           tanggalKegiatan: useTanggalKegiatan ? assignmentData.tanggalMulai : '',
-          suratTugas: assignmentData.suratTugas,
+          linkSurat: assignmentData.linkSurat,
         });
       } catch (error: any) {
         if (!ignore) setError(error.response?.data?.message || 'Gagal mengambil data penugasan tambahan.');
@@ -1088,6 +1087,7 @@ export function EditPenugasanTambahanView() {
         deskripsiKegiatan: form.deskripsiKegiatan,
         tanggalMulai,
         tanggalSelesai,
+        linkSurat: form.linkSurat,
       });
       navigate('/admin/penugasan', { state: { tab: 'tambahan' } });
     } catch (error: any) {
@@ -1160,14 +1160,15 @@ export function EditPenugasanTambahanView() {
           )}
 
           <div className="space-y-2">
-            <Label>Surat Tugas</Label>
-            <div className="flex min-h-44 flex-col items-center justify-center rounded-lg border-2 border-dashed bg-gray-50 px-6 py-8 text-center opacity-80" style={{ borderColor: '#d1d5db' }}>
-              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-                <FileText className="size-5 text-gray-500" />
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{form.suratTugas || 'Tidak ada surat'}</p>
-              <p className="mt-1 text-xs text-gray-500">Upload file belum diaktifkan pada mode edit.</p>
-            </div>
+            <Label htmlFor="edit-link-surat-tugas">Link Drive Surat Tugas</Label>
+            <Input
+              id="edit-link-surat-tugas"
+              type="url"
+              value={form.linkSurat}
+              onChange={(event) => updateForm('linkSurat', event.target.value)}
+              placeholder="https://drive.google.com/..."
+              className="h-11 border-gray-300 bg-white"
+            />
           </div>
           {error && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{error}</p>}
           <div className="mt-2 flex justify-end gap-3 border-t pt-6">

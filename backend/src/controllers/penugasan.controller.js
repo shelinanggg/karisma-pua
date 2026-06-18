@@ -11,6 +11,7 @@ import {
   findApprovalRealisasiByEmployee,
   findApprovalRealisasiEmployees,
   findAssignableEmployees,
+  findButirAssignmentById,
   findButirAssignmentsByEmployee,
   findCurrentYearButirAssignmentsByEmployee,
   findMainDashboardSummary,
@@ -163,6 +164,39 @@ export const getButirAssignmentsByEmployee = async (req, res) => {
   }
 };
 
+const optionalHttpUrl = (value) => {
+  const text = nullableText(value);
+  if (!text) return null;
+
+  try {
+    const url = new URL(text);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : NaN;
+  } catch {
+    return NaN;
+  }
+};
+
+export const getPimpinanKinerjaByEmployee = async (req, res) => {
+  try {
+    const idPengguna = requiredInteger(req.params.pegawaiId);
+    const tahun = req.query.tahun === undefined ? null : requiredInteger(req.query.tahun);
+
+    if (!idPengguna || Number.isNaN(idPengguna)) {
+      return res.status(400).json({ message: "ID pegawai tidak valid." });
+    }
+    if (Number.isNaN(tahun)) {
+      return res.status(400).json({ message: "Tahun periode tidak valid." });
+    }
+
+    const data = await findCurrentYearButirAssignmentsByEmployee(idPengguna, {
+      tahun,
+    });
+    res.status(200).json({ data });
+  } catch {
+    res.status(500).json({ message: "Gagal mengambil data kinerja pegawai." });
+  }
+};
+
 export const getMyButirAssignments = async (req, res) => {
   try {
     const idPengguna = requiredInteger(req.user?.id_pengguna);
@@ -263,6 +297,16 @@ export const patchMyButirTarget = async (req, res) => {
     });
 
     if (!data) {
+      const assignment = await findButirAssignmentById(id);
+      if (
+        assignment?.idPengguna === String(idPengguna)
+        && (assignment.statusPengajuan === "diterima" || assignment.statusPengajuan === "diubah")
+      ) {
+        return res.status(409).json({
+          message: "Target yang sudah diterima atau diubah tidak dapat diedit kembali.",
+        });
+      }
+
       return res.status(404).json({ message: "Penugasan butir tidak ditemukan untuk akun ini." });
     }
 
@@ -426,6 +470,7 @@ export const postMyRealisasi = async (req, res) => {
     const tanggalRealisasi = nullableText(req.body.tanggalRealisasi);
     const realisasiTarget = positiveNumberText(req.body.realisasiTarget);
     const keterangan = nullableText(req.body.keterangan);
+    const linkDokumenPendukung = optionalHttpUrl(req.body.linkDokumenPendukung);
 
     if (!idPengguna || Number.isNaN(idPengguna) || !idPenggunaKegiatan || Number.isNaN(idPenggunaKegiatan)) {
       return res.status(400).json({ message: "Penugasan kegiatan tidak valid." });
@@ -443,12 +488,17 @@ export const postMyRealisasi = async (req, res) => {
       return res.status(400).json({ message: "Keterangan realisasi wajib diisi." });
     }
 
+    if (Number.isNaN(linkDokumenPendukung)) {
+      return res.status(400).json({ message: "Link dokumen pendukung tidak valid." });
+    }
+
     const data = await createMyRealisasiKegiatan({
       idPengguna,
       idPenggunaKegiatan,
       tanggalRealisasi,
       realisasiTarget,
       keterangan,
+      linkDokumenPendukung,
     });
 
     if (!data) {
@@ -516,6 +566,7 @@ export const postAdditionalAssignment = async (req, res) => {
     const deskripsi = nullableText(req.body.deskripsiKegiatan);
     const tanggalMulai = nullableText(req.body.tanggalMulai);
     const tanggalSelesai = nullableText(req.body.tanggalSelesai);
+    const linkSurat = optionalHttpUrl(req.body.linkSurat);
 
     if (assignedEmployeeIds.length === 0) {
       return res.status(400).json({ message: "Minimal satu pegawai wajib dipilih." });
@@ -529,12 +580,17 @@ export const postAdditionalAssignment = async (req, res) => {
       return res.status(400).json({ message: "Tanggal penugasan wajib diisi." });
     }
 
+    if (Number.isNaN(linkSurat)) {
+      return res.status(400).json({ message: "Link Drive Surat Tugas tidak valid." });
+    }
+
     const data = await createAdditionalAssignment({
       assignedEmployeeIds,
       namaKegiatan,
       deskripsi,
       tanggalMulai,
       tanggalSelesai,
+      linkSurat,
     });
 
     res.status(201).json({ message: "Penugasan tambahan berhasil disimpan.", data });
@@ -555,6 +611,7 @@ export const patchAdditionalAssignment = async (req, res) => {
     const deskripsi = nullableText(req.body.deskripsiKegiatan);
     const tanggalMulai = nullableText(req.body.tanggalMulai);
     const tanggalSelesai = nullableText(req.body.tanggalSelesai);
+    const linkSurat = optionalHttpUrl(req.body.linkSurat);
 
     if (!id || Number.isNaN(id)) {
       return res.status(400).json({ message: "ID penugasan tambahan tidak valid." });
@@ -572,6 +629,10 @@ export const patchAdditionalAssignment = async (req, res) => {
       return res.status(400).json({ message: "Tanggal penugasan wajib diisi." });
     }
 
+    if (Number.isNaN(linkSurat)) {
+      return res.status(400).json({ message: "Link Drive Surat Tugas tidak valid." });
+    }
+
     const data = await updateAdditionalAssignment({
       id,
       assignedEmployeeIds,
@@ -579,6 +640,7 @@ export const patchAdditionalAssignment = async (req, res) => {
       deskripsi,
       tanggalMulai,
       tanggalSelesai,
+      linkSurat,
     });
 
     if (!data) {

@@ -72,8 +72,17 @@ export async function createBackup() {
   };
 }
 
-export async function restoreBackup(payload: { fileName: string; sqlContent: string }) {
-  const response = await axiosInstance.post<{ message: string; data: BackupLogItem }>('/sistem/restore', payload);
+export async function restoreBackup(file: File) {
+  const response = await axiosInstance.post<{ message: string; data: BackupLogItem | null }>(
+    '/sistem/restore',
+    file,
+    {
+      headers: {
+        'Content-Type': 'application/sql',
+        'X-Backup-Filename': encodeURIComponent(file.name),
+      },
+    },
+  );
   return response.data;
 }
 

@@ -15,6 +15,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 # =========================
 # Build output
@@ -79,3 +80,8 @@ temp
 # =========================
 uploads/*
 !uploads/.gitkeep
+
+# =========================
+# Local documentation/data scripts
+# =========================
+docs/*

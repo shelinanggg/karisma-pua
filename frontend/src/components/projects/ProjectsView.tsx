@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import { Filter, Calendar, Users, FileText, Plus, Pencil, Upload, ImageIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Filter, Calendar, Users, FileText, Plus, Pencil, ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -61,7 +61,6 @@ export function ProjectsView() {
   const [editingTask, setEditingTask] = useState<TaskWithSKP | null>(null);
   const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM);
 
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) ?? projects[0],
@@ -154,12 +153,6 @@ export function ProjectsView() {
       ),
     );
     setEditingTask(null);
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setTaskForm((prev) => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
   };
 
   const taskStatusColor = (status: Task['status']) => {
@@ -696,27 +689,13 @@ export function ProjectsView() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Upload Bukti Gambar</Label>
-              <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                onClick={() => imageInputRef.current?.click()}
-              >
-                {taskForm.imageUrl ? (
-                  <img src={taskForm.imageUrl} alt="Preview bukti" className="max-h-40 rounded object-contain" />
-                ) : (
-                  <>
-                    <Upload className="w-8 h-8 text-gray-400" />
-                    <p className="text-sm text-gray-500">Klik untuk unggah gambar bukti SKP</p>
-                    <p className="text-xs text-gray-400">PNG, JPG, JPEG (maks. 5 MB)</p>
-                  </>
-                )}
-              </div>
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                className="hidden"
-                onChange={handleImageChange}
+              <Label htmlFor="et-link-dokumen">Link Drive Dokumen Pendukung</Label>
+              <Input
+                id="et-link-dokumen"
+                type="url"
+                placeholder="https://drive.google.com/..."
+                value={taskForm.imageUrl}
+                onChange={(event) => setTaskForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
               />
               {taskForm.imageUrl && (
                 <Button
@@ -725,7 +704,7 @@ export function ProjectsView() {
                   className="text-xs text-red-500 hover:text-red-700"
                   onClick={() => setTaskForm((prev) => ({ ...prev, imageUrl: '' }))}
                 >
-                  Hapus gambar
+                  Hapus link
                 </Button>
               )}
             </div>

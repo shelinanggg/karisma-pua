@@ -76,6 +76,7 @@ const mapRealisasiRow = (row) => ({
   tanggalRealisasi: row.tanggal_realisasi ?? "",
   realisasiTarget: row.realisasi_target ?? "",
   keterangan: row.keterangan ?? "",
+  linkDokumenPendukung: row.link_dokumen_pendukung ?? "",
   status: row.status ?? "diajukan",
 });
 
@@ -101,6 +102,7 @@ const mapApprovalRealisasiRow = (row) => ({
   realisasiTarget: row.realisasi_target ?? "",
   keterangan: row.keterangan ?? "",
   targetKetercapaian: row.target_ketercapaian ?? "",
+  linkDokumenPendukung: row.link_dokumen_pendukung ?? "",
   status: row.status ?? "diajukan",
 });
 
@@ -116,7 +118,7 @@ const mapTambahanRow = (row) => {
     status: row.status ?? "aktif",
     tanggalMulai: row.tanggal_mulai ?? "",
     tanggalSelesai: row.tanggal_selesai ?? "",
-    suratTugas: row.surat_tugas ?? "",
+    linkSurat: row.link_surat ?? "",
     assignedEmployees: assignedEmployees.map((employee) => ({
       id: String(employee.id),
       nama: employee.nama ?? "",
@@ -166,6 +168,19 @@ const formatDashboardDelta = (current, previous) => {
   };
 };
 
+const mapDashboardStatisticRows = (rows) => {
+  const total = rows.reduce((sum, row) => sum + Number(row.value ?? 0), 0);
+
+  return rows.map((row) => {
+    const value = Number(row.value ?? 0);
+    return {
+      label: row.label ?? "Belum diisi",
+      value,
+      percentage: total > 0 ? Math.round((value / total) * 1000) / 10 : 0,
+    };
+  });
+};
+
 const getInitials = (name) => {
   const parts = String(name ?? "")
     .trim()
@@ -201,6 +216,9 @@ const mapDashboardProfileRow = (row) => ({
   tmtKgb: row.tmt_kgb ?? "",
   tmtPensiun: row.tmt_pensiun ?? "",
   targetKetercapaian: row.target_ketercapaian ?? "",
+  angkaKreditSaatIni: row.angka_kredit_saat_ini === null ? null : Number(row.angka_kredit_saat_ini),
+  targetAngkaKreditNaikJabatan:
+    row.target_angka_kredit_naik_jabatan === null ? null : Number(row.target_angka_kredit_naik_jabatan),
 });
 
 const toNumeric = (value) => {
@@ -439,6 +457,10 @@ export const findMainDashboardSummary = async ({ idPeriodeSkp = null } = {}) => 
     kgbResult,
     kegiatanCountResult,
     kegiatanResult,
+    golonganStatisticsResult,
+    pendidikanStatisticsResult,
+    fungsionalStatisticsResult,
+    jabatanStatisticsResult,
   ] = await Promise.all([
     pool.query(`
       SELECT
@@ -578,6 +600,58 @@ export const findMainDashboardSummary = async ({ idPeriodeSkp = null } = {}) => 
       `,
       [idPeriodeSkp],
     ),
+    pool.query(`
+      SELECT
+        COALESCE(NULLIF(BTRIM(golongan.nama_golongan), ''), 'Belum diisi') AS label,
+        COUNT(*)::integer AS value
+      FROM pengguna
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      LEFT JOIN golongan
+        ON golongan.id_golongan = pengguna.id_golongan
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+      GROUP BY COALESCE(NULLIF(BTRIM(golongan.nama_golongan), ''), 'Belum diisi')
+      ORDER BY value DESC, label ASC
+    `),
+    pool.query(`
+      SELECT
+        COALESCE(NULLIF(BTRIM(pengguna.pendidikan), ''), 'Belum diisi') AS label,
+        COUNT(*)::integer AS value
+      FROM pengguna
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+      GROUP BY COALESCE(NULLIF(BTRIM(pengguna.pendidikan), ''), 'Belum diisi')
+      ORDER BY value DESC, label ASC
+    `),
+    pool.query(`
+      SELECT
+        COALESCE(NULLIF(BTRIM(pengguna.fungsional), ''), 'Belum diisi') AS label,
+        COUNT(*)::integer AS value
+      FROM pengguna
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+      GROUP BY COALESCE(NULLIF(BTRIM(pengguna.fungsional), ''), 'Belum diisi')
+      ORDER BY value DESC, label ASC
+    `),
+    pool.query(`
+      SELECT
+        COALESCE(NULLIF(BTRIM(jabatan.jabatan_pengguna), ''), 'Belum diisi') AS label,
+        COUNT(*)::integer AS value
+      FROM pengguna
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
+      LEFT JOIN jabatan
+        ON jabatan.id_jabatan = pengguna.id_jabatan
+      WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+      GROUP BY COALESCE(NULLIF(BTRIM(jabatan.jabatan_pengguna), ''), 'Belum diisi')
+      ORDER BY value DESC, label ASC
+    `),
   ]);
 
   const buildKpi = (label, value, previousValue, color) => {
@@ -604,6 +678,12 @@ export const findMainDashboardSummary = async ({ idPeriodeSkp = null } = {}) => 
       buildKpi("Jumlah Kegiatan", kegiatanCount.current_value, kegiatanCount.previous_value, "purple"),
     ],
     kegiatan: kegiatanResult.rows.map(mapDashboardKegiatanRow),
+    statistics: {
+      golongan: mapDashboardStatisticRows(golonganStatisticsResult.rows),
+      pendidikan: mapDashboardStatisticRows(pendidikanStatisticsResult.rows),
+      fungsional: mapDashboardStatisticRows(fungsionalStatisticsResult.rows),
+      jabatan: mapDashboardStatisticRows(jabatanStatisticsResult.rows),
+    },
   };
 };
 
@@ -666,12 +746,31 @@ export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filt
 const findDashboardProfileByEmployee = async (idPengguna) => {
   const result = await pool.query(
     `
+      WITH jabatan_dengan_target AS (
+        SELECT
+          data_jabatan.id_jabatan,
+          COALESCE(
+            data_jabatan.target_angka_kredit_naik_jabatan,
+            (
+              SELECT MIN(jabatan_setara.target_angka_kredit_naik_jabatan)
+              FROM jabatan jabatan_setara
+              WHERE data_jabatan.kredit_koefisien_per_tahun IS NOT NULL
+                AND jabatan_setara.kredit_koefisien_per_tahun = data_jabatan.kredit_koefisien_per_tahun
+                AND jabatan_setara.target_angka_kredit_naik_jabatan IS NOT NULL
+            )
+          ) AS target_angka_kredit_naik_jabatan
+        FROM jabatan data_jabatan
+      )
       SELECT
-        ${formatDateColumn("tmt_kgb")} AS tmt_kgb,
-        ${formatDateColumn("tmt_pensiun")} AS tmt_pensiun,
-        target_ketercapaian
+        ${formatDateColumn("pengguna.tmt_kgb")} AS tmt_kgb,
+        ${formatDateColumn("pengguna.tmt_pensiun")} AS tmt_pensiun,
+        pengguna.target_ketercapaian,
+        pengguna.angka_kredit_saat_ini,
+        jabatan.target_angka_kredit_naik_jabatan
       FROM pengguna
-      WHERE id_pengguna = $1
+      LEFT JOIN jabatan_dengan_target jabatan
+        ON jabatan.id_jabatan = pengguna.id_jabatan
+      WHERE pengguna.id_pengguna = $1
       LIMIT 1
     `,
     [idPengguna],
@@ -697,6 +796,8 @@ export const findMyDashboardSummary = async (idPengguna, filters = {}) => {
       achievementPercentage,
       realisasiTotal,
       targetKetercapaian,
+      angkaKreditSaatIni: profile?.angkaKreditSaatIni ?? null,
+      targetAngkaKreditNaikJabatan: profile?.targetAngkaKreditNaikJabatan ?? null,
       totalKegiatan: kinerja.length,
     },
     timeline: {
@@ -764,6 +865,7 @@ export const updateOwnButirTarget = async ({
         updated_at = current_timestamp
       WHERE id_pengguna_kegiatan = $1
         AND id_pengguna = $2
+        AND COALESCE(status_pengajuan, 'diajukan') NOT IN ('diterima', 'diubah')
       RETURNING id_pengguna_kegiatan
     `,
     [id, idPengguna, targetKetercapaian, uraian, deskripsi],
@@ -786,6 +888,7 @@ export const submitButirAssignmentForApproval = async ({ id, idPengguna }) => {
         AND id_pengguna = $2
         AND target_ketercapaian IS NOT NULL
         AND btrim(target_ketercapaian) <> ''
+        AND COALESCE(status_pengajuan, 'diajukan') NOT IN ('diterima', 'diubah')
       RETURNING id_pengguna_kegiatan
     `,
     [id, idPengguna],
@@ -893,6 +996,7 @@ export const findMyRealisasiKegiatan = async (idPengguna) => {
         ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
         realisasi_kegiatan.realisasi_target,
         realisasi_kegiatan.keterangan,
+        realisasi_kegiatan.link_dokumen_pendukung,
         realisasi_kegiatan.status
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
@@ -917,6 +1021,7 @@ export const createMyRealisasiKegiatan = async ({
   tanggalRealisasi,
   realisasiTarget,
   keterangan,
+  linkDokumenPendukung,
 }) => {
   const result = await pool.query(
     `
@@ -925,9 +1030,10 @@ export const createMyRealisasiKegiatan = async ({
         tanggal_realisasi,
         realisasi_target,
         keterangan,
+        link_dokumen_pendukung,
         status
       )
-      SELECT $2, $3, $4, $5, 'diajukan'
+      SELECT $2, $3, $4, $5, $6, 'diajukan'
       FROM pengguna_kegiatan
       INNER JOIN periode_skp
         ON periode_skp.id_periode_skp = pengguna_kegiatan.id_periode_skp
@@ -938,7 +1044,7 @@ export const createMyRealisasiKegiatan = async ({
         AND btrim(pengguna_kegiatan.target_ketercapaian) <> ''
       RETURNING id_realisasi_kegiatan
     `,
-    [idPengguna, idPenggunaKegiatan, tanggalRealisasi, realisasiTarget, keterangan],
+    [idPengguna, idPenggunaKegiatan, tanggalRealisasi, realisasiTarget, keterangan, linkDokumenPendukung],
   );
 
   if (!result.rows[0]) return null;
@@ -1014,6 +1120,7 @@ export const findApprovalRealisasiByEmployee = async (idPengguna, { idPeriodeSkp
         realisasi_kegiatan.realisasi_target,
         realisasi_kegiatan.keterangan,
         pengguna_kegiatan.target_ketercapaian,
+        realisasi_kegiatan.link_dokumen_pendukung,
         realisasi_kegiatan.status
       FROM realisasi_kegiatan
       INNER JOIN pengguna_kegiatan
@@ -1066,7 +1173,7 @@ export const findAdditionalAssignments = async () => {
       penugasan_tambahan.status,
       ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
       ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
-      penugasan_tambahan.surat_tugas,
+      penugasan_tambahan.link_surat,
       COALESCE(
         json_agg(
           json_build_object(
@@ -1101,7 +1208,7 @@ export const findAdditionalAssignmentsByEmployee = async (idPengguna) => {
         penugasan_tambahan.status,
         ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
-        penugasan_tambahan.surat_tugas,
+        penugasan_tambahan.link_surat,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1145,7 +1252,7 @@ export const findAdditionalAssignmentById = async (id) => {
         penugasan_tambahan.status,
         ${formatDateColumn("penugasan_tambahan.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("penugasan_tambahan.tanggal_selesai")} AS tanggal_selesai,
-        penugasan_tambahan.surat_tugas,
+        penugasan_tambahan.link_surat,
         COALESCE(
           json_agg(
             json_build_object(
@@ -1178,6 +1285,7 @@ export const createAdditionalAssignment = async ({
   deskripsi,
   tanggalMulai,
   tanggalSelesai,
+  linkSurat,
 }) => {
   const client = await pool.connect();
 
@@ -1194,12 +1302,12 @@ export const createAdditionalAssignment = async ({
           deskripsi,
           tanggal_mulai,
           tanggal_selesai,
-          surat_tugas
+          link_surat
         )
-        VALUES ($1, $2, 'aktif', $3, $4, $5, NULL)
+        VALUES ($1, $2, 'aktif', $3, $4, $5, $6)
         RETURNING id_penugasan_tambahan
       `,
-      [assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai],
+      [assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai, linkSurat],
     );
 
     const idPenugasanTambahan = result.rows[0].id_penugasan_tambahan;
@@ -1233,6 +1341,7 @@ export const updateAdditionalAssignment = async ({
   deskripsi,
   tanggalMulai,
   tanggalSelesai,
+  linkSurat,
 }) => {
   const client = await pool.connect();
 
@@ -1249,11 +1358,12 @@ export const updateAdditionalAssignment = async ({
           deskripsi = $4,
           tanggal_mulai = $5,
           tanggal_selesai = $6,
+          link_surat = $7,
           updated_at = current_timestamp
         WHERE id_penugasan_tambahan = $1
         RETURNING id_penugasan_tambahan
       `,
-      [id, assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai],
+      [id, assignedEmployeeIds[0], namaKegiatan, deskripsi, tanggalMulai, tanggalSelesai, linkSurat],
     );
 
     if (!result.rows[0]) {

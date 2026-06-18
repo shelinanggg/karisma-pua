@@ -6,6 +6,7 @@ import {
   findPegawaiEarlyWarnings,
   findPegawaiByNip,
   findPegawaiReferences,
+  processPromotionJabatan,
   updatePegawai,
 } from "../repositories/pegawai.repository.js";
 
@@ -112,6 +113,37 @@ export const getPegawaiEarlyWarnings = async (_req, res) => {
     res.status(200).json({ data });
   } catch (err) {
     res.status(500).json({ message: "Gagal mengambil data early warning pegawai." });
+  }
+};
+
+export const patchPromotionJabatan = async (req, res) => {
+  try {
+    const idPengguna = Number(req.params.id);
+    const idJabatan = Number(req.body.idJabatan);
+
+    if (
+      !Number.isInteger(idPengguna)
+      || idPengguna <= 0
+      || !Number.isInteger(idJabatan)
+      || idJabatan <= 0
+    ) {
+      return res.status(400).json({ message: "Pegawai dan jabatan tujuan tidak valid." });
+    }
+
+    const data = await processPromotionJabatan({ idPengguna, idJabatan });
+    if (!data) {
+      return res.status(409).json({
+        message: "Pegawai belum memenuhi target atau jabatan tujuan tidak sesuai.",
+      });
+    }
+
+    res.status(200).json({ message: "Jabatan pegawai berhasil diperbarui.", data });
+  } catch (err) {
+    if (err.code === "23503") {
+      return res.status(400).json({ message: "Jabatan tujuan tidak ditemukan." });
+    }
+
+    res.status(500).json({ message: "Gagal memproses perubahan jabatan." });
   }
 };
 

@@ -27,6 +27,8 @@ const getActor = async (req) => {
 
 const runCommand = (command, args, { input = null } = {}) =>
   new Promise((resolve, reject) => {
+    let settled = false;
+    let stdinError = null;
     const child = spawn(command, args, {
       env: { ...process.env, PGPASSWORD: env.DB_PASSWORD || "" },
       windowsHide: true,
@@ -37,13 +39,21 @@ const runCommand = (command, args, { input = null } = {}) =>
 
     child.stdout.on("data", (chunk) => stdout.push(chunk));
     child.stderr.on("data", (chunk) => stderr.push(chunk));
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
     child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
       const stdoutBuffer = Buffer.concat(stdout);
       const stderrText = Buffer.concat(stderr).toString("utf8").trim();
 
       if (code !== 0) {
-        const error = new Error(stderrText || `Command exited with code ${code}`);
+        const error = new Error(
+          stderrText || stdinError?.message || `Command exited with code ${code}`,
+        );
         error.code = code;
         reject(error);
         return;
@@ -53,8 +63,10 @@ const runCommand = (command, args, { input = null } = {}) =>
     });
 
     if (input !== null) {
-      child.stdin.write(input);
-      child.stdin.end();
+      child.stdin.on("error", (error) => {
+        stdinError = error;
+      });
+      child.stdin.end(input);
     }
   });
 
@@ -75,6 +87,59 @@ const createSqlFileName = () => {
 };
 
 const formatErrorMessage = (error) => String(error?.message || "Terjadi kesalahan.").slice(0, 500);
+
+const formatRestoreError = (error) => {
+  const detail = formatErrorMessage(error);
+
+  if (/must be owner of (table|sequence|view|materialized view)/i.test(detail)) {
+    return {
+      status: 409,
+      message: "Restore ditolak karena ownership database tidak konsisten.",
+      detail: `${detail} Jalankan scripts/fix-database-ownership.sql satu kali menggunakan user postgres, lalu ulangi restore.`,
+    };
+  }
+
+  return {
+    status: 500,
+    message: "Gagal restore database.",
+    detail,
+  };
+};
+
+const writeBackupLogSafely = async (payload) => {
+  try {
+    return await createBackupLog(payload);
+  } catch (error) {
+    console.error("Gagal menulis backup log:", formatErrorMessage(error));
+    return null;
+  }
+};
+
+const decodeFileNameHeader = (value) => {
+  const encoded = nullableText(value);
+  if (!encoded) return "";
+
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
+};
+
+const getRestorePayload = (req) => {
+  if (Buffer.isBuffer(req.body)) {
+    return {
+      fileName: decodeFileNameHeader(req.headers["x-backup-filename"]) || "restore.sql",
+      sqlBuffer: req.body,
+    };
+  }
+
+  const sqlContent = String(req.body?.sqlContent ?? "");
+  return {
+    fileName: nullableText(req.body?.fileName) || "restore.sql",
+    sqlBuffer: Buffer.from(sqlContent, "utf8"),
+  };
+};
 
 export const getAuditLogs = async (req, res) => {
   try {
@@ -122,7 +187,7 @@ export const createBackup = async (req, res) => {
       "--no-privileges",
     ]);
 
-    await createBackupLog({
+    await writeBackupLogSafely({
       ...actor,
       action: "backup",
       fileName,
@@ -134,7 +199,7 @@ export const createBackup = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.status(200).send(stdout);
   } catch (error) {
-    await createBackupLog({
+    await writeBackupLogSafely({
       ...actor,
       action: "backup",
       fileName,
@@ -148,16 +213,17 @@ export const createBackup = async (req, res) => {
 
 export const restoreBackup = async (req, res) => {
   const actor = await getActor(req);
-  const fileName = nullableText(req.body.fileName) || "restore.sql";
-  const sqlContent = String(req.body.sqlContent ?? "");
-  const trimmedSql = sqlContent.trim();
+  const { fileName, sqlBuffer } = getRestorePayload(req);
+  const sqlPreview = sqlBuffer.subarray(0, Math.min(sqlBuffer.length, 1024 * 1024)).toString("utf8");
+  const trimmedSql = sqlPreview.trim();
+  const fileSize = sqlBuffer.length;
 
   if (!trimmedSql || !/\b(CREATE|INSERT|ALTER|DROP|COPY|SELECT|SET)\b/i.test(trimmedSql)) {
-    await createBackupLog({
+    await writeBackupLogSafely({
       ...actor,
       action: "restore",
       fileName,
-      fileSize: Buffer.byteLength(sqlContent, "utf8"),
+      fileSize,
       status: "Gagal",
       errorMessage: "File SQL kosong atau tidak valid.",
     });
@@ -165,26 +231,41 @@ export const restoreBackup = async (req, res) => {
   }
 
   try {
-    await runCommand(env.PSQL_PATH, [...getPgArgs(), "--set", "ON_ERROR_STOP=on"], { input: sqlContent });
+    await runCommand(
+      env.PSQL_PATH,
+      [
+        ...getPgArgs(),
+        "--no-psqlrc",
+        "--single-transaction",
+        "--set",
+        "ON_ERROR_STOP=on",
+      ],
+      { input: sqlBuffer },
+    );
 
-    const data = await createBackupLog({
+    const data = await writeBackupLogSafely({
       ...actor,
       action: "restore",
       fileName,
-      fileSize: Buffer.byteLength(sqlContent, "utf8"),
+      fileSize,
       status: "Berhasil",
     });
 
     res.status(200).json({ message: "Restore database berhasil.", data });
   } catch (error) {
-    await createBackupLog({
+    const restoreError = formatRestoreError(error);
+
+    await writeBackupLogSafely({
       ...actor,
       action: "restore",
       fileName,
-      fileSize: Buffer.byteLength(sqlContent, "utf8"),
+      fileSize,
       status: "Gagal",
-      errorMessage: formatErrorMessage(error),
+      errorMessage: restoreError.detail,
     });
-    res.status(500).json({ message: "Gagal restore database.", detail: formatErrorMessage(error) });
+    res.status(restoreError.status).json({
+      message: restoreError.message,
+      detail: restoreError.detail,
+    });
   }
 };

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Progress } from '../ui/progress';
 import { Badge } from '../ui/badge';
 import { getEarlyWarningData, type KgbWarning, type PensionWarning, type PromotionWarning } from '../../api/earlyWarningApi';
+import { PromotionWarningRows } from '../early-warning/PromotionWarningTable';
 
 function formatDateId(date: string) {
   return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -193,6 +193,19 @@ export function EarlyWarningSystemView() {
     normalizedPensionPage * pensionPageSize,
   );
 
+  const reloadWarnings = async () => {
+    setWarningError('');
+
+    try {
+      const data = await getEarlyWarningData();
+      setPromotionData(data.jabatan);
+      setKgbData(data.kgb);
+      setPensionData(data.pensiun);
+    } catch (error: any) {
+      setWarningError(error.response?.data?.message || 'Jabatan berhasil diubah, tetapi data early warning gagal dimuat ulang.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -214,49 +227,22 @@ export function EarlyWarningSystemView() {
             <CardHeader>
               <CardTitle>Daftar Kandidat Kenaikan Jabatan</CardTitle>
               <CardDescription>
-                Pegawai yang sisa angka ketercapaiannya kurang dari sama dengan 100 dari target kenaikan jabatan.
+                Pegawai dengan sisa angka kredit kurang dari atau sama dengan 20 dari target kenaikan jabatan.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0" style={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingBottom: '1.5rem' }}>
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead style={{ paddingLeft: '1.5rem' }}>Nama Pegawai</TableHead>
-                      <TableHead>Angka Ketercapaian</TableHead>
-                      <TableHead style={{ width: '300px', paddingRight: '1.5rem' }}>Progres</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingWarnings ? (
-                      <EmptyTableRow colSpan={3} message="Memuat data kenaikan jabatan..." />
-                    ) : paginatedPromo.length > 0 ? (
-                      paginatedPromo.map((user) => {
-                        const percentage = Math.min(100, Math.round((user.currentScore / user.requiredScore) * 100));
-                        return (
-                          <TableRow key={user.id}>
-                            <TableCell style={{ paddingLeft: '1.5rem' }}>
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-xs font-normal text-gray-500">NIP {user.nip}</div>
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-semibold">{user.currentScore}</span> / <span className="text-gray-500">{user.requiredScore}</span>
-                              <div className="mt-0.5 text-xs text-gray-500">Sisa {user.remainingScore}</div>
-                            </TableCell>
-                            <TableCell style={{ paddingRight: '1.5rem' }}>
-                              <div className="flex items-center gap-3">
-                                <Progress value={percentage} className="w-full" />
-                                <span className="text-sm text-gray-500 w-12">{percentage}%</span>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <EmptyTableRow colSpan={3} message="Tidak ada kandidat kenaikan jabatan." />
-                    )}
-                  </TableBody>
-                </Table>
+                <PromotionWarningRows
+                  data={paginatedPromo}
+                  isLoading={isLoadingWarnings}
+                  onProcessed={reloadWarnings}
+                  emptyRow={
+                    <EmptyTableRow
+                      colSpan={6}
+                      message={isLoadingWarnings ? 'Memuat data kenaikan jabatan...' : 'Tidak ada kandidat kenaikan jabatan.'}
+                    />
+                  }
+                />
 
                 {promotionData.length > 0 && (
                   <CustomPagination

@@ -22,6 +22,7 @@ const PimpinanApprovalPegawaiView = lazy(() => import('./components/pimpinan/Pim
 const PimpinanApprovalSKPDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalSKPView').then((module) => ({ default: module.PimpinanApprovalSKPDetailView })));
 const PimpinanApprovalKegiatanDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalKegiatanView').then((module) => ({ default: module.PimpinanApprovalKegiatanDetailView })));
 const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
+const PimpinanKegiatanPegawaiDetailView = lazy(() => import('./components/pimpinan/PimpinanKegiatanPegawaiDetailView').then((module) => ({ default: module.PimpinanKegiatanPegawaiDetailView })));
 const PimpinanPenugasanTambahanView = lazy(() => import('./components/pimpinan/PimpinanPenugasanTambahanView').then((module) => ({ default: module.PimpinanPenugasanTambahanView })));
 const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
 const PimpinanPengaturanView = lazy(() => import('./components/pimpinan/PimpinanPengaturanView').then((module) => ({ default: module.PimpinanPengaturanView })));
@@ -30,6 +31,7 @@ const DashboardUtamaView = lazy(() => import('./components/admin/DashboardUtamaV
 const DashboardKegiatanView = lazy(() => import('./components/admin/DashboardKegiatanView').then((module) => ({ default: module.DashboardKegiatanView })));
 const AdminKegiatanEditorView = lazy(() => import('./components/admin/AdminKegiatanEditorView').then((module) => ({ default: module.AdminKegiatanEditorView })));
 const MasterButirView = lazy(() => import('./components/admin/MasterButirView').then((module) => ({ default: module.MasterButirView })));
+const MasterJabatanView = lazy(() => import('./components/admin/MasterJabatanView').then((module) => ({ default: module.MasterJabatanView })));
 const PeriodeSkpView = lazy(() => import('./components/admin/PeriodeSkpView').then((module) => ({ default: module.PeriodeSkpView })));
 const PenugasanView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.PenugasanView })));
 const EditPenugasanTambahanView = lazy(() => import('./components/admin/PenugasanView').then((module) => ({ default: module.EditPenugasanTambahanView })));
@@ -207,6 +209,7 @@ export default function App() {
         <Route path="approval-kegiatan" element={<Navigate to="/pimpinan/approval-pegawai" replace />} />
         <Route path="penugasan-tambahan" element={<PimpinanPenugasanTambahanView />} />
         <Route path="data-kepegawaian" element={<PimpinanDataKepegawaianView />} />
+        <Route path="data-kepegawaian/:pegawaiId/kegiatan" element={<PimpinanKegiatanPegawaiDetailView />} />
         <Route path="profil" element={<PimpinanProfilView />} />
         <Route path="pengaturan" element={<PimpinanPengaturanView />} />
         <Route path="overview" element={<Navigate to="/pimpinan/dashboard-utama" replace />} />
@@ -227,6 +230,7 @@ export default function App() {
         <Route path="kegiatan" element={<DashboardKegiatanView />} />
         <Route path="kelola-kegiatan" element={<AdminKegiatanEditorView />} />
         <Route path="master-butir" element={<MasterButirView />} />
+        <Route path="master-jabatan" element={<MasterJabatanView />} />
         <Route path="master-periode" element={<PeriodeSkpView />} />
         <Route path="penugasan" element={<PenugasanView />} />
         <Route path="penugasan/edit-penugasan-tambahan/:penugasanId" element={<EditPenugasanTambahanView />} />
