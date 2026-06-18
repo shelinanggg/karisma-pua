@@ -146,17 +146,18 @@ function formatPeriodeTambahan(item: PenugasanTambahan): string {
   return `${formatTanggal(start)} - ${formatTanggal(end)}`;
 }
 
-function KpiCard({ kpi }: { kpi: KPIData }) {
+function KpiCard({ kpi, onClick }: { kpi: KPIData; onClick?: () => void }) {
   const colors = kpiColorMap[kpi.color];
   const Icon = kpi.icon;
   const DetailIcon = kpi.detailIcon;
 
-  return (
+  const card = (
     <Card
       aria-disabled={kpi.disabled}
       className={cn(
-        'border',
+        'h-full border',
         colors.border,
+        onClick && 'transition-all group-hover:-translate-y-0.5 group-hover:shadow-md',
         kpi.disabled && 'border-gray-200 bg-gray-50 text-gray-500 opacity-80',
       )}
     >
@@ -185,6 +186,19 @@ function KpiCard({ kpi }: { kpi: KPIData }) {
         )}
       </CardContent>
     </Card>
+  );
+
+  if (!onClick) return card;
+
+  return (
+    <button
+      type="button"
+      className="group block h-full w-full rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+      onClick={onClick}
+      aria-label={`${kpi.label}: buka progress pekerjaan realisasi kinerja`}
+    >
+      {card}
+    </button>
   );
 }
 
@@ -345,7 +359,11 @@ export function PegawaiOverview() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <KpiCard key={kpi.label} kpi={kpi} />
+          <KpiCard
+            key={kpi.label}
+            kpi={kpi}
+            onClick={kpi.label === 'Jumlah Kegiatan' ? () => navigate('/pegawai/projects') : undefined}
+          />
         ))}
       </div>
 
