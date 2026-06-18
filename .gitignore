@@ -79,3 +79,8 @@ temp
 # =========================
 uploads/*
 !uploads/.gitkeep
+
+# =========================
+# Local documentation/data scripts
+# =========================
+docs/

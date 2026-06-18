@@ -23,6 +23,17 @@ export type PromotionWarning = {
   currentScore: number;
   requiredScore: number;
   remainingScore: number;
+  currentJabatanId: string;
+  currentJabatan: string;
+  coefficientPerYear: number;
+  eligibleJabatan: PromotionJabatanOption[];
+};
+
+export type PromotionJabatanOption = {
+  id: string;
+  name: string;
+  coefficientPerYear: number | null;
+  targetScore: number | null;
 };
 
 export type EarlyWarningData = {
@@ -33,5 +44,10 @@ export type EarlyWarningData = {
 
 export async function getEarlyWarningData() {
   const response = await axiosInstance.get<{ data: EarlyWarningData }>("/pegawai/early-warning");
+  return response.data.data;
+}
+
+export async function processPromotionJabatan(idPengguna: string, idJabatan: string) {
+  const response = await axiosInstance.patch(`/pegawai/${idPengguna}/promotion-jabatan`, { idJabatan });
   return response.data.data;
 }

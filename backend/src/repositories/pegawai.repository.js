@@ -249,43 +249,85 @@ const mapPromotionWarningRow = (row) => ({
   currentScore: Number(row.current_score ?? 0),
   requiredScore: Number(row.required_score ?? 0),
   remainingScore: Number(row.remaining_score ?? 0),
+  currentJabatanId: String(row.current_jabatan_id ?? ""),
+  currentJabatan: row.current_jabatan ?? "",
+  coefficientPerYear: Number(row.coefficient_per_year ?? 0),
+  eligibleJabatan: Array.isArray(row.eligible_jabatan)
+    ? row.eligible_jabatan.map((item) => ({
+        id: String(item.id ?? ""),
+        name: item.name ?? "",
+        coefficientPerYear: item.coefficientPerYear === null ? null : Number(item.coefficientPerYear),
+        targetScore: item.targetScore === null ? null : Number(item.targetScore),
+      }))
+    : [],
 });
 
 export const findPegawaiEarlyWarnings = async () => {
   const [promotionResult, kgbResult, pensionResult] = await Promise.all([
     pool.query(`
-      WITH realisasi_pengguna AS (
+      WITH jabatan_dengan_target AS (
         SELECT
-          pengguna_kegiatan.id_pengguna,
+          data_jabatan.*,
           COALESCE(
-            SUM(
-              CASE
-                WHEN realisasi_kegiatan.realisasi_target ~ '^[0-9]+([.][0-9]+)?$'
-                  THEN realisasi_kegiatan.realisasi_target::numeric
-                ELSE 0
-              END
-            ),
-            0
-          ) AS current_score
-        FROM pengguna_kegiatan
-        LEFT JOIN realisasi_kegiatan
-          ON realisasi_kegiatan.id_pengguna_kegiatan = pengguna_kegiatan.id_pengguna_kegiatan
-        GROUP BY pengguna_kegiatan.id_pengguna
+            data_jabatan.target_angka_kredit_naik_jabatan,
+            (
+              SELECT MIN(jabatan_setara.target_angka_kredit_naik_jabatan)
+              FROM jabatan jabatan_setara
+              WHERE data_jabatan.kredit_koefisien_per_tahun IS NOT NULL
+                AND jabatan_setara.kredit_koefisien_per_tahun = data_jabatan.kredit_koefisien_per_tahun
+                AND jabatan_setara.target_angka_kredit_naik_jabatan IS NOT NULL
+            )
+          ) AS target_efektif
+        FROM jabatan data_jabatan
       )
       SELECT
         pengguna.id_pengguna,
         pengguna.nama,
         pengguna.nip,
-        COALESCE(realisasi_pengguna.current_score, 0) AS current_score,
-        pengguna.target_ketercapaian AS required_score,
-        pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) AS remaining_score
+        pengguna.angka_kredit_saat_ini AS current_score,
+        jabatan.target_efektif AS required_score,
+        jabatan.target_efektif - pengguna.angka_kredit_saat_ini AS remaining_score,
+        jabatan.id_jabatan AS current_jabatan_id,
+        jabatan.jabatan_pengguna AS current_jabatan,
+        jabatan.kredit_koefisien_per_tahun AS coefficient_per_year,
+        COALESCE(
+          (
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'id', kandidat.id_jabatan,
+                'name', kandidat.jabatan_pengguna,
+                'coefficientPerYear', kandidat.kredit_koefisien_per_tahun,
+                'targetScore', kandidat.target_efektif
+              )
+              ORDER BY
+                kandidat.target_efektif NULLS LAST,
+                kandidat.kredit_koefisien_per_tahun NULLS LAST,
+                kandidat.jabatan_pengguna
+            )
+            FROM jabatan_dengan_target kandidat
+            WHERE kandidat.id_jabatan <> jabatan.id_jabatan
+              AND (
+                kandidat.target_efektif > jabatan.target_efektif
+                OR kandidat.target_efektif = jabatan.target_efektif
+                OR (
+                  kandidat.kredit_koefisien_per_tahun IS NOT NULL
+                  AND kandidat.kredit_koefisien_per_tahun = jabatan.kredit_koefisien_per_tahun
+                )
+              )
+          ),
+          '[]'::jsonb
+        ) AS eligible_jabatan
       FROM pengguna
-      LEFT JOIN realisasi_pengguna
-        ON realisasi_pengguna.id_pengguna = pengguna.id_pengguna
+      INNER JOIN jabatan_dengan_target jabatan
+        ON jabatan.id_jabatan = pengguna.id_jabatan
+      LEFT JOIN roles
+        ON roles.role_id = pengguna.role_id
       WHERE pengguna.status_aktif IS DISTINCT FROM FALSE
-        AND pengguna.target_ketercapaian IS NOT NULL
-        AND pengguna.target_ketercapaian > 0
-        AND pengguna.target_ketercapaian - COALESCE(realisasi_pengguna.current_score, 0) BETWEEN 0 AND 100
+        AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+        AND pengguna.angka_kredit_saat_ini IS NOT NULL
+        AND jabatan.target_efektif IS NOT NULL
+        AND jabatan.target_efektif > 0
+        AND jabatan.target_efektif - pengguna.angka_kredit_saat_ini <= 20
       ORDER BY remaining_score ASC, pengguna.nama ASC, pengguna.id_pengguna ASC
     `),
     pool.query(`
@@ -321,4 +363,99 @@ export const findPegawaiEarlyWarnings = async () => {
     kgb: kgbResult.rows.map((row) => mapEarlyWarningRow(row, "tmtKgb")),
     pensiun: pensionResult.rows.map((row) => mapEarlyWarningRow(row, "tmtPension")),
   };
+};
+
+export const processPromotionJabatan = async ({ idPengguna, idJabatan }) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const eligibilityResult = await client.query(
+      `
+        WITH jabatan_dengan_target AS (
+          SELECT
+            data_jabatan.*,
+            COALESCE(
+              data_jabatan.target_angka_kredit_naik_jabatan,
+              (
+                SELECT MIN(jabatan_setara.target_angka_kredit_naik_jabatan)
+                FROM jabatan jabatan_setara
+                WHERE data_jabatan.kredit_koefisien_per_tahun IS NOT NULL
+                  AND jabatan_setara.kredit_koefisien_per_tahun = data_jabatan.kredit_koefisien_per_tahun
+                  AND jabatan_setara.target_angka_kredit_naik_jabatan IS NOT NULL
+              )
+            ) AS target_efektif
+          FROM jabatan data_jabatan
+        )
+        SELECT
+          pengguna.id_pengguna,
+          pengguna.angka_kredit_saat_ini,
+          jabatan.id_jabatan AS current_jabatan_id,
+          jabatan.target_efektif AS current_target,
+          jabatan.kredit_koefisien_per_tahun AS current_coefficient,
+          kandidat.id_jabatan AS target_jabatan_id
+        FROM pengguna
+        INNER JOIN jabatan_dengan_target jabatan
+          ON jabatan.id_jabatan = pengguna.id_jabatan
+        INNER JOIN jabatan_dengan_target kandidat
+          ON kandidat.id_jabatan = $2
+        LEFT JOIN roles
+          ON roles.role_id = pengguna.role_id
+        WHERE pengguna.id_pengguna = $1
+          AND pengguna.status_aktif IS DISTINCT FROM FALSE
+          AND LOWER(COALESCE(roles.name, '')) = 'pegawai'
+          AND pengguna.angka_kredit_saat_ini IS NOT NULL
+          AND jabatan.target_efektif IS NOT NULL
+          AND pengguna.angka_kredit_saat_ini >= jabatan.target_efektif
+          AND kandidat.id_jabatan <> jabatan.id_jabatan
+          AND (
+            kandidat.target_efektif > jabatan.target_efektif
+            OR kandidat.target_efektif = jabatan.target_efektif
+            OR (
+              kandidat.kredit_koefisien_per_tahun IS NOT NULL
+              AND kandidat.kredit_koefisien_per_tahun = jabatan.kredit_koefisien_per_tahun
+            )
+          )
+        FOR UPDATE OF pengguna
+      `,
+      [idPengguna, idJabatan],
+    );
+
+    if (!eligibilityResult.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await client.query(
+      `
+        UPDATE pengguna
+        SET
+          id_jabatan = $2,
+          tmt_jabatan = CURRENT_DATE
+        WHERE id_pengguna = $1
+      `,
+      [idPengguna, idJabatan],
+    );
+
+    await client.query(
+      `
+        INSERT INTO riwayat_jabatan (
+          id_pengguna,
+          id_jabatan,
+          tmt_jabatan
+        )
+        VALUES ($1, $2, CURRENT_DATE)
+      `,
+      [idPengguna, idJabatan],
+    );
+
+    await client.query("COMMIT");
+    return findPegawaiById(idPengguna);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
