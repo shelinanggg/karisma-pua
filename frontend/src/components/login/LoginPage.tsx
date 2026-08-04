@@ -4,9 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 import { useNavigate } from 'react-router-dom';
 
-// Logo UNAIR dari Wikimedia Commons
-const UNAIR_LOGO_URL =
-  'https://arsip.unair.ac.id/wp-content/uploads/2019/01/cropped-logo-unair-1.png';
+const UNAIR_LOGO_URL = '/logo-unair.png';
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);

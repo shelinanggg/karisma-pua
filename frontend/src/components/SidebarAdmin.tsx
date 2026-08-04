@@ -3,7 +3,7 @@ import { cn } from './ui/utils';
 
 import { useLocation, Link } from 'react-router-dom';
 
-const UNAIR_LOGO_URL = 'https://arsip.unair.ac.id/wp-content/uploads/2019/01/logo-unair.png';
+const UNAIR_LOGO_URL = '/logo-unair.png';
 
 const navItems = [
   { id: 'dashboard-utama', label: 'Dashboard Utama', icon: LayoutDashboard },

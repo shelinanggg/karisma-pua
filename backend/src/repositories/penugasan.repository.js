@@ -1053,6 +1053,77 @@ export const createMyRealisasiKegiatan = async ({
   return items.find((item) => item.id === String(result.rows[0].id_realisasi_kegiatan)) ?? null;
 };
 
+export const updateMyRealisasiKegiatan = async ({
+  idPengguna,
+  idRealisasiKegiatan,
+  idPenggunaKegiatan,
+  tanggalRealisasi,
+  realisasiTarget,
+  keterangan,
+  linkDokumenPendukung,
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE realisasi_kegiatan
+      SET
+        id_pengguna_kegiatan = $3,
+        tanggal_realisasi = $4,
+        realisasi_target = $5,
+        keterangan = $6,
+        link_dokumen_pendukung = $7,
+        updated_at = current_timestamp
+      FROM pengguna_kegiatan target_pengguna_kegiatan
+      INNER JOIN periode_skp
+        ON periode_skp.id_periode_skp = target_pengguna_kegiatan.id_periode_skp
+      WHERE realisasi_kegiatan.id_realisasi_kegiatan = $2
+        AND target_pengguna_kegiatan.id_pengguna_kegiatan = $3
+        AND target_pengguna_kegiatan.id_pengguna = $1
+        AND target_pengguna_kegiatan.target_ketercapaian IS NOT NULL
+        AND btrim(target_pengguna_kegiatan.target_ketercapaian) <> ''
+        AND periode_skp.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::integer
+        AND realisasi_kegiatan.status = 'diajukan'
+        AND EXISTS (
+          SELECT 1
+          FROM pengguna_kegiatan owner_pengguna_kegiatan
+          WHERE owner_pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+            AND owner_pengguna_kegiatan.id_pengguna = $1
+        )
+      RETURNING realisasi_kegiatan.id_realisasi_kegiatan
+    `,
+    [
+      idPengguna,
+      idRealisasiKegiatan,
+      idPenggunaKegiatan,
+      tanggalRealisasi,
+      realisasiTarget,
+      keterangan,
+      linkDokumenPendukung,
+    ],
+  );
+
+  if (!result.rows[0]) return null;
+
+  const items = await findMyRealisasiKegiatan(idPengguna);
+  return items.find((item) => item.id === String(result.rows[0].id_realisasi_kegiatan)) ?? null;
+};
+
+export const deleteMyRealisasiKegiatan = async ({ idPengguna, idRealisasiKegiatan }) => {
+  const result = await pool.query(
+    `
+      DELETE FROM realisasi_kegiatan
+      USING pengguna_kegiatan
+      WHERE realisasi_kegiatan.id_realisasi_kegiatan = $2
+        AND pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+        AND pengguna_kegiatan.id_pengguna = $1
+        AND realisasi_kegiatan.status = 'diajukan'
+      RETURNING realisasi_kegiatan.id_realisasi_kegiatan
+    `,
+    [idPengguna, idRealisasiKegiatan],
+  );
+
+  return Boolean(result.rows[0]);
+};
+
 export const findApprovalRealisasiEmployees = async ({ idPeriodeSkp = null, tahun = null } = {}) => {
   const result = await pool.query(
     `

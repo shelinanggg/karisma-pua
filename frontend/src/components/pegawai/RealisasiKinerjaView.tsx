@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Calendar, Check, ChevronsUpDown, Pencil, Plus, Search } from 'lucide-react';
+import { Calendar, Check, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import {
   createMyRealisasiKegiatan,
+  deleteMyRealisasiKegiatan,
   getMyPenugasanButir,
   getMyRealisasiKegiatan,
+  updateMyRealisasiKegiatan,
   updateMyPenugasanButirTarget,
   type MyPenugasanButir,
   type MyRealisasiKegiatan,
 } from '../../api/penugasanApi';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { DocumentLinkButton } from '../ui/document-link-button';
@@ -600,6 +603,7 @@ function ProgressTab({ assignments, isLoading }: { assignments: MyPenugasanButir
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
@@ -949,6 +953,7 @@ function TargetTab({
           </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
@@ -981,6 +986,19 @@ function RealisasiTab({
   const [periodFilter, setPeriodFilter] = useState(currentYearFilter);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
+  const [editingItem, setEditingItem] = useState<MyRealisasiKegiatan | null>(null);
+  const [deletingItem, setDeletingItem] = useState<MyRealisasiKegiatan | null>(null);
+  const [editForm, setEditForm] = useState({
+    penugasanId: '',
+    tanggal: '',
+    jumlah: '',
+    keterangan: '',
+    linkDokumenPendukung: '',
+  });
+  const [editError, setEditError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const yearOptions = useMemo(() => getYearOptions(history.map((item) => getRealisasiYear(item))), [history]);
   const targetAssignments = useMemo(() => assignments.filter(hasTarget), [assignments]);
@@ -1043,6 +1061,93 @@ function RealisasiTab({
       setError('Gagal menyimpan realisasi kegiatan.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (item: MyRealisasiKegiatan) => {
+    if (item.status === 'disetujui') return;
+
+    setEditingItem(item);
+    setEditForm({
+      penugasanId: item.idPenggunaKegiatan,
+      tanggal: item.tanggalRealisasi,
+      jumlah: item.realisasiTarget,
+      keterangan: item.keterangan,
+      linkDokumenPendukung: item.linkDokumenPendukung,
+    });
+    setEditError('');
+  };
+
+  const updateEditForm = (key: keyof typeof editForm, value: string) => {
+    setEditForm((current) => ({ ...current, [key]: value }));
+    setEditError('');
+  };
+
+  const closeEditDialog = () => {
+    if (isEditSaving) return;
+    setEditingItem(null);
+    setEditError('');
+  };
+
+  const openDeleteDialog = (item: MyRealisasiKegiatan) => {
+    if (item.status === 'disetujui') return;
+
+    setDeletingItem(item);
+    setDeleteError('');
+  };
+
+  const handleUpdateRealisasi = async () => {
+    if (!editingItem) return;
+
+    if (!editForm.penugasanId) {
+      setEditError('Penugasan wajib dipilih.');
+      return;
+    }
+    if (!editForm.tanggal) {
+      setEditError('Tanggal realisasi wajib diisi.');
+      return;
+    }
+    if (!editForm.jumlah || Number(editForm.jumlah) <= 0) {
+      setEditError('Jumlah realisasi wajib diisi lebih dari 0.');
+      return;
+    }
+    if (!editForm.keterangan.trim()) {
+      setEditError('Keterangan realisasi wajib diisi.');
+      return;
+    }
+
+    try {
+      setIsEditSaving(true);
+      await updateMyRealisasiKegiatan(editingItem.id, {
+        idPenggunaKegiatan: editForm.penugasanId,
+        tanggalRealisasi: editForm.tanggal,
+        realisasiTarget: editForm.jumlah,
+        keterangan: editForm.keterangan,
+        linkDokumenPendukung: editForm.linkDokumenPendukung,
+      });
+      await onSaved();
+      setEditingItem(null);
+      setEditError('');
+    } catch (error: any) {
+      setEditError(error.response?.data?.message || 'Gagal memperbarui realisasi kegiatan.');
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
+  const handleDeleteRealisasi = async () => {
+    if (!deletingItem) return;
+
+    try {
+      setIsDeleting(true);
+      setDeleteError('');
+      await deleteMyRealisasiKegiatan(deletingItem.id);
+      await onSaved();
+      setDeletingItem(null);
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'Gagal menghapus realisasi kegiatan.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1236,15 +1341,16 @@ function RealisasiTab({
         <CardContent>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse text-sm">
+              <table className="w-full min-w-[1180px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-gray-100 text-left text-sm font-semibold text-gray-700">
                     <th className="w-[12%] px-6 py-3">Tanggal</th>
-                    <th className="w-[26%] px-6 py-3">Kegiatan</th>
-                    <th className="w-[12%] px-6 py-3">Realisasi</th>
-                    <th className="w-[12%] px-6 py-3">Status</th>
+                    <th className="w-[24%] px-6 py-3">Kegiatan</th>
+                    <th className="w-[10%] px-6 py-3">Realisasi</th>
+                    <th className="w-[10%] px-6 py-3">Status</th>
                     <th className="w-[20%] px-6 py-3">Keterangan</th>
-                    <th className="w-[18%] px-6 py-3 text-center">Dokumen Pendukung</th>
+                    <th className="w-[14%] px-6 py-3 text-center">Dokumen Pendukung</th>
+                    <th className="w-[10%] px-6 py-3 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1270,11 +1376,37 @@ function RealisasiTab({
                         <td className="px-6 py-4 text-center">
                           <DocumentLinkButton href={item.linkDokumenPendukung} title="Buka dokumen pendukung" />
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          {item.status === 'diajukan' && (
+                            <div className="flex justify-center gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-xs"
+                                onClick={() => openEditDialog(item)}
+                              >
+                                <Pencil className="size-3.5" />
+                                Edit
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-3 text-xs text-red-600 hover:text-red-700"
+                                onClick={() => openDeleteDialog(item)}
+                              >
+                                <Trash2 className="size-3.5" />
+                                Hapus
+                              </Button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                         {search.trim() || statusFilter !== 'all' || periodFilter !== currentYearFilter
                           ? 'Data realisasi kegiatan tidak ditemukan.'
                           : 'Belum ada riwayat realisasi.'}
@@ -1295,6 +1427,141 @@ function RealisasiTab({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={Boolean(editingItem)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
+        <DialogContent style={{ maxWidth: '560px' }}>
+          <DialogHeader>
+            <DialogTitle>Edit Realisasi Kegiatan</DialogTitle>
+            <DialogDescription>Perbarui realisasi kegiatan yang masih menunggu persetujuan.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>
+                Butir Kegiatan
+                <RequiredStar />
+              </Label>
+              <SearchableSelect
+                label="Butir Kegiatan"
+                options={options}
+                value={editForm.penugasanId}
+                onChange={(value) => updateEditForm('penugasanId', value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-tanggal-realisasi">
+                  Tanggal Realisasi
+                  <RequiredStar />
+                </Label>
+                <div
+                  className="relative cursor-pointer"
+                  onClick={(event) => {
+                    const input = event.currentTarget.querySelector('input');
+                    if (input) openDatePicker(input);
+                  }}
+                >
+                  <Input
+                    id="edit-tanggal-realisasi"
+                    type="date"
+                    value={editForm.tanggal}
+                    onChange={(event) => updateEditForm('tanggal', event.target.value)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDatePicker(event.currentTarget);
+                    }}
+                    className="admin-date-input cursor-pointer bg-white"
+                    style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb', paddingRight: '2.5rem' }}
+                  />
+                  <Calendar className="text-gray-400" style={{ position: 'absolute', right: '0.875rem', top: '50%', height: '1rem', width: '1rem', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-jumlah-realisasi">
+                  Jumlah Realisasi
+                  <RequiredStar />
+                </Label>
+                <Input
+                  id="edit-jumlah-realisasi"
+                  type="number"
+                  min={1}
+                  value={editForm.jumlah}
+                  onChange={(event) => updateEditForm('jumlah', event.target.value)}
+                  placeholder="Contoh: 1"
+                  className="bg-white"
+                  style={{ height: '2.75rem', borderColor: '#d1d5db', boxShadow: 'inset 0 0 0 1px #e5e7eb' }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-keterangan-realisasi">
+                Keterangan Realisasi
+                <RequiredStar />
+              </Label>
+              <Textarea
+                id="edit-keterangan-realisasi"
+                value={editForm.keterangan}
+                onChange={(event) => updateEditForm('keterangan', event.target.value)}
+                placeholder="Jelaskan realisasi kegiatan yang sudah dilakukan."
+                rows={4}
+                className="resize-none border-gray-300 bg-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-link-dokumen-pendukung">Link Drive Dokumen Pendukung</Label>
+              <Input
+                id="edit-link-dokumen-pendukung"
+                type="url"
+                value={editForm.linkDokumenPendukung}
+                onChange={(event) => updateEditForm('linkDokumenPendukung', event.target.value)}
+                placeholder="https://drive.google.com/..."
+                className="h-11 border-gray-300 bg-white"
+              />
+            </div>
+
+            {editError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{editError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog} disabled={isEditSaving}>
+              Batal
+            </Button>
+            <Button disabled={isEditSaving} onClick={handleUpdateRealisasi}>
+              {isEditSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deletingItem)} onOpenChange={(open: boolean) => !open && !isDeleting && setDeletingItem(null)}>
+        <DialogContent style={{ maxWidth: '480px' }}>
+          <DialogHeader>
+            <DialogTitle>Hapus Realisasi Kegiatan</DialogTitle>
+            <DialogDescription>Realisasi kegiatan ini akan dihapus dari riwayat Anda.</DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">{deletingItem?.namaKegiatan ?? '-'}</p>
+            <p className="mt-1 text-xs text-gray-500">{deletingItem ? formatTanggal(deletingItem.tanggalRealisasi) : '-'}</p>
+            <p className="mt-2 text-sm text-gray-600">{deletingItem?.keterangan || '-'}</p>
+          </div>
+          {deleteError && <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">{deleteError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingItem(null)} disabled={isDeleting}>
+              Batal
+            </Button>
+            <Button
+              disabled={isDeleting}
+              className="border font-semibold"
+              style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#ffffff' }}
+              onClick={handleDeleteRealisasi}
+            >
+              {isDeleting ? 'Menghapus...' : 'Hapus'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

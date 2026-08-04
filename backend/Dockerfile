@@ -20,6 +20,7 @@ RUN npm ci --omit=dev
 
 COPY migrations ./migrations
 COPY scripts ./scripts
+RUN sed -i 's/\r$//' scripts/*.sh
 COPY src ./src
 
 USER node
