@@ -465,11 +465,13 @@ export function PegawaiOverview() {
                     </div>
                   </div>
 
-                  <DocumentLinkButton
-                    href={item.linkSurat}
-                    title="Buka Link Drive Surat Tugas"
-                    className="ml-2 shrink-0"
-                  />
+                  {item.linkSurat?.trim() && (
+                    <DocumentLinkButton
+                      href={item.linkSurat}
+                      title="Buka Link Drive Surat Tugas"
+                      className="ml-2 shrink-0"
+                    />
+                  )}
                 </div>
               ))
             ) : (

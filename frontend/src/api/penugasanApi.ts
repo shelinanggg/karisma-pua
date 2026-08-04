@@ -258,6 +258,16 @@ export async function createMyRealisasiKegiatan(payload: MyRealisasiKegiatanPayl
   return response.data.data;
 }
 
+export async function updateMyRealisasiKegiatan(id: string, payload: MyRealisasiKegiatanPayload) {
+  const response = await axiosInstance.patch<{ data: MyRealisasiKegiatan }>(`/penugasan/realisasi/saya/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deleteMyRealisasiKegiatan(id: string) {
+  const response = await axiosInstance.delete(`/penugasan/realisasi/saya/${id}`);
+  return response.data;
+}
+
 export async function getApprovalRealisasiEmployees(params?: { idPeriodeSkp?: string; tahun?: number }) {
   const response = await axiosInstance.get<{ data: ApprovalRealisasiEmployee[] }>("/penugasan/approval-skp/pegawai", { params });
   return response.data.data;
