@@ -23,6 +23,7 @@ const PimpinanApprovalSKPDetailView = lazy(() => import('./components/pimpinan/P
 const PimpinanApprovalKegiatanDetailView = lazy(() => import('./components/pimpinan/PimpinanApprovalKegiatanView').then((module) => ({ default: module.PimpinanApprovalKegiatanDetailView })));
 const PimpinanDataKepegawaianView = lazy(() => import('./components/pimpinan/PimpinanDataKepegawaianView').then((module) => ({ default: module.PimpinanDataKepegawaianView })));
 const PimpinanKegiatanPegawaiDetailView = lazy(() => import('./components/pimpinan/PimpinanKegiatanPegawaiDetailView').then((module) => ({ default: module.PimpinanKegiatanPegawaiDetailView })));
+const PimpinanRealisasiKegiatanPegawaiView = lazy(() => import('./components/pimpinan/PimpinanRealisasiKegiatanPegawaiView').then((module) => ({ default: module.PimpinanRealisasiKegiatanPegawaiView })));
 const PimpinanPenugasanTambahanView = lazy(() => import('./components/pimpinan/PimpinanPenugasanTambahanView').then((module) => ({ default: module.PimpinanPenugasanTambahanView })));
 const PimpinanProfilView = lazy(() => import('./components/pimpinan/PimpinanProfilView').then((module) => ({ default: module.PimpinanProfilView })));
 const PimpinanPengaturanView = lazy(() => import('./components/pimpinan/PimpinanPengaturanView').then((module) => ({ default: module.PimpinanPengaturanView })));
@@ -210,6 +211,7 @@ export default function App() {
         <Route path="penugasan-tambahan" element={<PimpinanPenugasanTambahanView />} />
         <Route path="data-kepegawaian" element={<PimpinanDataKepegawaianView />} />
         <Route path="data-kepegawaian/:pegawaiId/kegiatan" element={<PimpinanKegiatanPegawaiDetailView />} />
+        <Route path="data-kepegawaian/:pegawaiId/kegiatan/:kegiatanId/realisasi" element={<PimpinanRealisasiKegiatanPegawaiView />} />
         <Route path="profil" element={<PimpinanProfilView />} />
         <Route path="pengaturan" element={<PimpinanPengaturanView />} />
         <Route path="overview" element={<Navigate to="/pimpinan/dashboard-utama" replace />} />

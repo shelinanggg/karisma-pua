@@ -18,12 +18,14 @@ import {
   patchApproveRealisasi,
   patchMyButirTarget,
   patchMyRealisasi,
+  patchPimpinanRealisasi,
   patchAdditionalAssignment,
   patchButirAssignment,
   postAdditionalAssignment,
   postButirAssignment,
   postMyRealisasi,
   removeMyRealisasi,
+  removePimpinanRealisasi,
   removeButirAssignment,
   submitMyKegiatanApproval,
 } from "../controllers/penugasan.controller.js";
@@ -62,6 +64,8 @@ router.patch("/kegiatan/:id/approve", authorizeRoles("pimpinan"), patchApproveKe
 router.get("/approval-skp/pegawai", authorizeRoles("pimpinan"), getApprovalRealisasiEmployees);
 router.get("/approval-skp/pegawai/:pegawaiId/realisasi", authorizeRoles("pimpinan"), getApprovalRealisasiByEmployee);
 router.patch("/approval-skp/realisasi/approve", authorizeRoles("pimpinan"), patchApproveRealisasi);
+router.patch("/pimpinan/realisasi/:id", authorizeRoles("pimpinan"), patchPimpinanRealisasi);
+router.delete("/pimpinan/realisasi/:id", authorizeRoles("pimpinan"), removePimpinanRealisasi);
 router.get("/tambahan/saya", authorizeRoles("pegawai"), getMyAdditionalAssignments);
 router.get("/tambahan", authorizeRoles("admin"), getAdditionalAssignments);
 router.get("/tambahan/:id", authorizeRoles("admin"), getAdditionalAssignment);

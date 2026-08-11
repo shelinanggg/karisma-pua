@@ -70,6 +70,13 @@ export type MyRealisasiKegiatanPayload = {
   linkDokumenPendukung?: string;
 };
 
+export type PimpinanRealisasiKegiatanPayload = {
+  tanggalRealisasi: string;
+  realisasiTarget: string;
+  keterangan: string;
+  linkDokumenPendukung?: string;
+};
+
 export type ApprovalRealisasiEmployee = {
   id: string;
   nip: string;
@@ -265,6 +272,16 @@ export async function updateMyRealisasiKegiatan(id: string, payload: MyRealisasi
 
 export async function deleteMyRealisasiKegiatan(id: string) {
   const response = await axiosInstance.delete(`/penugasan/realisasi/saya/${id}`);
+  return response.data;
+}
+
+export async function updatePimpinanRealisasiKegiatan(id: string, payload: PimpinanRealisasiKegiatanPayload) {
+  const response = await axiosInstance.patch<{ data: ApprovalRealisasiItem }>(`/penugasan/pimpinan/realisasi/${id}`, payload);
+  return response.data.data;
+}
+
+export async function deletePimpinanRealisasiKegiatan(id: string) {
+  const response = await axiosInstance.delete(`/penugasan/pimpinan/realisasi/${id}`);
   return response.data;
 }
 
