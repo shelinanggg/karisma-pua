@@ -4,6 +4,7 @@ import {
   createAdditionalAssignment,
   createButirAssignment,
   createMyRealisasiKegiatan,
+  deletePimpinanRealisasiKegiatan,
   deleteMyRealisasiKegiatan,
   deleteButirAssignment,
   findAdditionalAssignmentById,
@@ -18,11 +19,13 @@ import {
   findMainDashboardSummary,
   findMyDashboardSummary,
   findPendingApprovalKegiatan,
+  findPimpinanRealisasiById,
   findMyRealisasiKegiatan,
   findPimpinanKegiatanDashboard,
   submitButirAssignmentForApproval,
   updateAdditionalAssignment,
   updateButirAssignment,
+  updatePimpinanRealisasiKegiatan,
   updateMyRealisasiKegiatan,
   updateOwnButirTarget,
 } from "../repositories/penugasan.repository.js";
@@ -462,6 +465,76 @@ export const patchApproveRealisasi = async (req, res) => {
     res.status(200).json({ message: "Realisasi kegiatan berhasil disetujui.", data });
   } catch (err) {
     res.status(500).json({ message: "Gagal menyetujui realisasi kegiatan." });
+  }
+};
+
+export const patchPimpinanRealisasi = async (req, res) => {
+  try {
+    const idRealisasiKegiatan = requiredInteger(req.params.id);
+    const tanggalRealisasi = nullableText(req.body.tanggalRealisasi);
+    const realisasiTarget = positiveNumberText(req.body.realisasiTarget);
+    const keterangan = nullableText(req.body.keterangan);
+    const linkDokumenPendukung = optionalHttpUrl(req.body.linkDokumenPendukung);
+
+    if (!idRealisasiKegiatan || Number.isNaN(idRealisasiKegiatan)) {
+      return res.status(400).json({ message: "ID realisasi kegiatan tidak valid." });
+    }
+
+    if (!tanggalRealisasi) {
+      return res.status(400).json({ message: "Tanggal realisasi wajib diisi." });
+    }
+
+    if (!realisasiTarget || Number.isNaN(realisasiTarget)) {
+      return res.status(400).json({ message: "Jumlah realisasi wajib berupa angka lebih dari 0." });
+    }
+
+    if (!keterangan) {
+      return res.status(400).json({ message: "Keterangan realisasi wajib diisi." });
+    }
+
+    if (Number.isNaN(linkDokumenPendukung)) {
+      return res.status(400).json({ message: "Link dokumen pendukung tidak valid." });
+    }
+
+    const data = await updatePimpinanRealisasiKegiatan({
+      idRealisasiKegiatan,
+      tanggalRealisasi,
+      realisasiTarget,
+      keterangan,
+      linkDokumenPendukung,
+    });
+
+    if (!data) {
+      return res.status(404).json({ message: "Realisasi kegiatan tidak ditemukan." });
+    }
+
+    res.status(200).json({ message: "Realisasi kegiatan berhasil diperbarui.", data });
+  } catch (err) {
+    if (err.code === "23502" || err.code === "23503") {
+      return res.status(400).json({ message: "Data realisasi kegiatan tidak valid." });
+    }
+
+    res.status(500).json({ message: "Gagal memperbarui realisasi kegiatan." });
+  }
+};
+
+export const removePimpinanRealisasi = async (req, res) => {
+  try {
+    const idRealisasiKegiatan = requiredInteger(req.params.id);
+
+    if (!idRealisasiKegiatan || Number.isNaN(idRealisasiKegiatan)) {
+      return res.status(400).json({ message: "ID realisasi kegiatan tidak valid." });
+    }
+
+    const existing = await findPimpinanRealisasiById(idRealisasiKegiatan);
+    if (!existing) {
+      return res.status(404).json({ message: "Realisasi kegiatan tidak ditemukan." });
+    }
+
+    await deletePimpinanRealisasiKegiatan(idRealisasiKegiatan);
+    res.status(200).json({ message: "Realisasi kegiatan berhasil dihapus." });
+  } catch (err) {
+    res.status(500).json({ message: "Gagal menghapus realisasi kegiatan." });
   }
 };
 

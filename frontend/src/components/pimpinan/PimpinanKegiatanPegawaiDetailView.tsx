@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Eye, Search } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getPegawaiList,
@@ -293,12 +293,13 @@ export function PimpinanKegiatanPegawaiDetailView() {
         <CardContent>
           <div className="overflow-hidden rounded-lg border">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] table-fixed border-collapse text-sm">
+              <table className="w-full min-w-[1080px] table-fixed border-collapse text-sm">
                 <colgroup>
-                  <col style={{ width: '37%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '35%' }} />
-                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '34%' }} />
+                  <col style={{ width: '13%' }} />
+                  <col style={{ width: '31%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '10%' }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-100 text-left font-semibold text-gray-700">
@@ -306,12 +307,13 @@ export function PimpinanKegiatanPegawaiDetailView() {
                     <th className="px-6 py-3">Periode</th>
                     <th className="px-6 py-3">Progress</th>
                     <th className="px-6 py-3 text-center">Status</th>
+                    <th className="px-6 py-3 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
                         Memuat kegiatan pegawai...
                       </td>
                     </tr>
@@ -331,11 +333,27 @@ export function PimpinanKegiatanPegawaiDetailView() {
                         <td className="px-6 py-4 text-center">
                           <StatusBadge status={getStatus(item)} />
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 text-xs"
+                            onClick={() =>
+                              navigate(`/pimpinan/data-kepegawaian/${pegawaiId}/kegiatan/${item.id}/realisasi`, {
+                                state: { employee, assignment: item },
+                              })
+                            }
+                          >
+                            <Eye className="size-3.5" />
+                            Detail
+                          </Button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
                         Belum ada kegiatan pada periode tahun berjalan.
                       </td>
                     </tr>

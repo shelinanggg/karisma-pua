@@ -1214,6 +1214,73 @@ export const findApprovalRealisasiByEmployee = async (idPengguna, { idPeriodeSkp
   return result.rows.map(mapApprovalRealisasiRow);
 };
 
+export const findPimpinanRealisasiById = async (idRealisasiKegiatan) => {
+  const result = await pool.query(
+    `
+      SELECT
+        realisasi_kegiatan.id_realisasi_kegiatan,
+        realisasi_kegiatan.id_pengguna_kegiatan,
+        butir_kegiatan.nama_kegiatan,
+        pengguna_kegiatan.uraian,
+        pengguna_kegiatan.deskripsi,
+        ${formatDateColumn("realisasi_kegiatan.tanggal_realisasi")} AS tanggal_realisasi,
+        realisasi_kegiatan.realisasi_target,
+        realisasi_kegiatan.keterangan,
+        pengguna_kegiatan.target_ketercapaian,
+        realisasi_kegiatan.link_dokumen_pendukung,
+        realisasi_kegiatan.status
+      FROM realisasi_kegiatan
+      INNER JOIN pengguna_kegiatan
+        ON pengguna_kegiatan.id_pengguna_kegiatan = realisasi_kegiatan.id_pengguna_kegiatan
+      INNER JOIN butir_kegiatan
+        ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
+      WHERE realisasi_kegiatan.id_realisasi_kegiatan = $1
+    `,
+    [idRealisasiKegiatan],
+  );
+
+  return result.rows[0] ? mapApprovalRealisasiRow(result.rows[0]) : null;
+};
+
+export const updatePimpinanRealisasiKegiatan = async ({
+  idRealisasiKegiatan,
+  tanggalRealisasi,
+  realisasiTarget,
+  keterangan,
+  linkDokumenPendukung,
+}) => {
+  const result = await pool.query(
+    `
+      UPDATE realisasi_kegiatan
+      SET
+        tanggal_realisasi = $2,
+        realisasi_target = $3,
+        keterangan = $4,
+        link_dokumen_pendukung = $5,
+        updated_at = current_timestamp
+      WHERE id_realisasi_kegiatan = $1
+      RETURNING id_realisasi_kegiatan
+    `,
+    [idRealisasiKegiatan, tanggalRealisasi, realisasiTarget, keterangan, linkDokumenPendukung],
+  );
+
+  if (!result.rows[0]) return null;
+  return findPimpinanRealisasiById(result.rows[0].id_realisasi_kegiatan);
+};
+
+export const deletePimpinanRealisasiKegiatan = async (idRealisasiKegiatan) => {
+  const result = await pool.query(
+    `
+      DELETE FROM realisasi_kegiatan
+      WHERE id_realisasi_kegiatan = $1
+      RETURNING id_realisasi_kegiatan
+    `,
+    [idRealisasiKegiatan],
+  );
+
+  return Boolean(result.rows[0]);
+};
+
 export const approveRealisasiKegiatan = async (ids) => {
   const result = await pool.query(
     `
