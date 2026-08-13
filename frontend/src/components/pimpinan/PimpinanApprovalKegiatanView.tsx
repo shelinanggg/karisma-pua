@@ -609,7 +609,14 @@ function ApproveConfirmDialog({
           <p className="mt-1 text-xs text-gray-500">Target diajukan: {formatTarget(item?.targetKetercapaian)}</p>
         </div>
 
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter
+          style={{
+            marginTop: '16px',
+            paddingTop: '24px',
+            borderTop: '1px solid #e5e7eb',
+            gap: '12px',
+          }}
+        >
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isProcessing}>
             Batal
           </Button>
@@ -617,7 +624,8 @@ function ApproveConfirmDialog({
             size="sm"
             onClick={onConfirm}
             disabled={isProcessing}
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="font-semibold shadow-sm"
+            style={{ backgroundColor: '#16a34a', color: '#ffffff' }}
           >
             {isProcessing ? 'Memproses...' : 'Terima'}
           </Button>

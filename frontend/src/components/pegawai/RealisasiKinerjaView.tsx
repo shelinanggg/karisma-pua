@@ -28,6 +28,7 @@ type ActiveStatus = 'Aktif' | 'Selesai' | 'Batal';
 type TargetSubmissionStatus = 'belum_diajukan' | 'diajukan' | 'diterima' | 'diubah';
 type RealisasiStatus = MyRealisasiKegiatan['status'];
 type FilterOption = { value: string; label: string };
+type BadgeStyle = { backgroundColor: string; borderColor: string; color: string };
 
 const pageSizeOptions = [5, 10, 20];
 const currentYearFilter = String(new Date().getFullYear());
@@ -51,6 +52,66 @@ const targetSubmissionLabelMap: Record<TargetSubmissionStatus, string> = {
 const realisasiStatusLabelMap: Record<RealisasiStatus, string> = {
   diajukan: 'Diajukan',
   disetujui: 'Disetujui',
+};
+
+const targetSubmissionStyleMap: Record<TargetSubmissionStatus, BadgeStyle> = {
+  belum_diajukan: {
+    backgroundColor: '#f3f4f6',
+    borderColor: '#d1d5db',
+    color: '#374151',
+  },
+  diajukan: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    color: '#92400e',
+  },
+  diterima: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#22c55e',
+    color: '#166534',
+  },
+  diubah: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
+    color: '#1e40af',
+  },
+};
+
+const activeStatusStyleMap: Record<ActiveStatus, BadgeStyle> = {
+  Aktif: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#22c55e',
+    color: '#166534',
+  },
+  Selesai: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
+    color: '#334155',
+  },
+  Batal: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#ef4444',
+    color: '#991b1b',
+  },
+};
+
+const realisasiStatusStyleMap: Record<RealisasiStatus, BadgeStyle> = {
+  diajukan: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    color: '#92400e',
+  },
+  disetujui: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#22c55e',
+    color: '#166534',
+  },
+};
+
+const fallbackBadgeStyle: BadgeStyle = {
+  backgroundColor: '#f3f4f6',
+  borderColor: '#d1d5db',
+  color: '#374151',
 };
 
 function RequiredStar() {
@@ -369,49 +430,40 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
 }
 
 function RealisasiStatusBadge({ status }: { status: RealisasiStatus }) {
-  const styleMap: Record<RealisasiStatus, { bg: string; fg: string }> = {
-    diajukan: { bg: '#fef3c7', fg: '#b45309' },
-    disetujui: { bg: '#dcfce7', fg: '#15803d' },
-  };
+  const style = realisasiStatusStyleMap[status] ?? fallbackBadgeStyle;
 
   return (
     <span
-      className="inline-flex w-24 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
+      className="inline-flex min-w-28 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm"
+      style={style}
     >
-      <span className="truncate">{realisasiStatusLabelMap[status]}</span>
+      <span className="truncate">{realisasiStatusLabelMap[status] ?? status}</span>
     </span>
   );
 }
 
 function ActiveStatusBadge({ status }: { status: ActiveStatus }) {
-  const styleMap: Record<ActiveStatus, string> = {
-    Aktif: 'bg-green-50 text-green-700',
-    Selesai: 'bg-slate-100 text-slate-700',
-    Batal: 'bg-red-50 text-red-700',
-  };
+  const style = activeStatusStyleMap[status] ?? fallbackBadgeStyle;
 
   return (
-    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium', styleMap[status])}>
-      {status}
+    <span
+      className="inline-flex min-w-28 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm"
+      style={style}
+    >
+      <span className="truncate">{status}</span>
     </span>
   );
 }
 
 function TargetSubmissionBadge({ status }: { status: TargetSubmissionStatus }) {
-  const styleMap: Record<TargetSubmissionStatus, { bg: string; fg: string }> = {
-    belum_diajukan: { bg: '#f3f4f6', fg: '#4b5563' },
-    diajukan: { bg: '#fef3c7', fg: '#b45309' },
-    diterima: { bg: '#dcfce7', fg: '#15803d' },
-    diubah: { bg: '#dbeafe', fg: '#1d4ed8' },
-  };
+  const style = targetSubmissionStyleMap[status] ?? fallbackBadgeStyle;
 
   return (
     <span
-      className="inline-flex min-w-28 items-center justify-center rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: styleMap[status].bg, color: styleMap[status].fg }}
+      className="inline-flex min-w-28 items-center justify-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm"
+      style={style}
     >
-      <span className="truncate">{targetSubmissionLabelMap[status]}</span>
+      <span className="truncate">{targetSubmissionLabelMap[status] ?? status}</span>
     </span>
   );
 }
