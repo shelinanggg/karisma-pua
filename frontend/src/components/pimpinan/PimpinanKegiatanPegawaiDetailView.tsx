@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Search } from 'lucide-react';
+import { ArrowLeft, Eye, Pencil, Search, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   getPegawaiList,
@@ -8,12 +8,33 @@ import {
   type PegawaiReferences,
 } from '../../api/pegawaiApi';
 import {
+  deletePimpinanPenugasanButir,
   getPimpinanKinerjaByPegawai,
+  updatePimpinanPenugasanButir,
   type MyPenugasanButir,
 } from '../../api/penugasanApi';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 type AssignmentStatus =
   | 'Belum Ditetapkan'
@@ -46,6 +67,29 @@ function toNumber(value: string | number | null | undefined) {
 
 function formatNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function getSubmissionStatusLabel(status?: MyPenugasanButir['statusPengajuan']) {
+  if (status === 'diterima') return 'Diterima';
+  if (status === 'diubah') return 'Diubah pimpinan';
+  return 'Diajukan';
+}
+
+function getSubmissionDateLabel(status?: MyPenugasanButir['statusPengajuan']) {
+  if (status === 'diterima') return 'Diterima pada';
+  if (status === 'diubah') return 'Diubah pada';
+  return 'Diajukan pada';
 }
 
 function getTarget(item: MyPenugasanButir) {
@@ -126,6 +170,13 @@ export function PimpinanKegiatanPegawaiDetailView() {
   const [pageSize, setPageSize] = useState(5);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [editingItem, setEditingItem] = useState<MyPenugasanButir | null>(null);
+  const [deletingItem, setDeletingItem] = useState<MyPenugasanButir | null>(null);
+  const [editTarget, setEditTarget] = useState('');
+  const [editError, setEditError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -186,6 +237,62 @@ export function PimpinanKegiatanPegawaiDetailView() {
   );
   const totalTarget = items.reduce((total, item) => total + getTarget(item), 0);
   const totalRealisasi = items.reduce((total, item) => total + item.realisasiTotal, 0);
+  const hasTargetChanged = Boolean(editingItem) && editTarget.trim() !== editingItem.targetKetercapaian.trim();
+
+  const openEditDialog = (item: MyPenugasanButir) => {
+    setEditingItem(item);
+    setEditTarget(item.targetKetercapaian);
+    setEditError('');
+    setSuccessMessage('');
+  };
+
+  const handleSave = async () => {
+    if (!editingItem || !hasTargetChanged) return;
+
+    const numericTarget = Number(editTarget.replace(',', '.'));
+    if (!Number.isFinite(numericTarget) || numericTarget <= 0) {
+      setEditError('Target wajib berupa angka lebih dari 0.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setEditError('');
+      const updated = await updatePimpinanPenugasanButir(editingItem.id, {
+        uraian: editingItem.uraian,
+        deskripsi: editingItem.deskripsi,
+        targetKetercapaian: String(numericTarget),
+      });
+      setItems((current) => current.map((item) => (
+        item.id === editingItem.id ? { ...item, ...updated } : item
+      )));
+      setEditingItem(null);
+      setSuccessMessage('Target kegiatan berhasil diperbarui.');
+    } catch (error: any) {
+      setEditError(error.response?.data?.message || 'Gagal memperbarui target kegiatan.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+
+    try {
+      setIsDeleting(true);
+      setEditError('');
+      await deletePimpinanPenugasanButir(deletingItem.id);
+      setItems((current) => current.filter((item) => item.id !== deletingItem.id));
+      setDeletingItem(null);
+      setEditingItem(null);
+      setSuccessMessage('Kegiatan pegawai berhasil dihapus.');
+    } catch (error: any) {
+      setDeletingItem(null);
+      setEditError(error.response?.data?.message || 'Gagal menghapus kegiatan pegawai.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -207,6 +314,12 @@ export function PimpinanKegiatanPegawaiDetailView() {
       {errorMessage && (
         <p className="rounded-md bg-red-50 p-3 text-sm font-medium text-red-600">
           {errorMessage}
+        </p>
+      )}
+
+      {successMessage && (
+        <p className="rounded-md bg-green-50 p-3 text-sm font-medium text-green-700">
+          {successMessage}
         </p>
       )}
 
@@ -295,11 +408,11 @@ export function PimpinanKegiatanPegawaiDetailView() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1080px] table-fixed border-collapse text-sm">
                 <colgroup>
-                  <col style={{ width: '34%' }} />
-                  <col style={{ width: '13%' }} />
-                  <col style={{ width: '31%' }} />
+                  <col style={{ width: '30%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '16%' }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-gray-100 text-left font-semibold text-gray-700">
@@ -333,21 +446,33 @@ export function PimpinanKegiatanPegawaiDetailView() {
                         <td className="px-6 py-4 text-center">
                           <StatusBadge status={getStatus(item)} />
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-3 text-xs"
-                            onClick={() =>
-                              navigate(`/pimpinan/data-kepegawaian/${pegawaiId}/kegiatan/${item.id}/realisasi`, {
-                                state: { employee, assignment: item },
-                              })
-                            }
-                          >
-                            <Eye className="size-3.5" />
-                            Detail
-                          </Button>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs"
+                              onClick={() =>
+                                navigate(`/pimpinan/data-kepegawaian/${pegawaiId}/kegiatan/${item.id}/realisasi`, {
+                                  state: { employee, assignment: item },
+                                })
+                              }
+                            >
+                              <Eye className="size-3.5" />
+                              Realisasi
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2.5 text-xs"
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <Pencil className="size-3.5" />
+                              Edit
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -424,6 +549,112 @@ export function PimpinanKegiatanPegawaiDetailView() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(editingItem)}
+        onOpenChange={(open) => {
+          if (!open && !isSaving && !isDeleting) setEditingItem(null);
+        }}
+      >
+        <DialogContent className="pimpinan-activity-edit-dialog">
+          <DialogHeader className="pimpinan-activity-edit-dialog__header">
+            <DialogTitle className="pimpinan-activity-edit-dialog__title">Edit Kegiatan Pegawai</DialogTitle>
+            <DialogDescription className="pimpinan-activity-edit-dialog__description">
+              Lihat informasi pengajuan dan ubah target kegiatan pegawai.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingItem && (
+            <div className="pimpinan-activity-edit-dialog__body">
+              <div className="pimpinan-activity-edit-dialog__summary">
+                <p className="pimpinan-activity-edit-dialog__activity-name">{editingItem.namaKegiatan}</p>
+                <p className="pimpinan-activity-edit-dialog__year">Tahun {editingItem.tahun}</p>
+              </div>
+
+              <section className="pimpinan-activity-edit-dialog__section">
+                <h3 className="pimpinan-activity-edit-dialog__section-title">Informasi Pengajuan</h3>
+                <div className="pimpinan-activity-edit-dialog__info-grid">
+                  {[
+                    ['Status', getSubmissionStatusLabel(editingItem.statusPengajuan)],
+                    [getSubmissionDateLabel(editingItem.statusPengajuan), formatDateTime(editingItem.statusUpdatedAt)],
+                    ['Periode', `${editingItem.tanggalMulai || '-'} s.d. ${editingItem.tanggalSelesai || '-'}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="pimpinan-activity-edit-dialog__info-card">
+                      <p className="pimpinan-activity-edit-dialog__info-label">{label}</p>
+                      <p className="pimpinan-activity-edit-dialog__info-value">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <div className="pimpinan-activity-edit-dialog__target">
+                <Label htmlFor="pimpinan-target-kegiatan">Target</Label>
+                <Input
+                  id="pimpinan-target-kegiatan"
+                  className="pimpinan-activity-edit-dialog__target-input"
+                  inputMode="decimal"
+                  value={editTarget}
+                  onChange={(event) => {
+                    setEditTarget(event.target.value);
+                    setEditError('');
+                  }}
+                  disabled={isSaving || isDeleting}
+                  placeholder="Masukkan target kegiatan"
+                />
+              </div>
+
+              {editError && (
+                <p className="pimpinan-activity-edit-dialog__error">{editError}</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="pimpinan-activity-edit-dialog__footer">
+            <Button
+              type="button"
+              variant="destructive"
+              className="pimpinan-activity-edit-dialog__delete"
+              onClick={() => editingItem && setDeletingItem(editingItem)}
+              disabled={isSaving || isDeleting}
+            >
+              <Trash2 className="size-4" />
+              Hapus
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={!hasTargetChanged || isSaving || isDeleting}
+              className="pimpinan-activity-edit-dialog__save"
+            >
+              {isSaving ? 'Menyimpan...' : 'Simpan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(deletingItem)} onOpenChange={(open) => !open && !isDeleting && setDeletingItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Kegiatan Pegawai?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Kegiatan “{deletingItem?.namaKegiatan}” beserta seluruh realisasinya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

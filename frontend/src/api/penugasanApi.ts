@@ -33,6 +33,7 @@ export type PenugasanButir = {
   statusPengajuan?: 'diajukan' | 'diterima' | 'diubah';
   approvalStatus?: 'draft' | 'pending' | 'approved' | 'rejected';
   dibuatOlehPegawai?: boolean;
+  statusUpdatedAt?: string;
   realisasiTotal?: number;
   realisasiCount?: number;
 };
@@ -243,6 +244,11 @@ export async function updatePenugasanButir(id: string, payload: PenugasanButirUp
 export async function updatePimpinanPenugasanButir(id: string, payload: PenugasanButirUpdatePayload) {
   const response = await axiosInstance.patch<{ data: PenugasanButir }>(`/penugasan/pimpinan/butir/${id}`, payload);
   return response.data.data;
+}
+
+export async function deletePimpinanPenugasanButir(id: string) {
+  const response = await axiosInstance.delete(`/penugasan/pimpinan/butir/${id}`);
+  return response.data;
 }
 
 export async function updateMyPenugasanButirTarget(id: string, payload: PenugasanButirUpdatePayload) {

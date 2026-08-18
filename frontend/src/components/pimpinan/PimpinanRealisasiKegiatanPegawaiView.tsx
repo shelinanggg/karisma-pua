@@ -246,7 +246,7 @@ export function PimpinanRealisasiKegiatanPegawaiView() {
             {employee?.nama || 'Pegawai'} - NIP {employee?.nip || '-'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
+        <CardContent className="pimpinan-realisasi-summary-grid">
           {[
             ['Target', target > 0 ? formatNumber(target) : '-'],
             ['Total Realisasi', formatNumber(totalRealisasi)],

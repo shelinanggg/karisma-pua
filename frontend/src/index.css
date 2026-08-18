@@ -3055,6 +3055,173 @@ html {
   opacity: 1;
 }
 
+/* Dialog edit kegiatan pegawai pada role pimpinan. */
+.pimpinan-activity-edit-dialog {
+  width: min(608px, calc(100vw - 2rem));
+  max-width: 608px;
+  max-height: 72vh;
+  padding: 1rem;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.pimpinan-activity-edit-dialog__header {
+  gap: 0.25rem;
+}
+
+.pimpinan-activity-edit-dialog__title {
+  color: var(--foreground);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+}
+
+.pimpinan-activity-edit-dialog__description {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.pimpinan-activity-edit-dialog__body {
+  display: flex;
+  max-height: calc(72vh - 9rem);
+  padding-right: 0.25rem;
+  padding-bottom: 0.75rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.pimpinan-activity-edit-dialog__summary {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--muted) 35%, var(--card));
+}
+
+.pimpinan-activity-edit-dialog__activity-name {
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+}
+
+.pimpinan-activity-edit-dialog__year {
+  margin-top: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.pimpinan-activity-edit-dialog__section,
+.pimpinan-activity-edit-dialog__target {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pimpinan-activity-edit-dialog__section-title,
+.pimpinan-activity-edit-dialog__target > label {
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.pimpinan-activity-edit-dialog__info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.pimpinan-activity-edit-dialog__info-card {
+  min-width: 0;
+  padding: 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+}
+
+.pimpinan-activity-edit-dialog__info-label {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pimpinan-activity-edit-dialog__info-value {
+  margin-top: 0.125rem;
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.pimpinan-activity-edit-dialog__target-input {
+  width: 100%;
+  background: var(--input-background);
+}
+
+.pimpinan-activity-edit-dialog__error {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--status-failed-bg, #fef2f2);
+  color: var(--status-failed, #dc2626);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.pimpinan-activity-edit-dialog__footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pimpinan-activity-edit-dialog__delete,
+.pimpinan-activity-edit-dialog__save {
+  min-width: 6.875rem;
+}
+
+.pimpinan-activity-edit-dialog__save:disabled {
+  border-color: #d1d5db;
+  background-color: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.dark .pimpinan-activity-edit-dialog__save:disabled {
+  border-color: #4b5563;
+  background-color: #374151;
+  color: #9ca3af;
+}
+
+.pimpinan-realisasi-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 639px) {
+  .pimpinan-activity-edit-dialog {
+    max-height: 86vh;
+  }
+
+  .pimpinan-activity-edit-dialog__body {
+    max-height: calc(86vh - 9rem);
+  }
+
+  .pimpinan-activity-edit-dialog__info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dashboard-kpi-icon {
   display: flex;
   width: 2rem;
