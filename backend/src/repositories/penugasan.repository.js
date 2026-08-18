@@ -54,6 +54,7 @@ const mapButirAssignmentRow = (row) => ({
   targetKetercapaian: row.target_ketercapaian ?? "",
   status: row.status,
   statusPengajuan: row.status_pengajuan ?? "diajukan",
+  statusUpdatedAt: row.updated_at ?? "",
   approvalStatus:
     row.status_pengajuan === "diterima" || row.status_pengajuan === "diubah"
       ? "approved"
@@ -311,7 +312,8 @@ const butirAssignmentSelect = `
     pengguna_kegiatan.deskripsi,
     pengguna_kegiatan.target_ketercapaian,
     pengguna_kegiatan.status,
-    pengguna_kegiatan.status_pengajuan
+    pengguna_kegiatan.status_pengajuan,
+    pengguna_kegiatan.updated_at
   FROM pengguna_kegiatan
   INNER JOIN butir_kegiatan
     ON butir_kegiatan.id_butir_kegiatan = pengguna_kegiatan.id_butir_kegiatan
@@ -703,6 +705,7 @@ export const findCurrentYearButirAssignmentsByEmployee = async (idPengguna, filt
         pengguna_kegiatan.target_ketercapaian,
         pengguna_kegiatan.status,
         pengguna_kegiatan.status_pengajuan,
+        pengguna_kegiatan.updated_at,
         periode_skp.tahun,
         ${formatDateColumn("periode_skp.tanggal_mulai")} AS tanggal_mulai,
         ${formatDateColumn("periode_skp.tanggal_selesai")} AS tanggal_selesai,
@@ -933,7 +936,8 @@ export const findPendingApprovalKegiatan = async () => {
         pengguna_kegiatan.deskripsi,
         pengguna_kegiatan.target_ketercapaian,
         pengguna_kegiatan.status,
-        pengguna_kegiatan.status_pengajuan
+        pengguna_kegiatan.status_pengajuan,
+        pengguna_kegiatan.updated_at
       FROM pengguna_kegiatan
       INNER JOIN pengguna
         ON pengguna.id_pengguna = pengguna_kegiatan.id_pengguna

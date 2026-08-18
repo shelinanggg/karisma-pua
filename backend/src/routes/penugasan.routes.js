@@ -42,6 +42,7 @@ router.get("/pimpinan/kinerja/pegawai/:pegawaiId", authorizeRoles("pimpinan"), g
 router.post("/pimpinan/butir", authorizeRoles("pimpinan"), postButirAssignment);
 router.get("/pimpinan/butir/pegawai/:pegawaiId", authorizeRoles("pimpinan"), getButirAssignmentsByEmployee);
 router.patch("/pimpinan/butir/:id", authorizeRoles("pimpinan"), patchButirAssignment);
+router.delete("/pimpinan/butir/:id", authorizeRoles("pimpinan"), removeButirAssignment);
 router.get("/pimpinan/tambahan", authorizeRoles("pimpinan"), getAdditionalAssignments);
 router.get("/pimpinan/tambahan/:id", authorizeRoles("pimpinan"), getAdditionalAssignment);
 router.post("/pimpinan/tambahan", authorizeRoles("pimpinan"), postAdditionalAssignment);
